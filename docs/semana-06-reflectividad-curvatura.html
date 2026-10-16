@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reflectividad y toma de fibra</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  select { width:100%; margin-top:4px; }
+  .valor { float:right; font-weight:bold; color:var(--guinda); }
+  .opcion { display:flex; align-items:center; gap:8px; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  .opcion input { margin:0; width:18px; height:18px; flex:none; }
+  .lectura .formula { display:block; margin:2px 0 6px; }
+  .lectura .renglon { margin:0 0 6px; }
+  .nota { color:var(--gris); font-size:.95rem; margin-top:8px; }
+  .botonera { display:flex; flex-wrap:wrap; }
+  .rotulo { font-weight:bold; color:var(--azul-oscuro); margin:10px 0 4px; font-size:1rem; }
+  .rotulo:first-child { margin-top:0; }
+  details { margin-top:12px; border:1px solid var(--borde); border-radius:8px; padding:6px 10px; }
+  details summary { cursor:pointer; font-weight:bold; color:var(--azul-oscuro); }
+  canvas.clic { cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 06 · Reflectividad, curvatura y toma física de fibra</div>
+  <h1>Reflectividad y toma por curvatura: cuándo la luz rebota y cuándo se fuga</h1>
+  <p class="sub">Calcula cuánta luz se refleja en un conector, prueba el gel igualador y dobla una fibra hasta que un atacante pueda leer la luz que escapa.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Reflectividad</button>
+    <button type="button" data-vista="v2" role="tab">Curvatura y toma física</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="med1">Medio 1 (de donde viene la luz)</label>
+        <select id="med1"></select>
+        <label for="n1">Índice n₁ <span class="valor" id="n1Txt"></span></label>
+        <input id="n1" type="range" min="1" max="1.8" step="0.001" value="1.468">
+
+        <label for="med2">Medio 2 (lo que hay del otro lado)</label>
+        <select id="med2"></select>
+        <label for="n2">Índice n₂ <span class="valor" id="n2Txt"></span></label>
+        <input id="n2" type="range" min="1" max="1.8" step="0.001" value="1">
+
+        <div class="botonera">
+          <button type="button" class="accion" id="conAire">Hueco con aire</button>
+          <button type="button" class="accion" id="conGel">Rellenar con gel igualador (n = 1.46)</button>
+          <button type="button" class="accion" id="cambiar">Intercambiar medios</button>
+        </div>
+
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <div class="rotulo">Incidencia normal en la interfaz</div>
+        <canvas id="lienzoR" aria-label="Haz que llega a la interfaz entre dos medios: parte se refleja y parte se transmite"></canvas>
+        <div class="rotulo">Reflectividad según el índice del medio 2 (escala logarítmica; haz clic para elegir n₂)</div>
+        <canvas id="curvaR" class="clic" aria-label="Gráfica de la reflectividad contra el índice del segundo medio"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: ¿qué refleja más, una cara de fibra frente a aire o frente a agua? Verifícalo.</li>
+            <li>¿Con qué valor de n₂ se hace R = 0? ¿Qué significa físicamente?</li>
+            <li>Intercambia los medios (la luz va del aire al vidrio). ¿Cambia R? ¿Por qué?</li>
+            <li>Mueve n₂ un poco alrededor del índice del núcleo. ¿Por qué la gráfica necesita escala logarítmica? ¿Basta con "rellenar" el hueco con cualquier gel?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> La luz reflejada en un conector <i>no</i> se fuga de la fibra: regresa por el núcleo hacia el transmisor (pérdida de retorno). Su importancia es otra: un OTDR envía pulsos y mide los ecos; con el tiempo de ida y vuelta, d = c·t/(2n), localiza conectores, empalmes, dobleces o un dispositivo de toma. Un pico de reflexión nuevo que no está en la documentación del enlace puede delatar un empalme o un dispositivo instalado sin autorización.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="radio">Radio de curvatura R <small>(en múltiplos del radio del núcleo a)</small> <span class="valor" id="radioTxt"></span></label>
+        <input id="radio" type="range" min="0" max="1000" step="1" value="0">
+        <div class="botonera">
+          <button type="button" class="accion" id="cerrar">Cerrar un poco el doblez</button>
+          <button type="button" class="accion" id="abrir">Abrirlo un poco</button>
+        </div>
+
+        <label for="theta0">Rayo más inclinado del haz, en el tramo recto θ₀ <span class="valor" id="theta0Txt"></span></label>
+        <input id="theta0" type="range" min="80.7" max="89" step="0.1" value="84">
+
+        <label for="umbral">Umbral de alarma del monitor <small>(caída de potencia)</small> <span class="valor" id="umbralTxt"></span></label>
+        <input id="umbral" type="range" min="0.5" max="10" step="0.5" value="3">
+
+        <label class="opcion"><input type="checkbox" id="cifrado"> Enlace cifrado (MACsec o cifrado del transporte óptico)</label>
+
+        <details>
+          <summary>Cambiar los índices de la fibra</summary>
+          <label for="nNuc">Núcleo n₁ <span class="valor" id="nNucTxt"></span></label>
+          <input id="nNuc" type="range" min="1.4" max="1.6" step="0.001" value="1.48">
+          <label for="nRev">Revestimiento n₂ <span class="valor" id="nRevTxt"></span></label>
+          <input id="nRev" type="range" min="1.38" max="1.59" step="0.001" value="1.46">
+          <button type="button" class="accion" id="fibraLibro">Fibra del ejemplo del libro (1.48 / 1.46)</button>
+        </details>
+
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <div class="rotulo">La fibra pasa por la pinza del atacante</div>
+        <canvas id="lienzoF" aria-label="Fibra doblada alrededor de una pinza; la luz que se fuga en el doblez llega a un fotodetector y el receptor monitorea la potencia"></canvas>
+        <p class="nota">Dibujo no a escala: el núcleo está ensanchado y los ángulos exagerados, como en la figura del libro. Los números de la caja son los del modelo.</p>
+        <div class="rotulo">Luz que fuga según el radio (modelo ilustrativo; haz clic para elegir R)</div>
+        <canvas id="curvaF" class="clic" aria-label="Porcentaje de luz que fuga contra el radio de curvatura, con el umbral de alarma"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Cierra el doblez poco a poco. ¿En qué radio empieza a fugarse la luz? Compara θ<sub>local</sub> con θc en ese momento.</li>
+            <li>Busca un radio con el que el atacante capte luz sin que salte la alarma. ¿Qué propiedad de la tríada CIA se pierde y cuál no?</li>
+            <li>Baja el umbral de alarma. ¿Qué tomas detecta ahora? ¿Qué problema operativo aparece con un umbral muy bajo?</li>
+            <li>Activa el cifrado. ¿Cambia lo que mide el monitor? ¿Qué cambia para el atacante?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> En la toma por curvatura (<i>bend-and-tap</i>) el atacante dobla un tramo expuesto y pone un fotodetector junto al doblez: copia la señal sin cortar la fibra ni interrumpir el servicio. Los acopladores de pinza son también herramientas legítimas de los técnicos (equipo de doble uso). Para detectarla se monitorea la potencia recibida contra su línea base y se revisa el enlace con OTDR; un umbral bajo detecta tomas más pequeñas pero da falsas alarmas. La defensa de fondo es que lo capturado sea ininteligible: cifrar el enlace.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap02_campos_magneticos.tex (Ecuaciones eq:reflectividad, eq:otdr-distancia y eq:angulo-critico; ejemplo del umbral de 3 % y la toma de 1 %). Modelo ilustrativo: la relación entre el radio del doblez y el ángulo local (geometría de rayos) y la fracción de luz que fuga. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  var PI = Math.PI, RAD = PI / 180;
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  var vistaActiva = "v1";
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  function sci(x, dec) {
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = x / Math.pow(10, e);
+    if (Math.abs(Number(m.toFixed(dec))) >= 10) { m /= 10; e += 1; }
+    return num(m, dec) + "×10" + sup(e);
+  }
+  // Fracción como número legible: 0.0360 o 7.47×10⁻⁶
+  function frac(x) { return x === 0 ? "0" : (x >= 1e-3 ? num(x, 4) : sci(x, 2)); }
+  function pct(x) { return x === 0 ? "0 %" : (x >= 1e-3 ? num(100 * x, 2) + " %" : sci(100 * x, 2) + " %"); }
+  // Porcentaje de fuga: más decimales cuando es muy pequeño
+  function pctF(f) { return num(100 * f, f > 0 && f < 1e-3 ? 3 : 2) + " %"; }
+  function tamLetra(w) { return w < 520 ? 14 : (w < 760 ? 15 : 16); }
+  function asinG(x) { return Math.asin(x) / RAD; }
+  function sinG(a) { return Math.sin(a * RAD); }
+
+  // Ayudantes de dibujo
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones, alfa) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (alfa !== undefined) g.globalAlpha = alfa;
+    if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function textoFondo(g, t, x, y, color, tam, alin, negrita) {
+    g.save(); g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    var an = g.measureText(t).width, x0 = alin === "center" ? x - an / 2 : (alin === "right" ? x - an : x);
+    g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam + 1, an + 6, tam + 5);
+    g.restore(); texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  // Flecha gruesa (cuerpo rectangular) de (x0,y) a (x1,y), horizontal
+  function flechaGruesa(g, x0, x1, y, ancho, color) {
+    var dir = x1 > x0 ? 1 : -1, punta = Math.max(10, Math.min(26, ancho * 0.9 + 8)), medio = Math.max(1.5, ancho);
+    g.save(); g.fillStyle = color;
+    g.fillRect(Math.min(x0, x1 - dir * punta), y - medio / 2, Math.abs(x1 - dir * punta - x0), medio);
+    g.beginPath(); g.moveTo(x1, y); g.lineTo(x1 - dir * punta, y - Math.max(medio, 10) / 2 - 5);
+    g.lineTo(x1 - dir * punta, y + Math.max(medio, 10) / 2 + 5); g.closePath(); g.fill(); g.restore();
+  }
+  function tinte(n) { var a = Math.max(0, Math.min(1, (n - 1) / 0.8)); return "rgba(0,64,143," + (0.04 + 0.24 * a).toFixed(3) + ")"; }
+  function refl(n1, n2) { var r = (n1 - n2) / (n1 + n2); return r * r; }
+
+  // ==================================================================
+  // VISTA 1 · Reflectividad
+  // ==================================================================
+  var MAT1 = [
+    { id: "nucleo", nombre: "Cara de fibra (núcleo)", n: 1.468 },
+    { id: "vidrio", nombre: "Vidrio", n: 1.50 },
+    { id: "cuarzo", nombre: "Cuarzo", n: 1.544 },
+    { id: "agua", nombre: "Agua", n: 1.333 },
+    { id: "aire", nombre: "Aire", n: 1.00 }
+  ];
+  var MAT2 = [
+    { id: "aire", nombre: "Aire (hueco del conector)", n: 1.00 },
+    { id: "gel", nombre: "Gel igualador del libro", n: 1.46 },
+    { id: "agua", nombre: "Agua", n: 1.333 },
+    { id: "hielo", nombre: "Hielo", n: 1.309 },
+    { id: "nucleo", nombre: "Otra cara de fibra (núcleo)", n: 1.468 },
+    { id: "vidrio", nombre: "Vidrio", n: 1.50 },
+    { id: "cuarzo", nombre: "Cuarzo", n: 1.544 }
+  ];
+  function llenar(sel, lista, inicial) {
+    lista.forEach(function (m) { var o = document.createElement("option"); o.value = m.id; o.textContent = m.nombre + " (n = " + (String(m.n).length < 4 ? m.n.toFixed(2) : String(m.n)) + ")"; sel.appendChild(o); });
+    var o = document.createElement("option"); o.value = "pers"; o.textContent = "Personalizado (usa el deslizador)"; sel.appendChild(o);
+    sel.value = inicial;
+  }
+  llenar($("med1"), MAT1, "nucleo"); llenar($("med2"), MAT2, "aire");
+  function buscar(lista, id) { for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i]; return null; }
+  function buscarN(lista, n) { for (var i = 0; i < lista.length; i++) if (Math.abs(lista[i].n - n) < 1e-9) return lista[i]; return null; }
+  function sincronizar(sel, lista, n) { var m = buscar(lista, sel.value); if (!m || Math.abs(m.n - n) > 1e-9) { var h = buscarN(lista, n); sel.value = h ? h.id : "pers"; } }
+  function nombre(sel, lista, n) { var m = buscar(lista, sel.value); return m && Math.abs(m.n - n) < 1e-9 ? m.nombre : "Medio personalizado"; }
+
+  function params1() {
+    var n1 = Number($("n1").value), n2 = Number($("n2").value), R = refl(n1, n2);
+    return { n1: n1, n2: n2, R: R, T: 1 - R, Raire: refl(n1, 1.0) };
+  }
+
+  function lectura1() {
+    var p = params1(), h = "";
+    $("n1Txt").textContent = num(p.n1, 3); $("n2Txt").textContent = num(p.n2, 3);
+    var dif = p.n1 - p.n2, sum = p.n1 + p.n2;
+    h += '<div class="renglon"><b>Reflectividad (incidencia normal)</b><span class="formula">R = ((n₁ − n₂)/(n₁ + n₂))²</span>';
+    h += "R = ((" + num(p.n1, 3) + " − " + num(p.n2, 3) + ")/(" + num(p.n1, 3) + " + " + num(p.n2, 3) + "))² = (" +
+         num(dif, 3) + "/" + num(sum, 3) + ")² = <b>" + frac(p.R) + "</b> → <b>" + pct(p.R) + "</b> se refleja</div>";
+    h += '<div class="renglon"><b>Transmitido:</b> 1 − R ' + (p.R < 1e-4 ? "≈ 100 %" : "= " + pct(p.T)) + " (sin contar absorción)</div>";
+    if (p.R === 0) {
+      h += '<div class="renglon"><span class="ok">R = 0: los índices son iguales y no hay interfaz óptica; la luz pasa sin reflejarse.</span></div>';
+    } else if (Math.abs(p.n2 - 1) > 1e-9 && p.Raire > 0) {
+      var veces = p.Raire / p.R;
+      h += '<div class="renglon"><b>Comparado con un hueco de aire</b> (R = ' + pct(p.Raire) + "): " +
+           (veces >= 1 ? '<span class="ok">' + num(veces, veces < 10 ? 1 : 0) + " veces menos reflexión</span>"
+                       : '<span class="mal">' + num(1 / veces, 1) + " veces más reflexión</span>") + "</div>";
+    }
+    h += '<div class="renglon">La luz reflejada no sale de la fibra: regresa por el núcleo hacia el transmisor (pérdida de retorno).</div>';
+    $("lectura1").innerHTML = h;
+  }
+
+  var cvR = $("lienzoR"), cvC = $("curvaR"), geoC = null;
+  function dibujarInterfaz() {
+    var p = params1(), narrow = (cvR.clientWidth || 600) < 560;
+    var d = preparar(cvR, narrow ? 0.62 : 0.36), g = d.g, w = d.w, h = d.h, F = tamLetra(w);
+    g.clearRect(0, 0, w, h);
+    var xm = w / 2;
+    g.save(); g.fillStyle = tinte(p.n1); g.fillRect(0, 0, xm, h); g.fillStyle = tinte(p.n2); g.fillRect(xm, 0, w - xm, h); g.restore();
+    linea(g, xm, 0, xm, h, C.azulOscuro, 2.5);
+    texto(g, nombre($("med1"), MAT1, p.n1), 10, F + 6, C.azulOscuro, F, "left", "alphabetic", true);
+    texto(g, "n₁ = " + num(p.n1, 3), 10, 2 * F + 10, C.azulOscuro, F);
+    texto(g, nombre($("med2"), MAT2, p.n2), w - 10, F + 6, C.azulOscuro, F, "right", "alphabetic", true);
+    texto(g, "n₂ = " + num(p.n2, 3), w - 10, 2 * F + 10, C.azulOscuro, F, "right");
+    var AN = narrow ? 30 : 42, yI = h * 0.46, yR = h * 0.74;
+    // Incidente (100 %)
+    flechaGruesa(g, 14, xm - 4, yI, AN, C.azul);
+    textoFondo(g, "incidente: 100 %", 16, yI - AN / 2 - 10, C.azul, F, "left", true);
+    // Transmitido
+    if (p.T > 0) flechaGruesa(g, xm + 4, w - 14, yI, AN * p.T, C.guinda);
+    textoFondo(g, "transmitido: " + (p.R < 1e-4 ? "≈ 100 %" : pct(p.T)), w - 16, yI - AN / 2 - 10, C.guinda, F, "right", true);
+    // Reflejado (dibujado más abajo para que no se encime; en realidad regresa por el mismo camino)
+    flechaGruesa(g, xm - 4, narrow ? w * 0.08 : w * 0.12, yR, Math.max(2, AN * p.R), C.oroTexto);
+    textoFondo(g, "reflejado: " + pct(p.R), narrow ? w * 0.08 : w * 0.12, yR + 30, C.oroTexto, F, "left", true);
+    texto(g, "(regresa por el mismo camino; aquí se dibuja abajo para verlo)", 10, h - 8, C.gris, F - 2, "left");
+  }
+
+  function dibujarCurvaR() {
+    var p = params1(), narrow = (cvC.clientWidth || 600) < 560;
+    var d = preparar(cvC, narrow ? 0.62 : 0.34), g = d.g, w = d.w, h = d.h, F = tamLetra(w);
+    var izq = 50, der = w - 14, arr = 16, abj = h - 40, NMIN = 1.0, NMAX = 1.8, LMIN = -8, LMAX = 0;
+    function X(n) { return izq + (n - NMIN) / (NMAX - NMIN) * (der - izq); }
+    function Y(r) { var l = r <= 0 ? LMIN : Math.max(LMIN, Math.log10(r)); return abj - (l - LMIN) / (LMAX - LMIN) * (abj - arr); }
+    geoC = { izq: izq, der: der, NMIN: NMIN, NMAX: NMAX };
+    g.clearRect(0, 0, w, h);
+    for (var e = LMIN; e <= LMAX; e += 2) {
+      linea(g, izq, Y(Math.pow(10, e)), der, Y(Math.pow(10, e)), "#F0F2F6", 1);
+      texto(g, e === 0 ? "1" : "10" + sup(e), izq - 6, Y(Math.pow(10, e)) + 5, C.gris, F - 1, "right");
+    }
+    for (var n = 1.0; n <= 1.8001; n += 0.1) {
+      linea(g, X(n), arr, X(n), abj, "#F0F2F6", 1);
+      texto(g, num(n, 1), X(n), abj + F + 3, C.gris, F - 1, "center");
+    }
+    linea(g, izq, abj, der, abj, C.gris, 1.2); linea(g, izq, arr, izq, abj, C.gris, 1.2);
+    texto(g, "n₂", der, abj - 6, C.gris, F, "right");
+    texto(g, "R", izq + 6, arr + F, C.gris, F, "left");
+    // Referencias del libro
+    [{ n: 1.0, t: "aire" }, { n: 1.333, t: "agua" }, { n: 1.46, t: "gel" }].forEach(function (r) {
+      linea(g, X(r.n), arr, X(r.n), abj, C.oro, 1.2, [3, 4]);
+      texto(g, r.t, X(r.n) + (r.t === "gel" ? -4 : 4), abj - 8, C.oroTexto, F - 1, r.t === "gel" ? "right" : "left");
+    });
+    // Curva con muchos puntos (la muesca en n₂ = n₁ es angosta)
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 3; g.beginPath();
+    var N = 1600;
+    for (var i = 0; i <= N; i++) {
+      var nn = NMIN + (NMAX - NMIN) * i / N, y = Y(refl(p.n1, nn));
+      if (i) g.lineTo(X(nn), y); else g.moveTo(X(nn), y);
+    }
+    // Asegurar el fondo de la muesca
+    g.stroke(); g.restore();
+    if (p.n1 >= NMIN && p.n1 <= NMAX) {
+      linea(g, X(p.n1), Y(1e-4), X(p.n1), abj, C.azul, 3);
+      textoFondo(g, "n₂ = n₁: R = 0", X(p.n1) + (X(p.n1) > der - 150 ? -8 : 8), arr + 2 * F + 8, C.azul, F - 1, X(p.n1) > der - 150 ? "right" : "left", true);
+    }
+    // Punto actual
+    var xa = X(p.n2), ya = Y(p.R);
+    linea(g, xa, arr, xa, abj, C.guinda, 1.5, [4, 4]);
+    g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xa, ya, 8, 0, 2 * PI); g.fill(); g.restore();
+    textoFondo(g, "R = " + pct(p.R), xa + (xa > der - 150 ? -12 : 12), Math.max(arr + F, ya - 10), C.guinda, F, xa > der - 150 ? "right" : "left", true);
+  }
+
+  function refrescar1() { lectura1(); dibujarInterfaz(); dibujarCurvaR(); }
+  $("med1").addEventListener("change", function () { var m = buscar(MAT1, $("med1").value); if (m) $("n1").value = m.n; refrescar1(); });
+  $("med2").addEventListener("change", function () { var m = buscar(MAT2, $("med2").value); if (m) $("n2").value = m.n; refrescar1(); });
+  $("n1").addEventListener("input", function () { sincronizar($("med1"), MAT1, Number($("n1").value)); refrescar1(); });
+  $("n2").addEventListener("input", function () { sincronizar($("med2"), MAT2, Number($("n2").value)); refrescar1(); });
+  $("conAire").addEventListener("click", function () { $("n2").value = "1"; $("med2").value = "aire"; refrescar1(); });
+  $("conGel").addEventListener("click", function () { $("n2").value = "1.46"; $("med2").value = "gel"; refrescar1(); });
+  $("cambiar").addEventListener("click", function () {
+    var a = $("n1").value, b = $("n2").value;
+    $("n1").value = b; $("n2").value = a;
+    sincronizar($("med1"), MAT1, Number(b)); sincronizar($("med2"), MAT2, Number(a)); refrescar1();
+  });
+  cvC.addEventListener("click", function (ev) {
+    if (!geoC) return;
+    var r = cvC.getBoundingClientRect(), x = ev.clientX - r.left;
+    var n = geoC.NMIN + (x - geoC.izq) / (geoC.der - geoC.izq) * (geoC.NMAX - geoC.NMIN);
+    n = Math.min(1.8, Math.max(1.0, Math.round(n * 1000) / 1000));
+    $("n2").value = n.toFixed(3); sincronizar($("med2"), MAT2, n); refrescar1();
+  });
+
+  // ==================================================================
+  // VISTA 2 · Curvatura y toma física
+  // ==================================================================
+  var RMIN = 50, RMAX = 3000;               // radio en múltiplos de a (escala logarítmica)
+  function radioDeSlider(s) {                // redondeo "amable": de 10 en 10 arriba de 1000a
+    var r = RMIN * Math.pow(RMAX / RMIN, s / 1000);
+    return r >= 1000 ? Math.round(r / 10) * 10 : Math.round(r);
+  }
+  function sliderDeRadio(r) { return Math.round(1000 * Math.log(r / RMIN) / Math.log(RMAX / RMIN)); }
+  $("radio").value = String(sliderDeRadio(1500));
+
+  // Fracción de un haz ilustrativo (posición y ángulo uniformes) cuyo ángulo local queda bajo θc
+  function fraccionFuga(rho, th0, n1, n2) {
+    if (n2 >= n1) return 1;
+    var c = n2 / n1, bmax = (90 - th0) * RAD, umin = (rho - 1) / (rho + 1), N = 400, s = 0;
+    if (bmax <= 0) return 0;
+    for (var i = 0; i < N; i++) {
+      var b = (i + 0.5) / N * bmax, gq = c / Math.cos(b);
+      s += Math.min(1, Math.max(0, (gq - umin) / (1 - umin)));
+    }
+    return s / N;
+  }
+
+  function params2() {
+    var n1 = Number($("nNuc").value), n2 = Number($("nRev").value);
+    var tc = n2 < n1 ? asinG(n2 / n1) : 90;
+    var th0 = Number($("theta0").value);
+    var rho = radioDeSlider(Number($("radio").value));
+    var factor = (rho - 1) / (rho + 1), sl = sinG(th0) * factor, tl = asinG(sl);
+    var f = fraccionFuga(rho, th0, n1, n2), u = Number($("umbral").value) / 100;
+    return { n1: n1, n2: n2, tc: tc, th0: th0, rho: rho, factor: factor, sl: sl, tl: tl, f: f, u: u,
+             caida: f < 1 ? 10 * Math.log10(1 - f) : -Infinity, umbralDb: 10 * Math.log10(1 - u),
+             fuga: tl < tc, alarma: f > u, cifrado: $("cifrado").checked };
+  }
+
+  function ajustarTheta0() {
+    var n1 = Number($("nNuc").value), n2 = Number($("nRev").value), tc = n2 < n1 ? asinG(n2 / n1) : 89;
+    var minimo = Math.min(88.9, Math.ceil((tc + 0.1) * 10) / 10);
+    $("theta0").min = String(minimo);
+    if (Number($("theta0").value) < minimo) $("theta0").value = String(minimo);
+  }
+
+  function lectura2() {
+    var p = params2(), h = "";
+    $("radioTxt").textContent = "R = " + num(p.rho, 0) + "a";
+    $("theta0Txt").textContent = num(p.th0, 1) + "°";
+    $("umbralTxt").textContent = num(p.u * 100, 1) + " %";
+    $("nNucTxt").textContent = num(p.n1, 3); $("nRevTxt").textContent = num(p.n2, 3);
+    if (p.n2 >= p.n1) {
+      $("lectura2").innerHTML = '<div class="renglon"><span class="mal">n₂ ≥ n₁: no hay ángulo crítico ni reflexión total interna; la fibra no confina la luz.</span></div>';
+      return;
+    }
+    h += '<div class="renglon"><b>Ángulo crítico:</b> θ<sub>c</sub> = sen⁻¹(n₂/n₁) = sen⁻¹(' + num(p.n2, 3) + "/" + num(p.n1, 3) + ") = " + num(p.tc, 2) + "°</div>";
+    h += '<div class="renglon"><b>Tramo recto:</b> θ₀ = ' + num(p.th0, 1) + '° &gt; θc → <span class="ok">reflexión total, no hay fuga</span></div>';
+    h += '<div class="renglon"><b>En el doblez</b> (rayo más expuesto; modelo de rayos)<span class="formula">sen θ<sub>local</sub> = sen θ₀ · (R − a)/(R + a)</span>';
+    h += "= sen " + num(p.th0, 1) + "° · (" + num(p.rho - 1, 0) + "/" + num(p.rho + 1, 0) + ") = " + num(p.sl, 5) + " → <b>θ<sub>local</sub> = " + num(p.tl, 2) + "°</b><br>";
+    h += p.fuga ? '<span class="mal">θ<sub>local</sub> &lt; θc: parte de la luz se refracta al revestimiento y escapa en el doblez.</span>'
+                : '<span class="ok">θ<sub>local</sub> &gt; θc: todo el haz sigue confinado.</span>';
+    h += "</div>";
+    h += '<div class="renglon"><b>Luz que fuga del haz</b> (modelo ilustrativo): f = ' + pctF(p.f) +
+         (p.f > 0 ? "; el fotodetector del atacante la capta." : ": no hay luz que capturar.") + "</div>";
+    h += '<div class="renglon"><b>Monitor de potencia:</b> caída = 10 log₁₀(1 − f) = 10 log₁₀(' + num(1 - p.f, 4) + ") = " + num(p.caida, 3) + " dB; umbral " +
+         num(p.u * 100, 1) + " % → 10 log₁₀(" + num(1 - p.u, 3) + ") = " + num(p.umbralDb, 3) + " dB</div>";
+    var veredicto;
+    if (p.f <= 0) veredicto = '<span class="ok">Sin fuga: no hay nada que capturar y el monitor no ve cambios.</span>';
+    else if (!p.alarma) veredicto = '<span class="mal">Toma sigilosa: el atacante capta ' + pctF(p.f) + " de la luz y la alarma no salta. Se pierde la confidencialidad, no la disponibilidad.</span>";
+    else veredicto = '<span class="ok">Salta la alarma: la caída supera el umbral.</span> Toca revisar con OTDR el punto del doblez contra la línea base del enlace.';
+    h += '<div class="renglon">' + veredicto + "</div>";
+    if (p.f > 0) h += '<div class="renglon">' + (p.cifrado ? '<span class="ok">Enlace cifrado: lo que capta el atacante es ininteligible.</span>'
+                                                          : "Sin cifrado, lo que capta el atacante es una copia legible de los datos.") + "</div>";
+    $("lectura2").innerHTML = h;
+  }
+
+  var cvF = $("lienzoF"), cvG = $("curvaF"), geoG = null;
+  function caja(g, x, y, an, al, borde, fondo) {
+    g.save(); g.fillStyle = fondo; g.strokeStyle = borde; g.lineWidth = 2;
+    g.beginPath(); g.rect(x, y, an, al); g.fill(); g.stroke(); g.restore();
+  }
+
+  function dibujarFibra() {
+    var p = params2(), narrow = (cvF.clientWidth || 600) < 560;
+    var d = preparar(cvF, narrow ? 1.3 : 0.52), g = d.g, w = d.w, h = d.h, F = tamLetra(w);
+    g.clearRect(0, 0, w, h);
+    var a = narrow ? 10 : 15, cl = narrow ? 7 : 10;            // radio del núcleo y grosor del revestimiento (dibujo)
+    var yA = h * (narrow ? 0.36 : 0.30), xTx = narrow ? 50 : 92, xB = w * (narrow ? 0.40 : 0.38);
+    var t = Math.log(p.rho / RMIN) / Math.log(RMAX / RMIN);
+    var rd = (narrow ? 26 : 46) + t * (narrow ? 70 : 220);     // radio dibujado (crece con R)
+    var PHI = (narrow ? 70 : 55) * RAD, cx = xB, cy = yA + rd;
+    var ang1 = -PI / 2 + PHI, xE = cx + rd * Math.cos(ang1), yE = cy + rd * Math.sin(ang1);
+    var tx = Math.cos(PHI), ty = Math.sin(PHI);
+    var anR = narrow ? 104 : 116, alR = narrow ? 70 : 74;
+    var largoFin = narrow ? Math.max(10, Math.min((h - alR - 10 - yE) / ty, (w - 10 - xE) / tx))
+                          : Math.min((w - 120 - xE) / tx, (h - 40 - yE) / ty);
+    var xR = xE + tx * largoFin, yR = yE + ty * largoFin;
+    // Pinza (mandril) dentro del doblez
+    g.save(); g.fillStyle = "#DDE2EA"; g.strokeStyle = C.gris; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(cx, cy, Math.max(8, rd - a - cl - 6), 0, 2 * PI); g.fill(); g.stroke(); g.restore();
+    textoFondo(g, "pinza", cx, cy + 6, C.gris, F - 1, "center", true);
+    // Fibra: revestimiento y núcleo como trazos gruesos
+    function camino() { g.beginPath(); g.moveTo(xTx, yA); g.lineTo(xB, yA); g.arc(cx, cy, rd, -PI / 2, ang1); g.lineTo(xR, yR); }
+    g.save(); g.lineCap = "butt"; g.lineJoin = "round";
+    g.strokeStyle = "#E8DCC4"; g.lineWidth = 2 * (a + cl); camino(); g.stroke();
+    g.strokeStyle = "#C9D6EA"; g.lineWidth = 2 * a; camino(); g.stroke();
+    g.restore();
+    // Transmisor y receptor
+    caja(g, 6, yA - 24, xTx - 6, 48, C.azulOscuro, "#fff");
+    texto(g, "Tx", (6 + xTx) / 2, yA + 6, C.azulOscuro, F + 1, "center", "alphabetic", true);
+    var rx = narrow ? w - anR - 4 : Math.min(w - anR - 4, xR - 6), ry = narrow ? h - alR - 4 : Math.min(h - alR - 4, yR - 10);
+    caja(g, rx, ry, anR, alR, p.alarma ? C.guinda : C.azul, p.alarma ? C.guindaClaro : C.azulClaro);
+    texto(g, "Rx y monitor", rx + anR / 2, ry + F + 4, C.azulOscuro, F - 1, "center", "alphabetic", true);
+    texto(g, num(p.caida, 3) + " dB", rx + anR / 2, ry + 2 * F + 8, C.azulOscuro, F - 1, "center");
+    texto(g, p.alarma ? "¡ALARMA!" : "sin alarma", rx + anR / 2, ry + 3 * F + 12, p.alarma ? C.guinda : C.azul, F, "center", "alphabetic", true);
+
+    // Rayo en el tramo recto (ángulo exagerado)
+    var K = 4, bd = Math.min(32, K * (90 - p.th0)) * RAD, x = xTx, y = yA, dy = 1, ruta = [[x, y]];
+    var yArr = yA - a, yAbj = yA + a;
+    while (x < xB - 1) {
+      var ytar = dy > 0 ? yAbj : yArr, xn = x + Math.abs(ytar - y) / Math.tan(bd);
+      if (xn > xB) { xn = xB; ytar = y + dy * (xB - x) * Math.tan(bd); }
+      ruta.push([xn, ytar]); x = xn; y = ytar; dy = -dy;
+    }
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 3; g.beginPath(); g.moveTo(ruta[0][0], ruta[0][1]);
+    for (var i = 1; i < ruta.length; i++) g.lineTo(ruta[i][0], ruta[i][1]);
+    g.stroke(); g.restore();
+    textoFondo(g, "θ₀ = " + num(p.th0, 1) + "°" + (narrow ? "" : " (tramo recto)"), narrow ? 8 : xTx + 6, yA - a - cl - (narrow ? 32 : 10), C.guinda, F - 1, "left", true);
+
+    // En el doblez: rayo que pega en la pared externa a la mitad del arco
+    var psi = -PI / 2 + PHI / 2, nx = Math.cos(psi), ny = Math.sin(psi), txx = -Math.sin(psi), tyy = Math.cos(psi);
+    var Rmas = rd + a, Rmen = rd - a, Hx = cx + Rmas * nx, Hy = cy + Rmas * ny;
+    var thd = Math.max(14, 90 - K * (90 - p.tl)) * RAD;        // ángulo local dibujado (exagerado)
+    var dinx = Math.sin(thd) * txx + Math.cos(thd) * nx, diny = Math.sin(thd) * tyy + Math.cos(thd) * ny;
+    var disc = Rmas * Rmas * Math.cos(thd) * Math.cos(thd) - (Rmas * Rmas - Rmen * Rmen);
+    var sIn = disc >= 0 ? Rmas * Math.cos(thd) - Math.sqrt(disc) : Rmas * Math.cos(thd);
+    var doutx = Math.sin(thd) * txx - Math.cos(thd) * nx, douty = Math.sin(thd) * tyy - Math.cos(thd) * ny;
+    var alfaRef = p.fuga ? Math.max(0.35, 1 - p.f) : 1;
+    linea(g, Hx - sIn * dinx, Hy - sIn * diny, Hx, Hy, C.guinda, 3);
+    linea(g, Hx, Hy, Hx + sIn * doutx, Hy + sIn * douty, C.guinda, 3, null, alfaRef);
+    // Normal y ángulo local
+    linea(g, Hx - nx * (2 * a + 8), Hy - ny * (2 * a + 8), Hx + nx * (cl + 26), Hy + ny * (cl + 26), C.gris, 1.5, [5, 4]);
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5; g.beginPath();
+    var aN = Math.atan2(-ny, -nx), aR = Math.atan2(-diny, -dinx);
+    var a0 = aN, a1 = aR; if (a1 - a0 > PI) a1 -= 2 * PI; if (a0 - a1 > PI) a0 -= 2 * PI;
+    g.arc(Hx, Hy, 26, Math.min(a0, a1), Math.max(a0, a1)); g.stroke(); g.restore();
+    // Luz fugada hacia el detector
+    var dAng = 30 * RAD, dirx = Math.cos(dAng) * nx + Math.sin(dAng) * txx, diry = Math.cos(dAng) * ny + Math.sin(dAng) * tyy;
+    var anD = narrow ? 112 : 132, alD = narrow ? 64 : 70;
+    var dist = 96, Dx = Hx + dirx * dist, Dy = Hy + diry * dist;
+    if (narrow) {                       // en celular el detector va arriba a la derecha: la luz apunta hacia él
+      Dx = w - anD / 2 - 4; Dy = 4 + alD; dist = Math.hypot(Dx - Hx, Dy - Hy);
+      dirx = (Dx - Hx) / dist; diry = (Dy - Hy) / dist;
+    }
+    if (p.fuga && p.f > 0) {
+      var alfa = Math.min(0.9, 0.25 + 2.2 * Math.sqrt(p.f));
+      g.save(); g.globalAlpha = alfa; g.fillStyle = C.oro; g.beginPath(); g.moveTo(Hx, Hy);
+      var abre = 16 * RAD, dA = Math.atan2(diry, dirx);
+      g.lineTo(Hx + dist * Math.cos(dA - abre), Hy + dist * Math.sin(dA - abre));
+      g.lineTo(Hx + dist * Math.cos(dA + abre), Hy + dist * Math.sin(dA + abre));
+      g.closePath(); g.fill(); g.restore();
+      linea(g, Hx, Hy, Dx, Dy, C.guinda, 2.5, [6, 4]);
+    }
+    // Fotodetector del atacante
+    var dx0 = narrow ? w - anD - 4 : Math.min(w - anD - 4, Math.max(4, Dx - anD / 2)), dy0 = narrow ? 4 : Math.max(4, Math.min(h - alD - 4, Dy - alD / 2 - 18));
+    caja(g, dx0, dy0, anD, alD, C.guinda, "#fff");
+    texto(g, "fotodetector", dx0 + anD / 2, dy0 + F + 3, C.guinda, F - 1, "center", "alphabetic", true);
+    texto(g, "capta " + pctF(p.f), dx0 + anD / 2, dy0 + 2 * F + 7, C.tinta, F - 1, "center");
+    var lee = p.f <= 0 ? "nada" : (p.cifrado ? "7f3a 9c1e…" : "\"pago a…\"");
+    texto(g, lee, dx0 + anD / 2, dy0 + 3 * F + 10, p.cifrado ? C.gris : C.guinda, F - 1, "center", "alphabetic", true);
+    // Rótulo del ángulo local
+    var etq = "θlocal = " + num(p.tl, 2) + "° " + (p.fuga ? "<" : ">") + " θc = " + num(p.tc, 2) + "°";
+    if (narrow) {
+      textoFondo(g, "θlocal = " + num(p.tl, 2) + "°", 6, h - 14 - F - 4, p.fuga ? C.guinda : C.azul, F, "left", true);
+      textoFondo(g, (p.fuga ? "< " : "> ") + "θc = " + num(p.tc, 2) + "°", 6, h - 10, p.fuga ? C.guinda : C.azul, F, "left", true);
+      return;
+    }
+    var lx = Math.max(6, Math.min(w - 8 - etq.length * 7.6, Hx - 60)), ly = Math.min(h - 10, cy + Math.max(8, rd - a - cl - 6) + F + 10);
+    if (ly > ry - 4 && lx + etq.length * 7.6 > rx) ly = Math.min(ly, ry - 8);
+    textoFondo(g, etq, lx, Math.max(yA + a + cl + 2 * F + 8, Math.min(ly, h - 8)), p.fuga ? C.guinda : C.azul, F, "left", true);
+  }
+
+  function dibujarCurvaF() {
+    var p = params2(), narrow = (cvG.clientWidth || 600) < 560;
+    var d = preparar(cvG, narrow ? 0.62 : 0.30), g = d.g, w = d.w, h = d.h, F = tamLetra(w);
+    var izq = 52, der = w - 14, arr = 14, abj = h - 40, YM = 10;
+    var lmin = Math.log(RMIN), lmax = Math.log(RMAX);
+    function X(r) { return izq + (Math.log(r) - lmin) / (lmax - lmin) * (der - izq); }
+    function Y(fp) { return abj - Math.min(fp, YM) / YM * (abj - arr); }
+    geoG = { izq: izq, der: der };
+    g.clearRect(0, 0, w, h);
+    // Curva y zonas
+    var pts = [], N = 220;
+    for (var i = 0; i <= N; i++) { var r = RMIN * Math.pow(RMAX / RMIN, i / N); pts.push([r, 100 * fraccionFuga(r, p.th0, p.n1, p.n2)]); }
+    // Zonas: se juntan los tramos contiguos del mismo tipo para pintar bloques sin rayas
+    function zona(fp) { return fp > p.u * 100 ? "rgba(140,29,53,0.10)" : (fp > 0 ? "rgba(184,151,90,0.30)" : null); }
+    var ini = 0, colAct = zona(pts[0][1]);
+    for (var j = 1; j <= N; j++) {
+      var col = j < N ? zona(pts[j][1]) : "__fin";
+      if (col !== colAct) {
+        if (colAct) { g.save(); g.fillStyle = colAct; g.fillRect(X(pts[ini][0]), arr, X(pts[j][0]) - X(pts[ini][0]), abj - arr); g.restore(); }
+        ini = j; colAct = col;
+      }
+    }
+    for (var v = 0; v <= YM; v += 2) {
+      linea(g, izq, Y(v), der, Y(v), "#F0F2F6", 1);
+      texto(g, v + " %", izq - 6, Y(v) + 5, C.gris, F - 1, "right");
+    }
+    [50, 100, 200, 500, 1000, 2000].forEach(function (r) {
+      linea(g, X(r), arr, X(r), abj, "#F0F2F6", 1);
+      texto(g, num(r, 0) + "a", X(r), abj + F + 3, C.gris, F - 1, "center");
+    });
+    linea(g, izq, abj, der, abj, C.gris, 1.2); linea(g, izq, arr, izq, abj, C.gris, 1.2);
+    texto(g, "R", der, abj - 6, C.gris, F, "right");
+    // Umbral
+    linea(g, izq, Y(p.u * 100), der, Y(p.u * 100), C.guinda, 2, [8, 5]);
+    textoFondo(g, "umbral de alarma " + num(p.u * 100, 1) + " %", der - 6, Y(p.u * 100) - 6, C.guinda, F - 1, "right", true);
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 3; g.beginPath();
+    pts.forEach(function (q, k) { if (k) g.lineTo(X(q[0]), Y(q[1])); else g.moveTo(X(q[0]), Y(q[1])); });
+    g.stroke(); g.restore();
+    // Punto actual
+    var xa = X(p.rho), ya = Y(100 * p.f);
+    linea(g, xa, arr, xa, abj, C.guinda, 1.5, [4, 4]);
+    g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xa, ya, 8, 0, 2 * PI); g.fill(); g.restore();
+    var et = "f = " + pctF(p.f) + (100 * p.f > YM ? " (fuera de escala)" : "");
+    textoFondo(g, et, xa + (xa > der - 190 ? -12 : 12), Math.max(arr + F + 2, Math.min(abj - 8, ya - 10)), C.guinda, F, xa > der - 190 ? "right" : "left", true);
+    // Leyenda de zonas
+    var ly = arr + F + 2, lx = izq + 8;
+    if (!narrow) {
+      g.save(); g.fillStyle = "rgba(184,151,90,0.30)"; g.fillRect(lx, ly - F + 2, 16, F - 2); g.restore();
+      texto(g, "toma sigilosa", lx + 22, ly, C.oroTexto, F - 1, "left", "alphabetic", true);
+      g.save(); g.fillStyle = "rgba(140,29,53,0.10)"; g.fillRect(lx + 140, ly - F + 2, 16, F - 2); g.restore();
+      texto(g, "alarma", lx + 162, ly, C.guinda, F - 1, "left", "alphabetic", true);
+    }
+  }
+
+  function refrescar2() { ajustarTheta0(); lectura2(); dibujarFibra(); dibujarCurvaF(); }
+  ["radio", "theta0", "umbral", "nNuc", "nRev"].forEach(function (id) { $(id).addEventListener("input", refrescar2); });
+  $("cifrado").addEventListener("change", refrescar2);
+  $("fibraLibro").addEventListener("click", function () { $("nNuc").value = "1.48"; $("nRev").value = "1.46"; refrescar2(); });
+  function escalarRadio(fac) {
+    var r = radioDeSlider(Number($("radio").value)), nuevo = Math.max(RMIN, Math.min(RMAX, r * fac));
+    var s = sliderDeRadio(nuevo);
+    if (s === Number($("radio").value)) s += fac < 1 ? -1 : 1;
+    $("radio").value = String(Math.max(0, Math.min(1000, s))); refrescar2();
+  }
+  $("cerrar").addEventListener("click", function () { escalarRadio(0.95); });
+  $("abrir").addEventListener("click", function () { escalarRadio(1.05); });
+  cvG.addEventListener("click", function (ev) {
+    if (!geoG) return;
+    var r = cvG.getBoundingClientRect(), x = ev.clientX - r.left;
+    var fr = Math.min(1, Math.max(0, (x - geoG.izq) / (geoG.der - geoG.izq)));
+    $("radio").value = String(Math.round(1000 * fr)); refrescar2();
+  });
+
+  function dibujarTodo() { if (vistaActiva === "v1") refrescar1(); else refrescar2(); }
+  window.addEventListener("resize", dibujarTodo);
+  refrescar1(); refrescar2();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-06-reflectividad-curvatura.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h2v1h-2zM15 2h1v1h-1zM17 2h1v1h-1zM20 2h2v1h-2zM24 2h2v1h-2zM30 2h2v1h-2zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM13 3h3v1h-3zM20 3h1v1h-1zM24 3h1v1h-1zM29 3h1v1h-1zM32 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM17 4h2v1h-2zM22 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM30 4h1v1h-1zM32 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h3v1h-3zM17 5h1v1h-1zM20 5h1v1h-1zM23 5h3v1h-3zM29 5h3v1h-3zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h4v1h-4zM18 6h1v1h-1zM21 6h2v1h-2zM25 6h1v1h-1zM28 6h1v1h-1zM30 6h2v1h-2zM33 6h2v1h-2zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h4v1h-4zM16 7h3v1h-3zM22 7h1v1h-1zM26 7h1v1h-1zM29 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h2v1h-2zM13 9h1v1h-1zM15 9h2v1h-2zM18 9h1v1h-1zM20 9h4v1h-4zM25 9h1v1h-1zM28 9h2v1h-2zM34 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM12 10h3v1h-3zM16 10h4v1h-4zM21 10h2v1h-2zM24 10h2v1h-2zM27 10h3v1h-3zM31 10h1v1h-1zM36 10h5v1h-5zM4 11h2v1h-2zM7 11h1v1h-1zM10 11h1v1h-1zM13 11h1v1h-1zM16 11h1v1h-1zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h1v1h-1zM42 11h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM13 12h2v1h-2zM16 12h1v1h-1zM19 12h1v1h-1zM22 12h3v1h-3zM27 12h1v1h-1zM29 12h4v1h-4zM34 12h1v1h-1zM37 12h2v1h-2zM3 13h1v1h-1zM5 13h3v1h-3zM11 13h3v1h-3zM17 13h1v1h-1zM20 13h1v1h-1zM23 13h1v1h-1zM32 13h3v1h-3zM38 13h2v1h-2zM41 13h2v1h-2zM5 14h2v1h-2zM8 14h1v1h-1zM10 14h3v1h-3zM18 14h2v1h-2zM21 14h1v1h-1zM24 14h1v1h-1zM27 14h3v1h-3zM31 14h1v1h-1zM33 14h1v1h-1zM37 14h1v1h-1zM39 14h3v1h-3zM4 15h2v1h-2zM7 15h1v1h-1zM11 15h1v1h-1zM13 15h3v1h-3zM17 15h4v1h-4zM22 15h2v1h-2zM26 15h2v1h-2zM29 15h2v1h-2zM32 15h3v1h-3zM36 15h5v1h-5zM42 15h1v1h-1zM2 16h1v1h-1zM4 16h2v1h-2zM8 16h1v1h-1zM14 16h2v1h-2zM18 16h1v1h-1zM21 16h1v1h-1zM24 16h1v1h-1zM28 16h1v1h-1zM31 16h1v1h-1zM35 16h1v1h-1zM37 16h1v1h-1zM40 16h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM9 17h1v1h-1zM14 17h1v1h-1zM16 17h2v1h-2zM21 17h3v1h-3zM26 17h1v1h-1zM30 17h1v1h-1zM32 17h3v1h-3zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM2 18h1v1h-1zM4 18h2v1h-2zM7 18h4v1h-4zM14 18h1v1h-1zM16 18h4v1h-4zM21 18h1v1h-1zM24 18h1v1h-1zM26 18h3v1h-3zM31 18h5v1h-5zM37 18h1v1h-1zM40 18h1v1h-1zM42 18h1v1h-1zM5 19h1v1h-1zM9 19h1v1h-1zM11 19h2v1h-2zM14 19h1v1h-1zM18 19h6v1h-6zM25 19h1v1h-1zM27 19h1v1h-1zM30 19h1v1h-1zM32 19h2v1h-2zM36 19h3v1h-3zM41 19h2v1h-2zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM12 20h1v1h-1zM15 20h3v1h-3zM19 20h1v1h-1zM22 20h2v1h-2zM26 20h5v1h-5zM34 20h2v1h-2zM38 20h4v1h-4zM4 21h2v1h-2zM7 21h1v1h-1zM9 21h2v1h-2zM12 21h2v1h-2zM16 21h2v1h-2zM19 21h2v1h-2zM23 21h2v1h-2zM27 21h1v1h-1zM29 21h2v1h-2zM32 21h1v1h-1zM34 21h2v1h-2zM38 21h2v1h-2zM41 21h2v1h-2zM2 22h2v1h-2zM7 22h3v1h-3zM12 22h1v1h-1zM16 22h3v1h-3zM23 22h1v1h-1zM26 22h1v1h-1zM28 22h4v1h-4zM33 22h1v1h-1zM37 22h1v1h-1zM40 22h2v1h-2zM4 23h1v1h-1zM7 23h1v1h-1zM10 23h6v1h-6zM19 23h7v1h-7zM27 23h1v1h-1zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h4v1h-4zM41 23h2v1h-2zM2 24h2v1h-2zM5 24h7v1h-7zM13 24h3v1h-3zM17 24h1v1h-1zM20 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM27 24h4v1h-4zM34 24h1v1h-1zM36 24h1v1h-1zM38 24h1v1h-1zM40 24h1v1h-1zM3 25h1v1h-1zM5 25h2v1h-2zM13 25h1v1h-1zM15 25h1v1h-1zM20 25h1v1h-1zM23 25h2v1h-2zM29 25h2v1h-2zM34 25h6v1h-6zM41 25h1v1h-1zM2 26h1v1h-1zM5 26h1v1h-1zM8 26h2v1h-2zM12 26h5v1h-5zM18 26h2v1h-2zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM40 26h1v1h-1zM42 26h1v1h-1zM2 27h2v1h-2zM7 27h1v1h-1zM10 27h9v1h-9zM21 27h3v1h-3zM25 27h1v1h-1zM30 27h1v1h-1zM32 27h2v1h-2zM35 27h5v1h-5zM42 27h1v1h-1zM5 28h1v1h-1zM8 28h2v1h-2zM11 28h2v1h-2zM16 28h1v1h-1zM18 28h1v1h-1zM22 28h2v1h-2zM26 28h1v1h-1zM28 28h3v1h-3zM32 28h1v1h-1zM34 28h2v1h-2zM37 28h2v1h-2zM2 29h2v1h-2zM7 29h1v1h-1zM9 29h3v1h-3zM13 29h2v1h-2zM16 29h3v1h-3zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h5v1h-5zM39 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM8 30h1v1h-1zM10 30h2v1h-2zM13 30h2v1h-2zM16 30h4v1h-4zM22 30h1v1h-1zM24 30h5v1h-5zM31 30h1v1h-1zM33 30h1v1h-1zM39 30h2v1h-2zM2 31h3v1h-3zM7 31h1v1h-1zM9 31h2v1h-2zM13 31h5v1h-5zM28 31h2v1h-2zM31 31h1v1h-1zM33 31h1v1h-1zM35 31h2v1h-2zM38 31h1v1h-1zM40 31h3v1h-3zM2 32h1v1h-1zM5 32h2v1h-2zM8 32h5v1h-5zM14 32h1v1h-1zM18 32h3v1h-3zM22 32h2v1h-2zM25 32h2v1h-2zM28 32h2v1h-2zM34 32h4v1h-4zM39 32h1v1h-1zM41 32h1v1h-1zM2 33h1v1h-1zM5 33h3v1h-3zM11 33h1v1h-1zM14 33h1v1h-1zM18 33h1v1h-1zM23 33h3v1h-3zM28 33h3v1h-3zM35 33h3v1h-3zM39 33h1v1h-1zM42 33h1v1h-1zM2 34h1v1h-1zM7 34h2v1h-2zM10 34h3v1h-3zM14 34h2v1h-2zM17 34h1v1h-1zM19 34h1v1h-1zM24 34h2v1h-2zM27 34h2v1h-2zM31 34h1v1h-1zM34 34h5v1h-5zM40 34h2v1h-2zM10 35h1v1h-1zM12 35h3v1h-3zM21 35h2v1h-2zM25 35h1v1h-1zM30 35h2v1h-2zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM14 36h1v1h-1zM18 36h1v1h-1zM20 36h1v1h-1zM24 36h1v1h-1zM29 36h1v1h-1zM33 36h2v1h-2zM36 36h1v1h-1zM38 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h5v1h-5zM16 37h2v1h-2zM22 37h1v1h-1zM25 37h2v1h-2zM28 37h1v1h-1zM34 37h1v1h-1zM38 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h4v1h-4zM15 38h3v1h-3zM20 38h1v1h-1zM23 38h2v1h-2zM26 38h1v1h-1zM29 38h1v1h-1zM31 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h1v1h-1zM12 39h5v1h-5zM19 39h1v1h-1zM21 39h2v1h-2zM25 39h1v1h-1zM28 39h1v1h-1zM31 39h3v1h-3zM35 39h1v1h-1zM37 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h4v1h-4zM16 40h2v1h-2zM22 40h1v1h-1zM24 40h1v1h-1zM27 40h1v1h-1zM29 40h2v1h-2zM35 40h5v1h-5zM2 41h1v1h-1zM8 41h1v1h-1zM16 41h2v1h-2zM21 41h1v1h-1zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h2v1h-2zM15 42h2v1h-2zM18 42h1v1h-1zM20 42h1v1h-1zM24 42h1v1h-1zM26 42h4v1h-4zM31 42h1v1h-1zM33 42h1v1h-1zM35 42h6v1h-6z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-06-reflectividad-curvatura.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campo magnético e inducción</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); font-size:.95rem; }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Agregados de este simulador */
+  .valor { color:var(--guinda); font-weight:bold; }
+  .opciones { margin-top:4px; }
+  .opciones label, label.casilla { font-weight:normal; color:var(--tinta); margin-top:6px;
+                                   display:flex; gap:8px; align-items:flex-start; cursor:pointer; }
+  .opciones input, label.casilla input { margin-top:4px; }
+  .lectura p { margin:0 0 6px; }
+  .lectura p:last-child { margin-bottom:0; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  canvas + canvas { margin-top:10px; }
+  canvas.arrastrable { touch-action:pan-y; cursor:ew-resize; }
+  .doble { display:flex; gap:8px; align-items:center; }
+  .doble input[type=range] { flex:1; }
+  .doble input[type=number] { width:6.5em; }
+  .estado { margin-top:8px; padding:6px 10px; border-radius:8px; background:var(--azul-claro);
+            color:var(--azul-oscuro); font-weight:bold; }
+  .seguridad ul { margin:4px 0 0; padding-left:20px; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 4 · Campo magnético e inducción (y Semana 3: B = μH)</div>
+  <h1>El campo de un cable, la ley de Faraday y el núcleo magnético</h1>
+  <p class="sub">Mide el campo de una corriente con un sensor, induce una fem moviendo un imán, haz girar un generador y compara núcleos.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Campo de un cable</button>
+    <button type="button" data-vista="v2" role="tab">2. Ley de Faraday</button>
+    <button type="button" data-vista="v3" role="tab">3. Generador</button>
+    <button type="button" data-vista="v4" role="tab">4. Núcleo: B = μH</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>El cable y el sensor</h2>
+        <label for="corr">Corriente I: <span class="valor" id="corrV"></span></label>
+        <input id="corr" type="range" min="0.5" max="50" step="0.5" value="20">
+        <label for="sentido">Sentido de la corriente</label>
+        <select id="sentido">
+          <option value="1">Sale de la pantalla (⊙)</option>
+          <option value="-1">Entra en la pantalla (⊗)</option>
+        </select>
+        <label for="dist">Distancia del sensor r: <span class="valor" id="distV"></span>
+          <small>(también puedes arrastrar el sensor)</small></label>
+        <input id="dist" type="range" min="0" max="1000" step="1" value="371">
+        <label for="umb">Umbral del sensor: <span class="valor" id="umbV"></span>
+          <small>(valor ilustrativo del magnetómetro de un teléfono)</small></label>
+        <input id="umb" type="range" min="0" max="100" step="1" value="50">
+        <label class="casilla"><input type="checkbox" id="par"> Cable real: fase y neutro juntos, con corrientes opuestas</label>
+        <label for="sep">Separación entre conductores s: <span class="valor" id="sepV"></span>
+          <small>(valor ilustrativo)</small></label>
+        <input id="sep" type="range" min="0.2" max="3" step="0.1" value="1" disabled>
+        <div class="lectura" id="lectCable"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvCable" class="arrastrable" aria-label="Vista superior: conductor que atraviesa la pantalla, círculos de campo magnético y sensor a distancia r"></canvas>
+        <canvas id="cvBr" aria-label="Gráfica logarítmica del campo magnético contra la distancia, con el campo terrestre y el umbral del sensor"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si alejas el sensor al doble de distancia, ¿qué le pasa a B? ¿Y a diez veces la distancia? Compruébalo arrastrando el sensor y en la gráfica.</li>
+            <li>¿Qué corriente haría falta para que, a 1 m, el cable produjera un campo igual al terrestre más débil (25 μT)?</li>
+            <li>Activa "fase y neutro". ¿Cómo cambian la pendiente de la gráfica y la distancia de detección? ¿Por qué?</li>
+            <li>Invierte el sentido de la corriente. ¿Qué cambia en el sensor y qué no?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad: canal encubierto magnético (confidencialidad).</b> A pocos centímetros de un conductor el campo es comparable al terrestre, y el magnetómetro de un teléfono, pensado como brújula, detecta los cambios de corriente de un equipo cercano. En ODINI y MAGNETO, un <i>malware</i> modula la carga de la CPU de una computadora aislada (<i>air-gapped</i>) para transmitir bits con campos magnéticos de baja frecuencia, que una jaula de Faraday casi no detiene. Contramedidas del libro:
+          <ul>
+            <li>distancia física (el campo cae muy rápido);</li>
+            <li>blindaje de alta permeabilidad (mu-metal, pestaña 4);</li>
+            <li>prohibir teléfonos y sensores magnéticos en la zona segura y generar ruido magnético.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>El imán y la bobina</h2>
+        <div class="opciones" role="radiogroup" aria-label="Imán">
+          <label><input type="radio" name="iman" value="0.2" checked> <span>Imán de neodimio pequeño: 0.2 T en su superficie</span></label>
+          <label><input type="radio" name="iman" value="0.01"> <span>Imán de refrigerador: 10 mT en su superficie</span></label>
+        </div>
+        <label class="casilla"><input type="checkbox" id="voltear"> Voltear el imán (polo S hacia la bobina)</label>
+        <label for="vel">Rapidez del imán v: <span class="valor" id="velV"></span></label>
+        <input id="vel" type="range" min="0.05" max="1" step="0.05" value="0.2">
+        <label for="nb">Vueltas de la bobina N: <span class="valor" id="nbV"></span></label>
+        <input id="nb" type="range" min="1" max="500" step="1" value="200">
+        <label for="ab">Área de la bobina A: <span class="valor" id="abV"></span></label>
+        <input id="ab" type="range" min="1" max="20" step="0.5" value="4">
+        <button type="button" class="accion" id="pausaF">Pausa</button>
+        <button type="button" class="accion" id="autoF">Movimiento automático</button>
+        <button type="button" class="accion" id="escalaF">Reajustar escala</button>
+        <div class="estado" id="estadoF" aria-live="polite"></div>
+        <div class="lectura" id="lectF"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvEscena" class="arrastrable" aria-label="Imán que se acerca y se aleja de una bobina conectada a un galvanómetro; el imán se puede arrastrar"></canvas>
+        <canvas id="cvFem" aria-label="Gráfica de la fem inducida y del flujo contra el tiempo"></canvas>
+        <p class="nota">Modelo ilustrativo del campo del imán en su eje: B(x) = B<sub>s</sub>·[1 + (x/a)²]<sup>−3/2</sup>, con a = 2 cm; lejos decae como 1/x³. El flujo se aproxima con Φ = B·A (campo uniforme en la bobina, θ = 0). Recorrido automático: de 20 cm a 1 cm. Valores de la bobina y de la rapidez: ilustrativos.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mirar la gráfica: si al acercar el imán la fem es negativa, ¿qué signo tendrá al alejarlo? Explícalo con la ley de Lenz.</li>
+            <li>¿Cuánto vale la fem mientras el imán está quieto junto a la bobina, donde el campo es más intenso? ¿Por qué?</li>
+            <li>Duplica la rapidez. ¿Qué les pasa al pico de la fem y a la duración del pulso? ¿Y al área bajo la curva?</li>
+            <li>¿Qué controles aumentan la fem sin cambiar de imán? Relaciónalo con la cabeza lectora oculta de un <i>skimmer</i>.</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad: la inducción también sirve para espiar.</b> La cabeza de una lectora de banda magnética es una bobina: al deslizar la tarjeta, sus regiones magnetizadas cambian el flujo y aparecen los pulsos de voltaje de los datos. Un <i>skimmer</i> es una segunda cabeza oculta en la ranura de un cajero. Con la misma ley, una bobina junto a una línea telefónica analógica capta la voz sin tocar el cobre (derivación inductiva), la corriente de un par de cables induce ruido en los vecinos (diafonía) y las tarjetas RFID y NFC reciben su energía del lector.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>La bobina que gira</h2>
+        <label for="gn">Vueltas N: <span class="valor" id="gnV"></span></label>
+        <input id="gn" type="range" min="1" max="500" step="1" value="100">
+        <label for="ga">Área A: <span class="valor" id="gaV"></span></label>
+        <input id="ga" type="range" min="0.001" max="0.05" step="0.001" value="0.01">
+        <label for="gb">Campo B: <span class="valor" id="gbV"></span></label>
+        <input id="gb" type="range" min="0.01" max="1" step="0.01" value="0.2">
+        <label for="gf">Rapidez de giro f: <span class="valor" id="gfV"></span></label>
+        <input id="gf" type="range" min="1" max="100" step="1" value="60">
+        <button type="button" class="accion" id="pausaG">Pausa</button>
+        <button type="button" class="accion" id="pasoG">Avanzar 1/8 de vuelta</button>
+        <button type="button" class="accion" id="escalaG">Reajustar ejes</button>
+        <p class="nota">Valores de inicio: el generador de respaldo del ejemplo del libro. La animación va en cámara lenta (una vuelta cada 4 s); la gráfica usa el tiempo real.</p>
+        <div class="lectura" id="lectG"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvGen" aria-label="Vista superior de una bobina que gira entre dos polos y gráfica de la fem y del flujo contra el tiempo"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Usa "Avanzar 1/8 de vuelta". ¿En qué posición de la bobina es máximo el flujo? ¿Y la fem? ¿Por qué no coinciden?</li>
+            <li>Un aerogenerador gira más despacio cuando baja el viento. Si la rapidez de giro baja a la mitad, ¿qué les pasa a la amplitud y a la frecuencia de la fem?</li>
+            <li>¿Qué cambios en N, B o A duplican la fem máxima sin cambiar su frecuencia?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad: disponibilidad.</b> El generador de respaldo de un centro de datos convierte el giro de una bobina en tensión con la ley de Faraday, igual que un alternador o un aerogenerador; el transformador usa la misma ley con corriente alterna. La fem depende de N, B, A y de la rapidez de giro: si el giro se frena, bajan la amplitud y la frecuencia de la tensión que alimenta los equipos.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v4">
+    <div class="fila">
+      <div class="panel">
+        <h2>Material del núcleo</h2>
+        <div class="opciones" role="radiogroup" aria-label="Material del núcleo">
+          <label><input type="radio" name="mat" value="aire"> <span>Aire: μ<sub>r</sub> ≈ 1</span></label>
+          <label><input type="radio" name="mat" value="ferrita" checked> <span>Ferrita: μ<sub>r</sub> = 5000 (ejemplo del libro)</span></label>
+          <label><input type="radio" name="mat" value="hierro"> <span>Hierro al silicio: μ<sub>r</sub> = 4000</span></label>
+          <label><input type="radio" name="mat" value="mumetal"> <span>Mu-metal: μ<sub>r</sub> = 20 000 (ilustrativo; libro: 10⁴ a 10⁵)</span></label>
+          <label><input type="radio" name="mat" value="otro"> <span>Otro valor de μ<sub>r</sub></span></label>
+        </div>
+        <label for="mur">Permeabilidad relativa μ<sub>r</sub>: <span class="valor" id="murV"></span></label>
+        <div class="doble"><input id="mur" type="range" min="0" max="1000" step="1" value="740"><input id="murN" type="number" min="1" max="100000" step="any" value="5000" aria-label="μr exacta"></div>
+        <label for="hh">Excitación magnética H: <span class="valor" id="hhV"></span></label>
+        <div class="doble"><input id="hh" type="range" min="0" max="1000" step="1" value="325"><input id="hhN" type="number" min="0.1" max="10000" step="any" value="20" aria-label="H exacta en A/m"></div>
+        <div class="lectura" id="lectMu"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvMu" aria-label="Barras en escala logarítmica del campo B para cada material con la misma excitación H"></canvas>
+        <p class="nota">Escala logarítmica: cada división multiplica B por 10. Las barras rayadas pasan de 2 T: ahí la fórmula lineal ya no describe a un ferromagnético, que se satura.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con la misma H, ¿cuántas veces más campo da la ferrita que el aire? ¿Cambia esa razón si cambias H?</li>
+            <li>Con hierro al silicio, ¿a partir de qué H la fórmula lineal da más de 1.5 T? ¿Qué ocurre en realidad?</li>
+            <li>El mu-metal no "bloquea" el campo magnético. ¿Por qué entonces sirve como blindaje?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad.</b> El transformador de aislamiento de un puerto Ethernet usa un núcleo de ferrita que multiplica el campo; ese aislamiento galvánico protege al equipo de diferencias de potencial y sobretensiones en el cable (disponibilidad). Como no existe un "aislante" magnético, el blindaje contra campos de baja frecuencia, como los del canal ODINI, se hace con materiales de muy alta permeabilidad que desvían las líneas de campo.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap02_campos_magneticos.tex (Ecuaciones eq:B-alambre, eq:flujo-magnetico, eq:faraday, eq:generador-fem, eq:B-muH y eq:mu-relativa). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var MU0 = 4 * Math.PI * 1e-7;
+  var vistaActiva = "v1";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  function lienzo(cv, proporcion) {   // como preparar(), pero solo si cambió el tamaño (animación sin parpadeo)
+    var w = cv.clientWidth || 600, dpr = window.devicePixelRatio || 1, d = cv._d;
+    if (!d || d.wc !== w || d.prop !== proporcion || d.dpr !== dpr) {
+      d = preparar(cv, proporcion); d.wc = w; d.prop = proporcion; d.dpr = dpr; cv._d = d;
+    }
+    return d;
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sci(x, cifras) {           // 6.4×10⁻⁵
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = (x / Math.pow(10, e)).toFixed(cifras - 1);
+    if (Math.abs(parseFloat(m)) >= 10) { e += 1; m = (x / Math.pow(10, e)).toFixed(cifras - 1); }
+    return m.replace("-", "−") + "×10" + String(e).split("").map(function (c) { return SUP[c]; }).join("");
+  }
+  function sig(x, n) {                // n cifras significativas sin exponente
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x)));
+    var r = Number(x.toPrecision(n)); e = Math.floor(Math.log10(Math.abs(r)));
+    return num(r, Math.max(0, n - 1 - e));
+  }
+  var PREF = [[1e-9, "n"], [1e-6, "μ"], [1e-3, "m"], [1, ""], [1e3, "k"]];
+  function si(x, u, n) {              // 4.0×10⁻⁵ T → "40.0 μT"
+    n = n || 3;
+    var a = Math.abs(Number(x.toPrecision(n))), p = PREF[3];
+    if (a === 0) return "0 " + u;
+    for (var i = 0; i < PREF.length; i++) if (a >= PREF[i][0]) p = PREF[i];
+    if (a < 1e-9) p = PREF[0];
+    return sig(x / p[0], n) + " " + p[1] + u;
+  }
+  function nice(x) {                  // 1, 2 o 5 × 10^k, el menor ≥ x
+    var e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e;
+  }
+  function pasoBonito(x) {
+    var e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * e;
+  }
+
+  // ------------------------------------------------------------ ayudantes de dibujo
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function textoFondo(g, t, x, y, color, tam, alin, negrita) {     // texto con recuadro blanco detrás
+    g.save(); g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    var an = g.measureText(t).width, x0 = alin === "right" ? x - an : alin === "center" ? x - an / 2 : x;
+    g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(x0 - 3, y - tam / 2 - 3, an + 6, tam + 6); g.restore();
+    texto(g, t, x, y, color, tam, alin, "middle", negrita);
+  }
+  function punto(g, x, y, r, color) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); g.restore(); }
+  function flecha(g, x0, y0, x1, y1, color, ancho, punta) {
+    var ang = Math.atan2(y1 - y0, x1 - x0), largo = Math.hypot(x1 - x0, y1 - y0), p = Math.min(punta || 12, largo * 0.6);
+    linea(g, x0, y0, x1 - p * 0.6 * Math.cos(ang), y1 - p * 0.6 * Math.sin(ang), color, ancho);
+    g.save(); g.fillStyle = color; g.beginPath(); g.moveTo(x1, y1);
+    g.lineTo(x1 - p * Math.cos(ang - 0.42), y1 - p * Math.sin(ang - 0.42));
+    g.lineTo(x1 - p * Math.cos(ang + 0.42), y1 - p * Math.sin(ang + 0.42));
+    g.closePath(); g.fill(); g.restore();
+  }
+  function puntaEn(g, x, y, ang, color, tam) {      // solo la punta de flecha, orientada con ang
+    g.save(); g.fillStyle = color; g.translate(x, y); g.rotate(ang); g.beginPath();
+    g.moveTo(tam, 0); g.lineTo(-tam * 0.7, tam * 0.6); g.lineTo(-tam * 0.7, -tam * 0.6); g.closePath(); g.fill(); g.restore();
+  }
+  function fmtR(r) { return r < 1 ? num(r * 100, r < 0.1 ? 1 : 0) + " cm" : num(r, 2) + " m"; }
+
+  // ============================================================ VISTA 1: campo de un cable
+  var K = { I: 20, signo: 1, r: 0.10, umbral: 1e-6, par: false, s: 0.01, fase: 0, rv: 0.2, arrastrando: false };
+  var ZOOMS = [0.03, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10];
+  var R_MIN = 0.01, R_MAX = 5, LOG_R = Math.log10(R_MAX / R_MIN);
+  var cvCable = $("cvCable"), cvBr = $("cvBr");
+
+  function rDesdePos(p) { return Number((R_MIN * Math.pow(10, p / 1000 * LOG_R)).toPrecision(2)); }
+  function posDesdeR(r) { return Math.round(1000 * Math.log10(r / R_MIN) / LOG_R); }
+  function umbDesdePos(p) { return Number((0.1 * Math.pow(100, p / 100)).toPrecision(2)) * 1e-6; }
+  function bUno(r) { return MU0 * K.I / (2 * Math.PI * r); }                       // eq:B-alambre
+  function bPar(r) { return MU0 * K.I * K.s / (2 * Math.PI * (r * r + K.s * K.s / 4)); }   // dos conductores, sensor en la perpendicular
+  function rMaxUno() { return MU0 * K.I / (2 * Math.PI * K.umbral); }
+  function rMaxPar() { var q = MU0 * K.I * K.s / (2 * Math.PI * K.umbral) - K.s * K.s / 4; return q > 0 ? Math.sqrt(q) : 0; }
+  function bSensor() { return K.par ? bPar(K.r) : bUno(K.r); }
+  function rMax() { return K.par ? rMaxPar() : rMaxUno(); }
+  // Vector B (física, y hacia arriba) en el punto (x, y) en metros
+  function vectorB(x, y) {
+    var cond = K.par ? [[0, K.s / 2, K.signo], [0, -K.s / 2, -K.signo]] : [[0, 0, K.signo]];
+    var bx = 0, by = 0;
+    cond.forEach(function (c) {
+      var dx = x - c[0], dy = y - c[1], d2 = dx * dx + dy * dy, k = MU0 * K.I * c[2] / (2 * Math.PI * d2);
+      bx += -k * dy; by += k * dx;
+    });
+    return [bx, by];
+  }
+
+  function geomCable(w, h) {
+    var ang = w < 600, cx = ang ? w * 0.2 : w * 0.24, cy = h * 0.53;
+    if (!K.arrastrando) {
+      K.rv = ZOOMS[ZOOMS.length - 1];
+      for (var i = 0; i < ZOOMS.length; i++) if (ZOOMS[i] >= K.r * 1.15) { K.rv = ZOOMS[i]; break; }
+    }
+    return { ang: ang, cx: cx, cy: cy, esc: (w - cx - 44) / K.rv };
+  }
+
+  function dibujarCable(dt) {
+    var ang0 = (cvCable.clientWidth || 600) < 600;
+    var d = lienzo(cvCable, ang0 ? 0.95 : 0.56), g = d.g, w = d.w, h = d.h, G = geomCable(w, h);
+    var cx = G.cx, cy = G.cy, esc = G.esc, Bs = bSensor(), detecta = Bs >= K.umbral, rm = rMax();
+    K.fase += (dt || 0) * 0.5 * K.signo;
+    g.clearRect(0, 0, w, h);
+    // zona de detección
+    var rmPx = rm * esc;
+    g.save(); g.fillStyle = "rgba(0,64,143,0.06)"; g.beginPath(); g.arc(cx, cy, Math.min(rmPx, 4 * w), 0, 2 * Math.PI); g.fill();
+    g.strokeStyle = C.oroTexto; g.lineWidth = 2; g.setLineDash([8, 6]); g.beginPath(); g.arc(cx, cy, Math.min(rmPx, 4 * w), 0, 2 * Math.PI); g.stroke(); g.restore();
+    var maxR = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy));
+    if (K.par) {
+      // rejilla de flechas con la dirección del campo (opacidad según la intensidad)
+      var paso = G.ang ? 30 : 36, bRef = Math.max(K.umbral, 1e-12);
+      for (var py = paso / 2; py < h; py += paso) for (var px = paso / 2; px < w; px += paso) {
+        if (Math.hypot(px - cx, py - cy) < 16) continue;
+        var v = vectorB((px - cx) / esc, (cy - py) / esc), m = Math.hypot(v[0], v[1]);
+        if (m === 0) continue;
+        var al = Math.max(0.12, Math.min(1, 0.55 + 0.25 * Math.log10(m / bRef)));
+        var ux = v[0] / m, uy = -v[1] / m, L = 10;
+        g.save(); g.globalAlpha = al;
+        flecha(g, px - ux * L, py - uy * L, px + ux * L, py + uy * L, C.azul, 2, 8);
+        g.restore();
+      }
+    } else {
+      // círculos de igual B (serie 1-2-5) con puntas que giran según la regla de la mano derecha
+      var serie = [];
+      for (var e = 3; e >= -10; e--) [5, 2, 1].forEach(function (f) { serie.push(f * Math.pow(10, e)); });
+      var ult = 0, etiquetas = 0;
+      serie.forEach(function (B) {
+        var R = MU0 * K.I / (2 * Math.PI * B), rp = R * esc;
+        if (rp < 18 || rp > maxR || rp - ult < 22) return;
+        ult = rp;
+        g.save(); g.strokeStyle = "rgba(0,64,143,0.55)"; g.lineWidth = 1.6; g.beginPath(); g.arc(cx, cy, rp, 0, 2 * Math.PI); g.stroke(); g.restore();
+        for (var j = 0; j < 3; j++) {
+          var phi = K.fase + j * 2 * Math.PI / 3 + rp * 0.01;
+          var x = cx + rp * Math.cos(phi), y = cy - rp * Math.sin(phi);
+          var tang = K.signo > 0 ? Math.atan2(-Math.cos(phi), -Math.sin(phi)) : Math.atan2(Math.cos(phi), Math.sin(phi));
+          puntaEn(g, x, y, tang, C.azul, 7);
+        }
+        if (etiquetas < 7) {               // etiqueta en el primer ángulo visible que no tape el texto fijo
+          var angs = [90, -90, 135, -135, 120, -120, 150, -150];
+          for (var a = 0; a < angs.length; a++) {
+            var ra = angs[a] * Math.PI / 180, lx = cx + rp * Math.cos(ra), ly = cy - rp * Math.sin(ra);
+            if (lx > 30 && lx < w - 60 && ly > 60 && ly < h - 36) { textoFondo(g, si(B, "T", 2), lx, ly, C.azul, 15, "center"); etiquetas++; break; }
+          }
+        }
+      });
+    }
+    // conductor(es)
+    function conductor(x, y, sale) {
+      g.save(); g.fillStyle = "#fff"; g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(x, y, 11, 0, 2 * Math.PI); g.fill(); g.stroke(); g.restore();
+      if (sale) punto(g, x, y, 3.5, C.guinda);
+      else { linea(g, x - 6, y - 6, x + 6, y + 6, C.guinda, 2.5); linea(g, x - 6, y + 6, x + 6, y - 6, C.guinda, 2.5); }
+    }
+    if (K.par) {
+      var sp = Math.max(13, K.s / 2 * esc);
+      conductor(cx, cy - sp, K.signo > 0); conductor(cx, cy + sp, K.signo < 0);
+      if (K.s / 2 * esc < 13) textoFondo(g, "separación no a escala", Math.max(10, cx - 30), cy - sp - 26, C.gris, 15, "left");
+    } else conductor(cx, cy, K.signo > 0);
+    // sensor
+    var sx = cx + K.r * esc;
+    linea(g, cx, cy, sx, cy, C.gris, 1.4, [4, 4]);
+    textoFondo(g, "r = " + fmtR(K.r), (cx + sx) / 2, cy + 20, C.tinta, 15, "center", true);
+    var vb = vectorB(K.r, 0), mb = Math.hypot(vb[0], vb[1]), Lb = Math.max(14, Math.min(70, 34 + 14 * Math.log10(mb / K.umbral)));
+    if (mb > 0) flecha(g, sx, cy, sx + vb[0] / mb * Lb, cy - vb[1] / mb * Lb, detecta ? C.guinda : C.gris, 3.5, 13);
+    g.save(); g.fillStyle = detecta ? C.azulClaro : "#F4F5F7"; g.strokeStyle = detecta ? C.azul : C.gris; g.lineWidth = 2.5;
+    g.beginPath(); g.rect(sx - 9, cy - 15, 18, 30); g.fill(); g.stroke(); g.restore();
+    var arriba = mb > 0 && Math.abs(vb[1]) / mb > 0.5;
+    textoFondo(g, "B = " + si(Bs, "T", 2), Math.min(sx, w - 70), arriba ? cy - Lb - 22 : cy - 32, detecta ? C.guinda : C.gris, 16, "center", true);
+    textoFondo(g, detecta ? "el sensor detecta el cable" : "el sensor no lo detecta", Math.min(sx, w - 100), cy + 46, detecta ? C.azul : C.gris, 15, "center", true);
+    // textos fijos
+    textoFondo(g, G.ang ? "Vista superior" : "Vista superior: el cable atraviesa la pantalla", 10, 18, C.azulOscuro, G.ang ? 15 : 16, "left", true);
+    var regla = K.signo > 0 ? (G.ang ? "⊙ hacia ti: B antihorario" : "Corriente hacia ti (⊙): B gira en sentido antihorario")
+                            : (G.ang ? "⊗ hacia la pantalla: B horario" : "Corriente hacia la pantalla (⊗): B gira en sentido horario");
+    textoFondo(g, regla, 10, 40, C.gris, 15, "left");
+    if (rmPx > maxR) textoFondo(g, (G.ang ? "Detección hasta " : "Zona de detección: hasta ") + fmtR(rm) + (G.ang ? "" : " (fuera de la vista)"), 10, h - 14, C.oroTexto, 15, "left", true);
+    else textoFondo(g, (G.ang ? "Punteada: r_máx = " : "Línea punteada: borde de la zona de detección, r_máx = ") + fmtR(rm), 10, h - 14, C.oroTexto, 15, "left", true);
+    // barra de escala
+    var Lm = pasoBonito(K.rv / 3), Lp = Lm * esc, bx = w - Lp - 16, by = h - 40;
+    linea(g, bx, by, bx + Lp, by, C.tinta, 3); linea(g, bx, by - 6, bx, by + 6, C.tinta, 2); linea(g, bx + Lp, by - 6, bx + Lp, by + 6, C.tinta, 2);
+    texto(g, fmtR(Lm), bx + Lp / 2, by - 12, C.tinta, 15, "center", "middle");
+  }
+
+  function dibujarBr() {
+    var ang = (cvBr.clientWidth || 600) < 600;
+    var d = lienzo(cvBr, ang ? 0.8 : 0.42), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var x0 = 66, x1 = w - 16, y0 = 30, y1 = h - 46, LX0 = -2, LX1 = Math.log10(R_MAX), LY0 = -3, LY1 = 4;
+    function X(r) { return x0 + (Math.log10(r) - LX0) / (LX1 - LX0) * (x1 - x0); }
+    function Y(bT) { var l = Math.log10(Math.max(bT * 1e6, 1e-4)); return y1 - (Math.max(LY0 - 0.5, Math.min(LY1, l)) - LY0) / (LY1 - LY0) * (y1 - y0); }
+    texto(g, "B contra r (escalas logarítmicas)", x0, 14, C.azulOscuro, 16, "left", "middle", true);
+    g.save(); g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0); g.clip();
+    // campo terrestre
+    g.fillStyle = "rgba(184,151,90,0.22)"; g.fillRect(x0, Y(65e-6), x1 - x0, Y(25e-6) - Y(65e-6));
+    g.restore();
+    texto(g, "campo terrestre (25 a 65 μT)", x1 - 6, Y(65e-6) - 9, C.oroTexto, 15, "right", "middle", true);
+    for (var e = LY0; e <= LY1; e++) {
+      var yy = Y(Math.pow(10, e) * 1e-6);
+      linea(g, x0, yy, x1, yy, e === LY0 ? C.gris : "#EEF0F4", e === LY0 ? 1.4 : 1);
+      if (!ang || e % 2 === 0) texto(g, num(Math.pow(10, e), e < 0 ? -e : 0), x0 - 8, yy, C.gris, 15, "right", "middle");
+    }
+    texto(g, "μT", x0 - 8, y0 - 14, C.gris, 15, "right", "middle", true);
+    [[0.01, "1 cm"], [0.1, "10 cm"], [1, "1 m"], [5, "5 m"]].forEach(function (m) {
+      linea(g, X(m[0]), y0, X(m[0]), y1, "#E4E8EE", 1);
+      texto(g, m[1], X(m[0]), y1 + 18, C.gris, 15, m[0] === 5 ? "right" : "center", "middle");
+    });
+    [0.02, 0.05, 0.2, 0.5, 2].forEach(function (r) { linea(g, X(r), y1, X(r), y1 + 5, C.gris, 1); });
+    texto(g, "distancia r", x1, h - 6, C.gris, 15, "right", "alphabetic");
+    // umbral
+    linea(g, x0, Y(K.umbral), x1, Y(K.umbral), C.guinda, 2, [8, 5]);
+    textoFondo(g, "umbral del sensor: " + si(K.umbral, "T", 2), x0 + 8, Y(K.umbral) + 14, C.guinda, 15, "left", true);
+    function curva(f, color, guiones) {
+      g.save(); g.beginPath(); g.rect(x0, y0 - 2, x1 - x0, y1 - y0 + 4); g.clip();
+      g.strokeStyle = color; g.lineWidth = 3; if (guiones) g.setLineDash(guiones); g.beginPath();
+      for (var i = 0; i <= 200; i++) { var r = Math.pow(10, LX0 + (LX1 - LX0) * i / 200), y = Y(f(r)); if (i === 0) g.moveTo(X(r), y); else g.lineTo(X(r), y); }
+      g.stroke(); g.restore();
+    }
+    curva(bUno, C.azul);
+    texto(g, "un conductor: B ∝ 1/r", X(0.012), Y(bUno(0.012)) - 12, C.azul, 15, "left", "middle", true);
+    if (K.par) { curva(bPar, C.guinda, [9, 5]); textoFondo(g, "- - fase y neutro: B ∝ 1/r²", x1 - 4, y0 + 14, C.guinda, 15, "right", true); }
+    // distancias máximas
+    function marcaRmax(rm, color) {
+      if (rm <= 0) return;
+      if (rm > R_MAX) { textoFondo(g, "r_máx > 5 m", x1 - 4, Y(K.umbral) - 14, color, 15, "right", true); return; }
+      linea(g, X(rm), Y(K.umbral), X(rm), y1, color, 2, [3, 4]); punto(g, X(rm), Y(K.umbral), 6, color);
+      textoFondo(g, "r_máx = " + fmtR(rm), X(rm) + (X(rm) > x1 - 110 ? -6 : 6), Y(K.umbral) - 16, color, 15, X(rm) > x1 - 110 ? "right" : "left", true);
+    }
+    marcaRmax(rMaxUno(), C.azul);
+    if (K.par) marcaRmax(rMaxPar(), C.guinda);
+    // sensor
+    linea(g, X(K.r), y0, X(K.r), y1, C.oro, 2);
+    punto(g, X(K.r), Y(bUno(K.r)), 7, C.azul);
+    if (K.par) punto(g, X(K.r), Y(bPar(K.r)), 7, C.guinda);
+  }
+
+  function lecturaCable() {
+    $("corrV").textContent = num(K.I, 1) + " A";
+    $("distV").textContent = fmtR(K.r);
+    $("umbV").textContent = si(K.umbral, "T", 2);
+    $("sepV").textContent = num(K.s * 100, 1) + " cm";
+    var B1 = bUno(K.r), rm1 = rMaxUno(), html = "";
+    html += "<p><b>Un conductor</b> (Ec. del alambre recto):<br><span class='formula'>B = μ<sub>0</sub>I/(2πr) = (4π×10⁻⁷)(" + num(K.I, 1) + ")/(2π × " +
+      sig(K.r, 2) + ") = 2×10⁻⁷ × " + num(K.I, 1) + "/" + sig(K.r, 2) + " = " + sci(B1, 2) + " T = " + si(B1, "T", 2) + "</span></p>";
+    var comp = B1 > 65e-6 ? "mayor que el campo terrestre (25 a 65 μT)" : B1 >= 25e-6 ? "del orden del campo terrestre (25 a 65 μT)" : "menor que el campo terrestre (25 a 65 μT); el teléfono mide cambios, así que puede notarlo si supera su umbral";
+    html += "<p>Es " + comp + ".</p>";
+    html += "<p><b>Distancia máxima de detección</b> (B = umbral):<br><span class='formula'>r<sub>máx</sub> = μ<sub>0</sub>I/(2πB<sub>umbral</sub>) = 2×10⁻⁷ × " + num(K.I, 1) + "/" + sci(K.umbral, 2) + " = " + fmtR(rm1) + "</span></p>";
+    if (K.par) {
+      var Bp = bPar(K.r), rmp = rMaxPar();
+      html += "<p><b>Fase y neutro</b> (s = " + num(K.s * 100, 1) + " cm, suma de los dos campos):<br><span class='formula'>B = μ<sub>0</sub>I·s/[2π(r² + s²/4)] = " + si(Bp, "T", 2) + "</span>, " +
+        num(B1 / Bp, 0) + " veces menos que un solo conductor. Lejos, B ≈ μ<sub>0</sub>I·s/(2πr²) y <span class='formula'>r<sub>máx</sub> = " + fmtR(rmp) + "</span>.</p>";
+    }
+    var det = bSensor() >= K.umbral;
+    html += "<p class='" + (det ? "ok" : "mal") + "'>A " + fmtR(K.r) + " el sensor " + (det ? "detecta" : "no detecta") + " la corriente (" + si(bSensor(), "T", 2) + (det ? " ≥ " : " < ") + si(K.umbral, "T", 2) + ").</p>";
+    html += "<p><b>Regla de la mano derecha:</b> pulgar en el sentido de la corriente; los dedos curvados dan el sentido de B." +
+      (K.par ? "" : " En el sensor, B apunta hacia " + (K.signo > 0 ? "arriba" : "abajo") + " en la pantalla.") + "</p>";
+    $("lectCable").innerHTML = html;
+  }
+
+  $("corr").addEventListener("input", function () { K.I = Number(this.value); lecturaCable(); dibujarBr(); });
+  $("sentido").addEventListener("change", function () { K.signo = Number(this.value); lecturaCable(); dibujarBr(); });
+  $("dist").addEventListener("input", function () { K.r = rDesdePos(Number(this.value)); lecturaCable(); dibujarBr(); });
+  $("umb").addEventListener("input", function () { K.umbral = umbDesdePos(Number(this.value)); lecturaCable(); dibujarBr(); });
+  $("par").addEventListener("change", function () { K.par = this.checked; $("sep").disabled = !K.par; lecturaCable(); dibujarBr(); });
+  $("sep").addEventListener("input", function () { K.s = Number(this.value) / 100; lecturaCable(); dibujarBr(); });
+  function rDesdePuntero(ev) {
+    var rect = cvCable.getBoundingClientRect(), d = cvCable._d, G = geomCable(d.w, d.h);
+    var r = (ev.clientX - rect.left - G.cx) / G.esc;
+    return Math.max(R_MIN, Math.min(R_MAX, Number(r.toPrecision(2))));
+  }
+  cvCable.addEventListener("pointerdown", function (ev) {
+    K.arrastrando = true; K.r = rDesdePuntero(ev); $("dist").value = posDesdeR(K.r); lecturaCable(); dibujarBr();
+    try { cvCable.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+  });
+  cvCable.addEventListener("pointermove", function (ev) {
+    if (!K.arrastrando) return;
+    K.r = rDesdePuntero(ev); $("dist").value = posDesdeR(K.r); lecturaCable(); dibujarBr();
+  });
+  function soltar() { if (K.arrastrando) { K.arrastrando = false; dibujarBr(); } }
+  cvCable.addEventListener("pointerup", soltar);
+  cvCable.addEventListener("pointercancel", soltar);
+
+  // ============================================================ VISTA 2: ley de Faraday
+  var A_IMAN = 0.02, X_CERCA = 0.01, X_LEJOS = 0.20, PAUSA_CERCA = 1.0, PAUSA_LEJOS = 0.8, VENT = 8;
+  var F = { Bs: 0.2, signo: 1, v: 0.2, N: 200, A: 4e-4, x: X_LEJOS, fase: "quietoL", tf: 0.4, t: 0, eps: 0,
+            hist: [], corriendo: true, manual: false, arrastrando: false, xObj: X_LEJOS, escala: 0.2 };
+  var cvEscena = $("cvEscena"), cvFem = $("cvFem");
+  function Bx(x) { var u = x / A_IMAN; return F.signo * F.Bs * Math.pow(1 + u * u, -1.5); }
+  function dBdx(x) { var u = x / A_IMAN; return F.signo * F.Bs * (-3 * x / (A_IMAN * A_IMAN)) * Math.pow(1 + u * u, -2.5); }
+  function maxPendiente() {          // máximo de |dB/dx| en el recorrido
+    var m = 0;
+    for (var i = 0; i <= 400; i++) { var x = X_CERCA + (X_LEJOS - X_CERCA) * i / 400; m = Math.max(m, Math.abs(dBdx(x))); }
+    return m;
+  }
+  function picoTeo() { return F.N * F.A * F.v * maxPendiente(); }
+  function reajustarEscala() {
+    var p = picoTeo();
+    if (F.manual) F.hist.forEach(function (hh) { p = Math.max(p, Math.abs(hh[1])); });
+    F.escala = nice(p * 1.25);
+  }
+
+  function avanzarFaraday(dt) {
+    if (F.manual) {
+      var x0 = F.x, phi0 = F.A * Bx(x0);
+      F.x = F.xObj;
+      F.t += dt;
+      var crudo = dt > 0 ? -F.N * (F.A * Bx(F.x) - phi0) / dt : 0;
+      F.eps = 0.6 * F.eps + 0.4 * crudo;
+      if (Math.abs(F.eps) < F.escala * 1e-3) F.eps = 0;
+      F.hist.push([F.t, F.eps, F.A * Bx(F.x), F.x < x0 - 1e-6 ? "acerca" : F.x > x0 + 1e-6 ? "aleja" : "quieto"]);
+    } else {
+      var n = Math.max(1, Math.ceil(dt / 0.002)), h = dt / n;
+      for (var i = 0; i < n; i++) {
+        var xp = 0, et;
+        if (F.fase === "acerca") { xp = -F.v; F.x -= F.v * h; if (F.x <= X_CERCA) { F.x = X_CERCA; F.fase = "quietoC"; F.tf = 0; } et = "acerca"; }
+        else if (F.fase === "aleja") { xp = F.v; F.x += F.v * h; if (F.x >= X_LEJOS) { F.x = X_LEJOS; F.fase = "quietoL"; F.tf = 0; } et = "aleja"; }
+        else { F.tf += h; et = "quieto"; if (F.tf >= (F.fase === "quietoC" ? PAUSA_CERCA : PAUSA_LEJOS)) F.fase = F.fase === "quietoC" ? "aleja" : "acerca"; }
+        F.t += h;
+        F.eps = -F.N * F.A * dBdx(F.x) * xp;                // ε = −N dΦ/dt = −N·A·(dB/dx)·(dx/dt)
+        F.hist.push([F.t, F.eps, F.A * Bx(F.x), et]);
+      }
+    }
+    while (F.hist.length > 2 && F.hist[0][0] < F.t - VENT - 0.5) F.hist.shift();
+    if (Math.abs(F.eps) > F.escala) F.escala = nice(Math.abs(F.eps) * 1.1);
+  }
+
+  function geomEscena(w, h) {
+    var ang = w < 600, xc = ang ? w * 0.62 : w * 0.64;
+    return { ang: ang, xc: xc, yc: h * 0.56, esc: (xc - 12) / (X_LEJOS + 0.05) };
+  }
+  function dibujarEscena() {
+    var ang0 = (cvEscena.clientWidth || 600) < 600;
+    var d = lienzo(cvEscena, ang0 ? 0.62 : 0.36), g = d.g, w = d.w, h = d.h, G = geomEscena(w, h);
+    var xc = G.xc, yc = G.yc, esc = G.esc;
+    g.clearRect(0, 0, w, h);
+    linea(g, 8, yc, w - 8, yc, "#EEF0F4", 1);
+    var Rb = Math.sqrt(F.A / Math.PI) * esc, Lc = 0.008 * esc, cara = xc - F.x * esc, largo = 0.05 * esc, alto = A_IMAN * esc;
+    // líneas de campo del imán (decorativas)
+    g.save(); g.strokeStyle = "rgba(0,64,143,0.22)"; g.lineWidth = 1.5;
+    for (var k = -2; k <= 2; k++) {
+      g.beginPath(); g.moveTo(cara, yc + k * alto * 0.4);
+      g.bezierCurveTo(cara + 0.04 * esc, yc + k * alto * 0.6, cara + 0.07 * esc, yc + k * alto * 1.3, cara + 0.1 * esc, yc + k * alto * 2.2);
+      g.stroke();
+    }
+    g.restore();
+    // bobina: mitad trasera
+    var nv = Math.min(F.N, 14), oroC = "#B8975A";
+    for (var i = 0; i < nv; i++) {
+      var xi = xc - Lc + (nv === 1 ? Lc : 2 * Lc * i / (nv - 1));
+      g.save(); g.strokeStyle = "rgba(138,106,46,0.35)"; g.lineWidth = 2; g.beginPath(); g.ellipse(xi, yc, Rb * 0.32, Rb, 0, Math.PI / 2, 3 * Math.PI / 2); g.stroke(); g.restore();
+    }
+    // imán
+    var nCara = F.signo > 0 ? "N" : "S", colCara = F.signo > 0 ? C.guinda : C.azul, colAtras = F.signo > 0 ? C.azul : C.guinda;
+    g.fillStyle = colAtras; g.fillRect(cara - largo, yc - alto, largo / 2, 2 * alto);
+    g.fillStyle = colCara; g.fillRect(cara - largo / 2, yc - alto, largo / 2, 2 * alto);
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.strokeRect(cara - largo, yc - alto, largo, 2 * alto);
+    texto(g, nCara, cara - largo / 4, yc, "#fff", G.ang ? 15 : 20, "center", "middle", true);
+    texto(g, F.signo > 0 ? "S" : "N", cara - 3 * largo / 4, yc, "#fff", G.ang ? 15 : 20, "center", "middle", true);
+    // bobina: mitad delantera
+    for (var j = 0; j < nv; j++) {
+      var xj = xc - Lc + (nv === 1 ? Lc : 2 * Lc * j / (nv - 1));
+      g.save(); g.strokeStyle = C.oroTexto; g.lineWidth = 2.5; g.beginPath(); g.ellipse(xj, yc, Rb * 0.32, Rb, 0, -Math.PI / 2, Math.PI / 2); g.stroke(); g.restore();
+    }
+    // flecha de B dentro de la bobina
+    var bAqui = Bx(F.x), lb = Math.min(2.4 * Lc + 30, Math.abs(bAqui) / F.Bs * (2 * Lc + 40));
+    if (lb > 4) flecha(g, xc - lb / 2 * Math.sign(bAqui), yc - Rb - 14, xc + lb / 2 * Math.sign(bAqui), yc - Rb - 14, C.azul, 3, 10);
+    textoFondo(g, "B = " + si(Math.abs(bAqui), "T", 2), xc, yc - Rb - 34, C.azul, 15, "center", true);
+    // cables al galvanómetro
+    var gx = G.ang ? w - 46 : w - 80, gy = G.ang ? h * 0.3 : yc, gr = G.ang ? 36 : 58;
+    g.save(); g.strokeStyle = C.oroTexto; g.lineWidth = 2; g.beginPath();
+    g.moveTo(xc - Lc, yc + Rb); g.lineTo(xc - Lc, h - 10); g.lineTo(gx - 10, h - 10); g.lineTo(gx - 10, gy + 10);
+    g.moveTo(xc + Lc, yc + Rb); g.lineTo(xc + Lc, h - 22); g.lineTo(gx + 10, h - 22); g.lineTo(gx + 10, gy + 10); g.stroke(); g.restore();
+    // galvanómetro de cero central
+    g.save(); g.fillStyle = "#fff"; g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(gx, gy, gr, Math.PI, 2 * Math.PI); g.closePath(); g.fill(); g.stroke(); g.restore();
+    for (var m = -2; m <= 2; m++) {
+      var am = -Math.PI / 2 + m * Math.PI / 6;
+      linea(g, gx + (gr - 10) * Math.cos(am), gy + (gr - 10) * Math.sin(am), gx + gr * Math.cos(am), gy + gr * Math.sin(am), C.gris, 2);
+    }
+    texto(g, "−", gx - gr * 0.62, gy - gr * 0.42, C.guinda, 16, "center", "middle", true);
+    texto(g, "+", gx + gr * 0.62, gy - gr * 0.42, C.azul, 16, "center", "middle", true);
+    var aguja = -Math.PI / 2 + Math.max(-1, Math.min(1, F.eps / F.escala)) * Math.PI / 3;
+    linea(g, gx, gy, gx + (gr - 6) * Math.cos(aguja), gy + (gr - 6) * Math.sin(aguja), C.guinda, 3);
+    punto(g, gx, gy, 4, C.azulOscuro);
+    textoFondo(g, "ε = " + si(F.eps, "V", 2), gx, gy + 18, F.eps < 0 ? C.guinda : C.azulOscuro, 16, "center", true);
+    // textos
+    texto(g, F.manual ? "Arrastra el imán" : (F.fase === "acerca" ? "El imán se acerca" : F.fase === "aleja" ? "El imán se aleja" : "El imán está quieto"),
+          10, 18, C.azulOscuro, G.ang ? 15 : 17, "left", "middle", true);
+    texto(g, "x = " + fmtR(F.x) + " · N = " + F.N, 10, 40, C.gris, 15, "left", "middle");
+  }
+
+  function dibujarFem() {
+    var ang = (cvFem.clientWidth || 600) < 600;
+    var d = lienzo(cvFem, ang ? 0.7 : 0.36), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var x0 = 70, x1 = w - 16, y0 = 30, y1 = h - 34, ym = (y0 + y1) / 2, t0 = F.t - VENT;
+    function X(t) { return x0 + (t - t0) / VENT * (x1 - x0); }
+    function Y(v) { return ym - Math.max(-1.05, Math.min(1.05, v / F.escala)) * (y1 - y0) / 2; }
+    texto(g, ang ? "fem ε(t)" : "fem ε(t) = −N·dΦ/dt", ang ? 10 : x0, 14, C.azulOscuro, 16, "left", "middle", true);
+    texto(g, ang ? "- - Φ(t)" : "- - Φ(t), escala propia", x1, 14, C.oroTexto, 15, "right", "middle", true);
+    // franjas de acercar y alejar
+    var i, ini = null, fase = null;
+    function franja(a, b, f) {
+      if (f === "quieto" || f === null) return;
+      g.save(); g.fillStyle = f === "acerca" ? "rgba(0,64,143,0.07)" : "rgba(140,29,53,0.07)";
+      g.fillRect(Math.max(x0, X(a)), y0, X(b) - Math.max(x0, X(a)), y1 - y0); g.restore();
+      if (X(b) - Math.max(x0, X(a)) > 70) texto(g, f === "acerca" ? "acercando" : "alejando", (Math.max(x0, X(a)) + X(b)) / 2, y1 - 10, f === "acerca" ? C.azul : C.guinda, 15, "center", "middle", true);
+    }
+    for (i = 0; i < F.hist.length; i++) {
+      var hh = F.hist[i];
+      if (hh[3] !== fase) { if (ini !== null) franja(ini, hh[0], fase); ini = hh[0]; fase = hh[3]; }
+    }
+    if (ini !== null) franja(ini, F.t, fase);
+    [-1, -0.5, 0, 0.5, 1].forEach(function (f) {
+      linea(g, x0, Y(f * F.escala), x1, Y(f * F.escala), f === 0 ? C.gris : "#EEF0F4", f === 0 ? 1.4 : 1);
+      texto(g, si(f * F.escala, "V", 2), x0 - 6, Y(f * F.escala), C.gris, 15, "right", "middle");
+    });
+    // flujo (escala propia: ±A·Bs)
+    var phiMax = F.A * F.Bs;
+    g.save(); g.strokeStyle = C.oro; g.lineWidth = 2; g.setLineDash([7, 5]); g.beginPath();
+    var emp = false;
+    for (i = 0; i < F.hist.length; i++) {
+      var p = F.hist[i]; if (p[0] < t0) continue;
+      var yv = ym - (p[2] / phiMax) * (y1 - y0) / 2 * 0.95;
+      if (!emp) { g.moveTo(X(p[0]), yv); emp = true; } else g.lineTo(X(p[0]), yv);
+    }
+    g.stroke(); g.restore();
+    // fem
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath(); emp = false;
+    for (i = 0; i < F.hist.length; i++) {
+      var q = F.hist[i]; if (q[0] < t0) continue;
+      if (!emp) { g.moveTo(X(q[0]), Y(q[1])); emp = true; } else g.lineTo(X(q[0]), Y(q[1]));
+    }
+    g.stroke(); g.restore();
+    // picos de cada tramo
+    var tramo = null;
+    function cerrarTramo(tr) {
+      if (!tr || tr.f === "quieto" || Math.abs(tr.ext) < F.escala * 0.02 || tr.tx < t0 + 0.2) return;
+      textoFondo(g, si(tr.ext, "V", 3), X(tr.tx), Y(tr.ext) + (tr.ext < 0 ? 14 : -14), tr.ext < 0 ? C.guinda : C.azul, 15, "center", true);
+    }
+    for (i = 0; i < F.hist.length; i++) {
+      var r = F.hist[i];
+      if (!tramo || r[3] !== tramo.f) { cerrarTramo(tramo); tramo = { f: r[3], ext: 0, tx: r[0] }; }
+      if (Math.abs(r[1]) > Math.abs(tramo.ext)) { tramo.ext = r[1]; tramo.tx = r[0]; }
+    }
+    cerrarTramo(tramo);
+    texto(g, "últimos " + VENT + " s →", x1, h - 8, C.gris, 15, "right", "alphabetic");
+  }
+
+  function lecturaFaraday(soloDinamica) {
+    $("velV").textContent = num(F.v, 2) + " m/s";
+    $("nbV").textContent = F.N;
+    $("abV").textContent = num(F.A * 1e4, 1) + " cm²";
+    var B = Bx(F.x), phi = F.A * B, u = F.x / A_IMAN;
+    var html = "<p><b>Ahora</b> (x = " + fmtR(F.x) + "):<br><span class='formula'>B = B<sub>s</sub>·[1 + (x/a)²]<sup>−3/2</sup> = " + sig(F.signo * F.Bs, 2) + " T × [1 + (" + num(F.x * 100, 1) + "/2)²]<sup>−3/2</sup> = " +
+      si(B, "T", 3) + "</span><br><span class='formula'>Φ = B·A = " + si(B, "T", 3) + " × " + num(F.A * 1e4, 1) + " cm² = " + sci(phi, 2) + " Wb</span><br>" +
+      "<span class='formula'>ε = −N·dΦ/dt = " + si(F.eps, "V", 3) + "</span>" + (Math.abs(F.eps) < 1e-12 ? " (el flujo no cambia)" : "") + "</p>";
+    if (F.Bs) {
+      var Bc = Bx(X_CERCA), Bl = Bx(X_LEJOS), dPhi = F.A * (Bc - Bl), dt = (X_LEJOS - X_CERCA) / F.v, prom = F.N * Math.abs(dPhi) / dt;
+      html += "<p><b>Al acercarlo de 20 cm a 1 cm</b> (cambio casi uniforme):<br><span class='formula'>ΔΦ = A·(B<sub>cerca</sub> − B<sub>lejos</sub>) = (" + sci(F.A, 2) + " m²)(" +
+        sig(Math.abs(Bc), 3) + " − " + sig(Math.abs(Bl), 2) + ") T = " + sci(Math.abs(dPhi), 2) + " Wb</span><br>" +
+        "<span class='formula'>Δt = 0.19 m / " + num(F.v, 2) + " m/s = " + num(dt, 2) + " s</span><br>" +
+        "<span class='formula'>|ε| ≈ N|ΔΦ|/Δt = " + F.N + " × " + sci(Math.abs(dPhi), 2) + "/" + num(dt, 2) + " = " + si(prom, "V", 2) + "</span> en promedio; " +
+        "el pico del modelo es " + si(picoTeo(), "V", 3) + " porque el cambio se concentra junto a la bobina.</p>";
+    }
+    $("lectF").innerHTML = html;
+    var est = F.manual ? "Modo: arrastre del imán" : "Modo: movimiento automático";
+    if (!F.corriendo) est += " · en pausa";
+    $("estadoF").textContent = est;
+  }
+
+  document.querySelectorAll("input[name=iman]").forEach(function (r) {
+    r.addEventListener("change", function () { if (r.checked) { F.Bs = Number(r.value); reajustarEscala(); lecturaFaraday(); } });
+  });
+  $("voltear").addEventListener("change", function () { F.signo = this.checked ? -1 : 1; lecturaFaraday(); });
+  $("vel").addEventListener("input", function () { F.v = Number(this.value); lecturaFaraday(); });
+  $("nb").addEventListener("input", function () { F.N = Number(this.value); lecturaFaraday(); });
+  $("ab").addEventListener("input", function () { F.A = Number(this.value) * 1e-4; lecturaFaraday(); });
+  $("pausaF").addEventListener("click", function () { F.corriendo = !F.corriendo; this.textContent = F.corriendo ? "Pausa" : "Continuar"; lecturaFaraday(); });
+  $("autoF").addEventListener("click", function () {
+    F.manual = false; F.corriendo = true; $("pausaF").textContent = "Pausa";
+    F.fase = F.x <= X_CERCA + 1e-6 ? "quietoC" : "aleja"; F.tf = 0;
+    if (F.x >= X_LEJOS - 1e-6) F.fase = "acerca";
+    lecturaFaraday();
+  });
+  $("escalaF").addEventListener("click", function () { reajustarEscala(); });
+  function xDesdePuntero(ev) {
+    var rect = cvEscena.getBoundingClientRect(), d = cvEscena._d, G = geomEscena(d.w, d.h);
+    var cara = ev.clientX - rect.left + 0.025 * G.esc;           // se toma el imán por su centro
+    return Math.max(X_CERCA, Math.min(X_LEJOS, (G.xc - cara) / G.esc));
+  }
+  cvEscena.addEventListener("pointerdown", function (ev) {
+    F.manual = true; F.arrastrando = true; F.corriendo = true; $("pausaF").textContent = "Pausa";
+    F.xObj = xDesdePuntero(ev);
+    try { cvEscena.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+    lecturaFaraday();
+  });
+  cvEscena.addEventListener("pointermove", function (ev) { if (F.arrastrando) F.xObj = xDesdePuntero(ev); });
+  cvEscena.addEventListener("pointerup", function () { F.arrastrando = false; });
+  cvEscena.addEventListener("pointercancel", function () { F.arrastrando = false; });
+
+  // ============================================================ VISTA 3: generador
+  var GN = { N: 100, A: 0.01, B: 0.2, f: 60, th: Math.PI / 4, corriendo: true, escala: 100, ventana: 2 / 60 };
+  var cvGen = $("cvGen");
+  function epsMax() { return GN.N * GN.B * GN.A * 2 * Math.PI * GN.f; }
+  function reajustarGen() { GN.escala = nice(epsMax() * 1.15); GN.ventana = 2 / GN.f; }
+  function dibujarGen() {
+    var ang = (cvGen.clientWidth || 600) < 640;
+    var d = lienzo(cvGen, ang ? 1.4 : 0.48), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var em = epsMax(), om = 2 * Math.PI * GN.f;
+    if (em > GN.escala) GN.escala = nice(em * 1.05);
+    // --- escena (vista superior)
+    var sw = ang ? w : w * 0.42, sh = ang ? h * 0.46 : h, cx = sw / 2, cy = sh / 2 + 10, R = Math.min(sw, sh) * 0.3;
+    texto(g, "Vista superior", 10, 16, C.azulOscuro, 16, "left", "middle", true);
+    var pw = Math.max(26, sw * 0.1);
+    g.fillStyle = C.guinda; g.fillRect(8, cy - R * 1.25, pw, 2.5 * R);
+    g.fillStyle = C.azul; g.fillRect(sw - 8 - pw, cy - R * 1.25, pw, 2.5 * R);
+    texto(g, "N", 8 + pw / 2, cy, "#fff", 18, "center", "middle", true);
+    texto(g, "S", sw - 8 - pw / 2, cy, "#fff", 18, "center", "middle", true);
+    for (var k = -2; k <= 2; k++) {
+      var yk = cy + k * R * 0.5;
+      flecha(g, 14 + pw, yk, sw - 14 - pw, yk, "rgba(0,64,143,0.3)", 1.5, 9);
+    }
+    texto(g, "B", sw - 20 - pw, cy - R * 1.25 + 4, C.azul, 16, "right", "middle", true);
+    var th = GN.th, nx = Math.cos(th), ny = Math.sin(th);
+    // la bobina vista de canto: perpendicular a su normal
+    linea(g, cx - R * ny, cy - R * nx, cx + R * ny, cy + R * nx, C.oroTexto, 7);
+    // normal y ángulo θ
+    flecha(g, cx, cy, cx + R * 0.9 * nx, cy - R * 0.9 * ny, C.guinda, 3.5, 12);
+    texto(g, "n̂", cx + R * 1.02 * nx, cy - R * 1.02 * ny, C.guinda, 17, "center", "middle", true);
+    var thN = ((th % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R * 0.35, 0, -thN, true); g.stroke(); g.restore();
+    if (ang) textoFondo(g, "θ = " + num(thN * 180 / Math.PI, 0) + "°", sw - 10, 16, C.guinda, 16, "right", true);
+    else textoFondo(g, "θ = " + num(thN * 180 / Math.PI, 0) + "°", cx, cy + R * 1.25 + 18, C.guinda, 16, "center", true);
+    punto(g, cx, cy, 4, C.azulOscuro);
+    // --- gráfica
+    var gx0 = ang ? 62 : sw + 70, gx1 = w - 16, gy0 = ang ? sh + 66 : 40, gy1 = h - 34, gym = (gy0 + gy1) / 2;
+    var T = GN.ventana;
+    function X(t) { return gx0 + t / T * (gx1 - gx0); }
+    function Y(v) { return gym - Math.max(-1.05, Math.min(1.05, v / GN.escala)) * (gy1 - gy0) / 2; }
+    texto(g, ang ? "fem ε(t)" : "fem ε(t) = NBAω·sen(ωt)", ang ? 10 : gx0, gy0 - (ang ? 40 : 22), C.azulOscuro, 16, "left", "middle", true);
+    texto(g, ang ? "- - Φ(t) = BA cos(ωt)" : "- - Φ(t) = BA cos(ωt), escala propia", gx1, gy0 - (ang ? 18 : 4), C.oroTexto, 15, "right", "middle", true);
+    [-1, -0.5, 0, 0.5, 1].forEach(function (f) {
+      linea(g, gx0, Y(f * GN.escala), gx1, Y(f * GN.escala), f === 0 ? C.gris : "#EEF0F4", f === 0 ? 1.4 : 1);
+      texto(g, sig(f * GN.escala, 2) + " V", gx0 - 6, Y(f * GN.escala), C.gris, 15, "right", "middle");
+    });
+    var pt = pasoBonito(T * 1000 / (ang ? 3 : 4));
+    for (var tm = 0; tm <= T * 1000 + 1e-9; tm += pt) {
+      linea(g, X(tm / 1000), gy1, X(tm / 1000), gy1 + 5, C.gris, 1);
+      texto(g, num(tm, Math.max(0, -Math.floor(Math.log10(pt)))) + " ms", X(tm / 1000), gy1 + 18, C.gris, 15, "center", "middle");
+    }
+    function curva(f, color, ancho, guiones) {
+      g.save(); g.strokeStyle = color; g.lineWidth = ancho; if (guiones) g.setLineDash(guiones); g.beginPath();
+      for (var i = 0; i <= 400; i++) { var t = T * i / 400, y = f(t); if (i === 0) g.moveTo(X(t), y); else g.lineTo(X(t), y); }
+      g.stroke(); g.restore();
+    }
+    curva(function (t) { return gym - Math.cos(om * t) * (gy1 - gy0) / 2 * 0.95; }, C.oro, 2, [7, 5]);
+    curva(function (t) { return Y(em * Math.sin(om * t)); }, C.azulOscuro, 3);
+    var tc = ((th / om) % T + T) % T;
+    linea(g, X(tc), gy0, X(tc), gy1, C.oro, 2);
+    punto(g, X(tc), Y(em * Math.sin(th)), 7, C.guinda);
+    punto(g, X(tc), gym - Math.cos(th) * (gy1 - gy0) / 2 * 0.95, 6, C.oroTexto);
+  }
+  function lecturaGen() {
+    $("gnV").textContent = GN.N; $("gaV").textContent = num(GN.A, 3) + " m²";
+    $("gbV").textContent = num(GN.B, 2) + " T"; $("gfV").textContent = GN.f + " vueltas/s (" + GN.f + " Hz)";
+    var om = 2 * Math.PI * GN.f, em = epsMax(), th = ((GN.th % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    var cs = Math.cos(th), sn = Math.sin(th);
+    if (Math.abs(cs) < 1e-9) cs = 0;
+    if (Math.abs(sn) < 1e-9) sn = 0;
+    var html = "<p><span class='formula'>ω = 2πf = 2π × " + GN.f + " = " + sig(om, 3) + " rad/s</span>; periodo T = 1/f = " + sig(1000 / GN.f, 3) + " ms.</p>";
+    html += "<p><b>Fem máxima:</b><br><span class='formula'>ε<sub>máx</sub> = NBAω = (" + GN.N + ")(" + num(GN.B, 2) + ")(" + num(GN.A, 3) + ")(" + sig(om, 3) + ") = " + sig(em, 3) + " V</span></p>";
+    html += "<p><b>Ahora</b>, θ = ωt = " + num(th * 180 / Math.PI, 0) + "°:<br><span class='formula'>Φ = BA cos θ = (" + num(GN.B, 2) + ")(" + num(GN.A, 3) + ") cos " + num(th * 180 / Math.PI, 0) + "° = " +
+      sci(GN.B * GN.A * cs, 2) + " Wb</span><br><span class='formula'>ε = ε<sub>máx</sub> sen θ = " + sig(em, 3) + " × sen " + num(th * 180 / Math.PI, 0) + "° = " + sig(em * sn, 3) + " V</span></p>";
+    $("lectG").innerHTML = html;
+  }
+  [["gn", "N"], ["ga", "A"], ["gb", "B"], ["gf", "f"]].forEach(function (p) {
+    $(p[0]).addEventListener("input", function () { GN[p[1]] = Number(this.value); lecturaGen(); dibujarGen(); });
+  });
+  $("pausaG").addEventListener("click", function () { GN.corriendo = !GN.corriendo; this.textContent = GN.corriendo ? "Pausa" : "Continuar"; });
+  $("pasoG").addEventListener("click", function () {
+    GN.corriendo = false; $("pausaG").textContent = "Continuar";
+    GN.th = (Math.floor(GN.th / (Math.PI / 4) + 1e-6) + 1) * (Math.PI / 4); lecturaGen(); dibujarGen();
+  });
+  $("escalaG").addEventListener("click", function () { reajustarGen(); dibujarGen(); });
+
+  // ============================================================ VISTA 4: B = μH
+  var MAT = { aire: 1, ferrita: 5000, hierro: 4000, mumetal: 20000 };
+  var NOMBRES = { aire: "Aire", ferrita: "Ferrita", hierro: "Hierro al silicio", mumetal: "Mu-metal", otro: "Otro" };
+  var MU = { mat: "ferrita", mur: 5000, H: 20 };
+  var cvMu = $("cvMu");
+  function posLog(v, dec) { return Math.round(1000 * Math.log10(v) / dec); }
+  function valLog(p, dec) { return Number(Math.pow(10, p / 1000 * dec).toPrecision(2)); }
+  function dibujarMu() {
+    var ang = (cvMu.clientWidth || 600) < 600;
+    var d = lienzo(cvMu, ang ? 0.95 : 0.5), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var filas = ["aire", "ferrita", "hierro", "mumetal"];
+    if (MU.mat === "otro") filas.push("otro");
+    var x0 = ang ? 12 : 160, x1 = w - 20, y0 = ang ? 60 : 58, y1 = h - 46, L0 = -7, L1 = 3;
+    function X(B) { return x0 + (Math.max(L0, Math.min(L1, Math.log10(Math.max(B, 1e-12)))) - L0) / (L1 - L0) * (x1 - x0); }
+    texto(g, ang ? "B con H = " + sig(MU.H, 3) + " A/m" : "B con H = " + sig(MU.H, 3) + " A/m (escala logarítmica)", 10, 18, C.azulOscuro, 16, "left", "middle", true);
+    // franjas: campo terrestre y saturación del hierro
+    g.fillStyle = "rgba(184,151,90,0.18)"; g.fillRect(X(25e-6), y0, X(65e-6) - X(25e-6), y1 - y0);
+    g.fillStyle = "rgba(140,29,53,0.12)"; g.fillRect(X(1.5), y0, X(2) - X(1.5), y1 - y0);
+    g.fillStyle = "rgba(91,100,114,0.08)"; g.fillRect(X(2), y0, x1 - X(2), y1 - y0);
+    if (ang) {
+      texto(g, "saturación del hierro (1.5 a 2 T)", x1, y0 - 12, C.guinda, 15, "right", "middle", true);
+    } else {
+      texto(g, "terrestre", X(45e-6), y0 - 8, C.oroTexto, 15, "center", "middle", true);
+      texto(g, "saturación del hierro", Math.min(X(1.7), x1 - 70), y0 - 26, C.guinda, 15, "center", "middle", true);
+      texto(g, "(1.5 a 2 T)", Math.min(X(1.7), x1 - 70), y0 - 8, C.guinda, 15, "center", "middle", true);
+    }
+    var etq = { "-6": "1 μT", "-5": "10 μT", "-4": "0.1 mT", "-3": "1 mT", "-2": "10 mT", "-1": "0.1 T", "0": "1 T", "1": "10 T", "2": "100 T", "-7": "0.1 μT", "3": "1000 T" };
+    for (var e = L0; e <= L1; e++) {
+      linea(g, X(Math.pow(10, e)), y0, X(Math.pow(10, e)), y1, "#E4E8EE", 1);
+      if (!ang ? e > L0 && e < L1 : e % 3 === 0 && e > L0 && e < L1) texto(g, etq[String(e)], X(Math.pow(10, e)), y1 + 18, C.gris, 15, "center", "middle");
+    }
+    var alto = (y1 - y0) / filas.length;
+    filas.forEach(function (f, i) {
+      var mur = f === "otro" ? MU.mur : MAT[f], B = mur * MU0 * MU.H, sel = f === MU.mat;
+      var yc = y0 + alto * (i + 0.5) + (ang ? 8 : 0), bh = Math.min(30, alto * (ang ? 0.4 : 0.55));
+      if (ang) textoFondo(g, NOMBRES[f] + " · μr = " + num(mur, 0), x0, yc - bh / 2 - 11, sel ? C.azulOscuro : C.gris, 15, "left", sel);
+      else {
+        texto(g, NOMBRES[f], x0 - 10, yc - 8, sel ? C.azulOscuro : C.gris, 15, "right", "middle", sel);
+        texto(g, "μr = " + num(mur, 0), x0 - 10, yc + 10, C.gris, 15, "right", "middle");
+      }
+      var xb = X(B), xs = X(2);
+      g.fillStyle = sel ? C.azul : "#B9C2D0";
+      g.fillRect(x0, yc - bh / 2, Math.min(xb, xs) - x0, bh);
+      if (f !== "aire" && B > 2) {               // tramo no realista: rayado
+        g.save(); g.beginPath(); g.rect(xs, yc - bh / 2, xb - xs, bh); g.clip();
+        g.fillStyle = sel ? "rgba(140,29,53,0.18)" : "rgba(91,100,114,0.12)"; g.fillRect(xs, yc - bh / 2, xb - xs, bh);
+        g.strokeStyle = sel ? C.guinda : C.gris; g.lineWidth = 2;
+        for (var k = xs - bh; k < xb; k += 9) { g.beginPath(); g.moveTo(k, yc + bh / 2); g.lineTo(k + bh, yc - bh / 2); g.stroke(); }
+        g.restore();
+      } else if (f === "aire" && B > 2) { g.fillRect(xs, yc - bh / 2, xb - xs, bh); }
+      var etB = si(B, "T", 3), dentro = xb > x1 - 90;
+      textoFondo(g, etB, dentro ? xb - 6 : xb + 6, yc, sel ? C.azulOscuro : C.gris, 15, dentro ? "right" : "left", sel);
+    });
+  }
+  function lecturaMu() {
+    $("murV").textContent = num(MU.mur, 0); $("hhV").textContent = sig(MU.H, 3) + " A/m";
+    var B = MU.mur * MU0 * MU.H, Ba = MU0 * MU.H, html = "";
+    html += "<p><b>" + NOMBRES[MU.mat] + "</b> (Ec. B = μH con μ = μ<sub>r</sub>μ<sub>0</sub>):<br><span class='formula'>B = μ<sub>r</sub>·μ<sub>0</sub>·H = (" + num(MU.mur, 0) +
+      ")(4π×10⁻⁷ H/m)(" + sig(MU.H, 3) + " A/m) = " + (B >= 1e-3 ? sig(B, 3) + " T" : sci(B, 3) + " T") + "</span></p>";
+    if (MU.mat !== "aire") html += "<p>En aire (μ<sub>r</sub> = 1): <span class='formula'>B = μ<sub>0</sub>H = " + sci(Ba, 3) + " T = " + si(Ba, "T", 3) + "</span>: el núcleo multiplica el campo por " + num(MU.mur, 0) + ".</p>";
+    if (MU.mat !== "aire" && B > 1.5) html += "<p class='mal'>" + sig(B, 3) + " T no es realista: los ferromagnéticos se saturan (el hierro, hacia 1.5 a 2 T) y la fórmula lineal deja de valer; hay que usar la curva de histéresis del material.</p>";
+    else if (MU.mat !== "aire") html += "<p>Aproximación lineal: vale para un ferromagnético solo lejos de la saturación (en el hierro, 1.5 a 2 T).</p>";
+    else html += "<p>El aire es un material lineal: B crece en proporción a H.</p>";
+    $("lectMu").innerHTML = html;
+  }
+  function ponerMat(m) {
+    MU.mat = m;
+    if (m !== "otro") MU.mur = MAT[m];
+    $("mur").value = posLog(MU.mur, 5); $("murN").value = MU.mur;
+    document.querySelectorAll("input[name=mat]").forEach(function (r) { r.checked = r.value === m; });
+    lecturaMu(); dibujarMu();
+  }
+  function matDeMur() {
+    var m = "otro";
+    Object.keys(MAT).forEach(function (k) { if (MAT[k] === MU.mur) m = k; });
+    MU.mat = m;
+    document.querySelectorAll("input[name=mat]").forEach(function (r) { r.checked = r.value === m; });
+  }
+  document.querySelectorAll("input[name=mat]").forEach(function (r) {
+    r.addEventListener("change", function () { if (r.checked) ponerMat(r.value); });
+  });
+  $("mur").addEventListener("input", function () { MU.mur = Math.max(1, valLog(Number(this.value), 5)); $("murN").value = MU.mur; matDeMur(); lecturaMu(); dibujarMu(); });
+  $("murN").addEventListener("input", function () {
+    var v = Number(this.value); if (!(v >= 1 && v <= 1e5)) return;
+    MU.mur = v; $("mur").value = posLog(v, 5); matDeMur(); lecturaMu(); dibujarMu();
+  });
+  $("hh").addEventListener("input", function () { MU.H = valLog(Number(this.value), 4); $("hhN").value = MU.H; lecturaMu(); dibujarMu(); });
+  $("hhN").addEventListener("input", function () {
+    var v = Number(this.value); if (!(v > 0 && v <= 1e4)) return;
+    MU.H = v; $("hh").value = posLog(Math.max(1, v), 4); lecturaMu(); dibujarMu();
+  });
+
+  // ============================================================ ciclo
+  var anterior = null, ultLectura = 0;
+  function cuadro(ahora) {
+    if (anterior === null) anterior = ahora;
+    var dt = Math.min(0.1, (ahora - anterior) / 1000);
+    anterior = ahora;
+    if (vistaActiva === "v1") {
+      dibujarCable(dt);
+    } else if (vistaActiva === "v2") {
+      if (F.corriendo) avanzarFaraday(dt);
+      dibujarEscena(); dibujarFem();
+      if (ahora - ultLectura > 150) { lecturaFaraday(); ultLectura = ahora; }
+    } else if (vistaActiva === "v3") {
+      if (GN.corriendo) { GN.th += dt * Math.PI / 2; }
+      dibujarGen();
+      if (ahora - ultLectura > 150) { lecturaGen(); ultLectura = ahora; }
+    }
+    requestAnimationFrame(cuadro);
+  }
+  function dibujarTodo() {
+    if (vistaActiva === "v1") { dibujarCable(0); dibujarBr(); }
+    else if (vistaActiva === "v2") { dibujarEscena(); dibujarFem(); lecturaFaraday(); }
+    else if (vistaActiva === "v3") { dibujarGen(); lecturaGen(); }
+    else { dibujarMu(); lecturaMu(); }
+  }
+  window.addEventListener("resize", dibujarTodo);
+
+  $("dist").value = posDesdeR(K.r);
+  lecturaCable(); reajustarEscala(); lecturaFaraday(); reajustarGen(); lecturaGen(); ponerMat("ferrita");
+  dibujarTodo();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-04-campo-magnetico-induccion.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h2v1h-2zM15 2h3v1h-3zM20 2h2v1h-2zM23 2h3v1h-3zM27 2h1v1h-1zM29 2h1v1h-1zM31 2h1v1h-1zM33 2h2v1h-2zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM16 3h1v1h-1zM19 3h1v1h-1zM22 3h1v1h-1zM25 3h2v1h-2zM28 3h2v1h-2zM32 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM14 4h3v1h-3zM19 4h1v1h-1zM23 4h4v1h-4zM31 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM12 5h1v1h-1zM16 5h1v1h-1zM19 5h1v1h-1zM23 5h5v1h-5zM30 5h1v1h-1zM33 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h1v1h-1zM13 6h1v1h-1zM17 6h2v1h-2zM23 6h1v1h-1zM25 6h1v1h-1zM27 6h6v1h-6zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h5v1h-5zM16 7h3v1h-3zM20 7h2v1h-2zM27 7h3v1h-3zM32 7h2v1h-2zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM12 9h1v1h-1zM14 9h1v1h-1zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM5 10h1v1h-1zM7 10h2v1h-2zM10 10h1v1h-1zM15 10h1v1h-1zM21 10h3v1h-3zM27 10h2v1h-2zM30 10h1v1h-1zM35 10h1v1h-1zM37 10h1v1h-1zM4 11h1v1h-1zM9 11h1v1h-1zM15 11h1v1h-1zM22 11h2v1h-2zM26 11h2v1h-2zM30 11h2v1h-2zM34 11h3v1h-3zM39 11h4v1h-4zM3 12h6v1h-6zM11 12h1v1h-1zM15 12h1v1h-1zM17 12h3v1h-3zM21 12h1v1h-1zM24 12h1v1h-1zM28 12h1v1h-1zM30 12h4v1h-4zM37 12h5v1h-5zM2 13h1v1h-1zM4 13h1v1h-1zM7 13h1v1h-1zM11 13h2v1h-2zM15 13h2v1h-2zM21 13h3v1h-3zM26 13h3v1h-3zM36 13h1v1h-1zM40 13h1v1h-1zM3 14h1v1h-1zM7 14h3v1h-3zM13 14h2v1h-2zM16 14h2v1h-2zM19 14h1v1h-1zM21 14h3v1h-3zM27 14h1v1h-1zM30 14h2v1h-2zM33 14h5v1h-5zM39 14h1v1h-1zM2 15h4v1h-4zM7 15h1v1h-1zM12 15h4v1h-4zM19 15h1v1h-1zM22 15h4v1h-4zM31 15h1v1h-1zM33 15h3v1h-3zM39 15h2v1h-2zM2 16h1v1h-1zM4 16h1v1h-1zM8 16h1v1h-1zM14 16h2v1h-2zM20 16h2v1h-2zM23 16h1v1h-1zM25 16h1v1h-1zM31 16h1v1h-1zM34 16h1v1h-1zM36 16h1v1h-1zM40 16h3v1h-3zM2 17h3v1h-3zM6 17h2v1h-2zM12 17h2v1h-2zM19 17h2v1h-2zM22 17h4v1h-4zM27 17h1v1h-1zM29 17h3v1h-3zM34 17h1v1h-1zM36 17h1v1h-1zM38 17h1v1h-1zM42 17h1v1h-1zM2 18h2v1h-2zM5 18h4v1h-4zM12 18h3v1h-3zM17 18h3v1h-3zM22 18h3v1h-3zM26 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM2 19h1v1h-1zM4 19h2v1h-2zM9 19h2v1h-2zM12 19h1v1h-1zM15 19h2v1h-2zM19 19h1v1h-1zM23 19h1v1h-1zM25 19h2v1h-2zM28 19h1v1h-1zM30 19h2v1h-2zM34 19h1v1h-1zM36 19h2v1h-2zM39 19h4v1h-4zM5 20h1v1h-1zM8 20h2v1h-2zM11 20h1v1h-1zM14 20h1v1h-1zM19 20h1v1h-1zM22 20h1v1h-1zM24 20h1v1h-1zM27 20h1v1h-1zM31 20h1v1h-1zM36 20h1v1h-1zM38 20h2v1h-2zM42 20h1v1h-1zM2 21h1v1h-1zM6 21h1v1h-1zM10 21h2v1h-2zM14 21h2v1h-2zM17 21h1v1h-1zM22 21h2v1h-2zM25 21h3v1h-3zM29 21h3v1h-3zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h2v1h-2zM5 22h2v1h-2zM8 22h3v1h-3zM12 22h2v1h-2zM16 22h1v1h-1zM19 22h1v1h-1zM24 22h1v1h-1zM26 22h1v1h-1zM28 22h1v1h-1zM33 22h1v1h-1zM35 22h3v1h-3zM40 22h1v1h-1zM42 22h1v1h-1zM3 23h2v1h-2zM6 23h1v1h-1zM10 23h2v1h-2zM16 23h1v1h-1zM22 23h3v1h-3zM26 23h1v1h-1zM30 23h2v1h-2zM34 23h1v1h-1zM36 23h1v1h-1zM40 23h3v1h-3zM2 24h2v1h-2zM6 24h10v1h-10zM20 24h2v1h-2zM23 24h2v1h-2zM30 24h1v1h-1zM33 24h1v1h-1zM35 24h5v1h-5zM41 24h1v1h-1zM3 25h2v1h-2zM7 25h1v1h-1zM9 25h2v1h-2zM13 25h2v1h-2zM16 25h1v1h-1zM21 25h4v1h-4zM26 25h5v1h-5zM32 25h2v1h-2zM35 25h3v1h-3zM40 25h3v1h-3zM7 26h3v1h-3zM11 26h3v1h-3zM15 26h1v1h-1zM17 26h3v1h-3zM21 26h4v1h-4zM26 26h2v1h-2zM29 26h1v1h-1zM31 26h1v1h-1zM34 26h3v1h-3zM41 26h1v1h-1zM2 27h2v1h-2zM7 27h1v1h-1zM10 27h3v1h-3zM15 27h1v1h-1zM17 27h8v1h-8zM26 27h1v1h-1zM31 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM39 27h1v1h-1zM41 27h1v1h-1zM2 28h1v1h-1zM5 28h2v1h-2zM8 28h2v1h-2zM13 28h1v1h-1zM16 28h1v1h-1zM19 28h1v1h-1zM22 28h1v1h-1zM24 28h3v1h-3zM28 28h1v1h-1zM31 28h2v1h-2zM34 28h1v1h-1zM36 28h1v1h-1zM38 28h1v1h-1zM41 28h2v1h-2zM7 29h1v1h-1zM11 29h1v1h-1zM14 29h7v1h-7zM22 29h4v1h-4zM27 29h2v1h-2zM30 29h3v1h-3zM34 29h1v1h-1zM36 29h1v1h-1zM38 29h1v1h-1zM3 30h2v1h-2zM6 30h3v1h-3zM15 30h1v1h-1zM17 30h1v1h-1zM19 30h1v1h-1zM21 30h1v1h-1zM23 30h4v1h-4zM29 30h1v1h-1zM31 30h1v1h-1zM34 30h2v1h-2zM41 30h2v1h-2zM6 31h2v1h-2zM11 31h1v1h-1zM15 31h1v1h-1zM17 31h6v1h-6zM26 31h1v1h-1zM30 31h3v1h-3zM35 31h2v1h-2zM39 31h1v1h-1zM41 31h2v1h-2zM2 32h1v1h-1zM4 32h1v1h-1zM7 32h3v1h-3zM13 32h3v1h-3zM19 32h1v1h-1zM23 32h1v1h-1zM25 32h3v1h-3zM30 32h1v1h-1zM37 32h1v1h-1zM39 32h2v1h-2zM42 32h1v1h-1zM5 33h3v1h-3zM12 33h1v1h-1zM15 33h3v1h-3zM19 33h2v1h-2zM23 33h2v1h-2zM26 33h1v1h-1zM28 33h2v1h-2zM31 33h2v1h-2zM35 33h1v1h-1zM38 33h2v1h-2zM2 34h1v1h-1zM6 34h3v1h-3zM10 34h1v1h-1zM12 34h1v1h-1zM17 34h1v1h-1zM20 34h1v1h-1zM22 34h2v1h-2zM26 34h2v1h-2zM30 34h1v1h-1zM33 34h6v1h-6zM40 34h1v1h-1zM42 34h1v1h-1zM10 35h3v1h-3zM14 35h2v1h-2zM18 35h2v1h-2zM22 35h1v1h-1zM26 35h2v1h-2zM30 35h1v1h-1zM33 35h2v1h-2zM38 35h1v1h-1zM41 35h2v1h-2zM2 36h7v1h-7zM12 36h1v1h-1zM20 36h2v1h-2zM23 36h2v1h-2zM27 36h2v1h-2zM30 36h1v1h-1zM32 36h1v1h-1zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM40 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM12 37h3v1h-3zM17 37h2v1h-2zM20 37h2v1h-2zM26 37h2v1h-2zM33 37h2v1h-2zM38 37h1v1h-1zM40 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM17 38h2v1h-2zM20 38h1v1h-1zM22 38h1v1h-1zM25 38h2v1h-2zM28 38h1v1h-1zM30 38h2v1h-2zM34 38h5v1h-5zM41 38h2v1h-2zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h2v1h-2zM15 39h1v1h-1zM18 39h1v1h-1zM20 39h3v1h-3zM24 39h1v1h-1zM26 39h1v1h-1zM28 39h1v1h-1zM30 39h1v1h-1zM32 39h2v1h-2zM35 39h2v1h-2zM38 39h2v1h-2zM42 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM12 40h1v1h-1zM16 40h1v1h-1zM18 40h1v1h-1zM20 40h1v1h-1zM22 40h2v1h-2zM25 40h1v1h-1zM27 40h1v1h-1zM31 40h1v1h-1zM38 40h1v1h-1zM41 40h2v1h-2zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h3v1h-3zM16 41h2v1h-2zM19 41h1v1h-1zM23 41h1v1h-1zM27 41h2v1h-2zM31 41h2v1h-2zM34 41h2v1h-2zM37 41h1v1h-1zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h2v1h-2zM15 42h3v1h-3zM20 42h5v1h-5zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h3v1h-3zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-04-campo-magnetico-induccion.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tonos DTMF del teléfono</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .renglon { margin:0 0 5px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; flex:none; }
+  button.accion:disabled { opacity:.45; cursor:default; background:#fff; color:var(--azul); }
+  .botonera { display:flex; flex-wrap:wrap; align-items:center; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:4px 10px 10px; min-width:0; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  /* Teclado con sus frecuencias (el cuadro del libro) */
+  .teclado { display:grid; grid-template-columns:minmax(0,1.15fr) repeat(4, minmax(0,1fr)); gap:5px; margin-top:4px; }
+  .teclado .cab { display:flex; align-items:center; justify-content:center; text-align:center; font-weight:bold;
+                  color:var(--azul-oscuro); font-size:15px; line-height:1.15; border-radius:6px; padding:2px; min-height:36px; }
+  .teclado .cab.activa { background:var(--oro-claro); box-shadow:inset 0 0 0 2px var(--oro); }
+  .teclado button { font:inherit; font-size:1.45rem; font-weight:bold; color:var(--azul-oscuro); background:#fff;
+                    border:2px solid var(--azul-oscuro); border-radius:10px; min-height:52px; cursor:pointer; padding:0; }
+  .teclado button:hover, .teclado button:focus-visible { background:var(--azul-claro); outline:none; }
+  .teclado button.activa { background:var(--oro-claro); border-color:var(--oro-texto); }
+  .teclado button.pulsada { background:var(--azul); color:#fff; }
+  .tabla-dtmf { border-collapse:collapse; width:100%; margin-top:6px; font-size:15px; }
+  .tabla-dtmf th, .tabla-dtmf td { border:1px solid var(--borde); text-align:center; padding:3px 2px; }
+  .tabla-dtmf th { background:var(--azul-claro); color:var(--azul-oscuro); }
+  .tabla-dtmf td { font-weight:bold; font-size:1.05rem; }
+  .segmentos { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; }
+  .segmentos span { color:var(--gris); }
+  .segmentos button { font:inherit; font-weight:bold; border-radius:8px; padding:5px 12px; border:1px solid var(--azul);
+                      background:#fff; color:var(--azul); cursor:pointer; }
+  .segmentos button.activo { background:var(--azul); color:#fff; }
+  .respuesta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .respuesta input { width:8em; font-size:1.2rem; letter-spacing:.15em; }
+  .respuesta button.accion { margin:0; }
+  .resultado { margin-top:8px; min-height:1.4em; }
+  #lienzoTiempo, #lienzoEsp2 { touch-action:none; cursor:pointer; }
+  #lienzoEsp2:focus-visible, #lienzoTiempo:focus-visible { outline:2px solid var(--azul); outline-offset:2px; }
+  .titulo-lienzo { font-weight:bold; color:var(--azul-oscuro); margin:12px 0 4px; }
+  .titulo-lienzo:first-child { margin-top:0; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 14 · Telefonía fija: señalización DTMF</div>
+  <h1>DTMF: el teclado que delata tu NIP</h1>
+  <p class="sub">Cada tecla suma dos tonos: escúchalos, mira su onda y su espectro, y descubre por qué quien graba una llamada puede recuperar el NIP con una DFT.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Teclado</button>
+    <button type="button" data-vista="v2" role="tab">Escucha la línea</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Teclado y frecuencias</h2>
+        <div class="teclado" id="teclado" aria-label="Teclado telefónico con la frecuencia de cada fila y de cada columna"></div>
+        <p class="nota">Toca una tecla (o usa el teclado de tu computadora: 0-9, *, #, A-D). Arriba, la frecuencia de cada columna; a la izquierda, la de cada fila.</p>
+        <label class="casilla"><input type="checkbox" id="sonido" checked> Con sonido (volumen moderado)</label>
+        <label for="duracion">Duración del tono T: <span class="valor" id="duracionVal"></span></label>
+        <input id="duracion" type="range" min="20" max="200" step="10" value="100">
+        <button type="button" class="accion" id="tono2600">Tono de 2600 Hz (caja azul)</button>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <p class="titulo-lienzo">En el tiempo: la suma de dos senoides</p>
+        <canvas id="lienzoOnda" aria-label="Forma de onda del tono en sus primeros milisegundos: la suma de dos senoides y sus muestras a 8000 por segundo"></canvas>
+        <p class="titulo-lienzo">En la frecuencia: el módulo de la DFT</p>
+        <canvas id="lienzoEsp1" aria-label="Espectro del tono: módulo de la DFT de 0 a 4000 hercios, con la banda de voz sombreada y las ocho frecuencias DTMF marcadas"></canvas>
+        <label class="casilla"><input type="checkbox" id="zoom1"> Ver solo la zona de los tonos DTMF (600-1700 Hz)</label>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de tocar la tecla 8, predice en qué frecuencias estarán sus dos picos. Compruébalo en el espectro.</li>
+            <li>Toca, una tras otra, las teclas de una misma columna (2, 5, 8 y 0). ¿Qué pico se queda quieto y cuál se mueve?</li>
+            <li>Baja la duración del tono a 20 ms. ¿Qué les pasa a los picos? Explícalo con Δf = f<sub>s</sub>/N.</li>
+            <li>Toca el tono de 2600 Hz. ¿Qué tiene en común su frecuencia con las de las teclas? Aunque hoy la señalización entre centrales viaja fuera de banda (SS7), ¿por qué el NIP que tecleas en un menú automático sigue viajando como audio?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Señalización dentro de banda.</b> Las ocho frecuencias DTMF caben en el canal de voz de 300-3400 Hz: los tonos viajan por el mismo canal que la voz, normalizados y públicos (UIT-T Q.23). Eso tuvo consecuencias: con un tono de 2600 Hz, las "cajas azules" de los phreakers tomaban el control de una troncal libre de la red de larga distancia. La respuesta fue sacar la señalización del canal de voz (señalización por canal común, hoy SS7), que a su vez confía en quien está conectado a ella; por eso el NIST clasifica la autenticación por SMS como "restringida".</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>La grabación</h2>
+        <p class="nota" style="margin-top:0">Un menú automático pidió un NIP de 4 dígitos y alguien grabó la línea a f<sub>s</sub> = 8000 muestras/s. Recupera el NIP leyendo el espectro de cada tono.</p>
+        <div class="botonera">
+          <button type="button" class="accion" id="nueva">Nueva grabación</button>
+          <button type="button" class="accion" id="reproducir">▶ Reproducir</button>
+        </div>
+        <label for="snr">Ruido de la línea, SNR: <span class="valor" id="snrVal"></span></label>
+        <input id="snr" type="range" min="-20" max="30" step="1" value="20">
+        <label class="casilla"><input type="checkbox" id="enmascarar"> El grabador enmascara los tonos DTMF</label>
+        <fieldset>
+          <legend>Tu respuesta</legend>
+          <div class="respuesta">
+            <input id="respuesta" type="text" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="NIP que recuperaste" placeholder="NIP">
+            <button type="button" class="accion" id="verificar">Verificar</button>
+          </div>
+          <div class="resultado" id="resultado" aria-live="polite"></div>
+          <div class="botonera">
+            <button type="button" class="accion" id="central" disabled>Así lo hace la central</button>
+            <button type="button" class="accion" id="revelar">Revelar</button>
+          </div>
+          <p class="nota" id="notaCentral">"Así lo hace la central" se activa después de tu primer intento.</p>
+        </fieldset>
+        <table class="tabla-dtmf" aria-label="Cuadro de frecuencias DTMF">
+          <tr><th></th><th>1209 Hz</th><th>1336 Hz</th><th>1477 Hz</th><th>1633 Hz</th></tr>
+          <tr><th>697 Hz</th><td>1</td><td>2</td><td>3</td><td>A</td></tr>
+          <tr><th>770 Hz</th><td>4</td><td>5</td><td>6</td><td>B</td></tr>
+          <tr><th>852 Hz</th><td>7</td><td>8</td><td>9</td><td>C</td></tr>
+          <tr><th>941 Hz</th><td>*</td><td>0</td><td>#</td><td>D</td></tr>
+        </table>
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <p class="titulo-lienzo">La grabación en el tiempo <span style="font-weight:normal;color:var(--gris)">(toca un tono para analizarlo)</span></p>
+        <canvas id="lienzoTiempo" tabindex="0" aria-label="Forma de onda de la grabación completa con los tonos numerados; al tocar uno se elige para analizarlo"></canvas>
+        <div class="segmentos" id="segmentos"></div>
+        <p class="titulo-lienzo">Espectro del tono elegido <span style="font-weight:normal;color:var(--gris)">(arrastra el cursor; ← → lo mueven un bin)</span></p>
+        <canvas id="lienzoEsp2" tabindex="0" aria-label="Módulo de la DFT del tono elegido, con un cursor que se arrastra para leer el bin k y su frecuencia"></canvas>
+        <label class="casilla"><input type="checkbox" id="zoom" checked> Ver solo la zona de los tonos DTMF (600-1700 Hz)</label>
+        <div id="cajaCentral" hidden>
+          <p class="titulo-lienzo">La central: la DFT solo en las 8 frecuencias (Goertzel)</p>
+          <canvas id="lienzoGoertzel" aria-label="Barras con el módulo de la DFT en las ocho frecuencias DTMF para el tono elegido"></canvas>
+          <p class="nota" id="decodificado"></p>
+        </div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Decodifica la grabación: en cada tono, lleva el cursor a los dos picos y busca la pareja en el cuadro. ¿Qué NIP se tecleó?</li>
+            <li>Baja la SNR hasta que ya no distingas los tonos en la forma de onda. ¿Todavía ves los picos en el espectro? ¿Por qué la DFT los "saca" del ruido?</li>
+            <li>Activa el enmascaramiento del grabador. ¿Qué queda en el espectro? ¿Puede la central, o quien robe la grabación, recuperar algún dígito?</li>
+            <li>Si la llamada viajara cifrada (por ejemplo, con SRTP), ¿quién podría todavía recuperar el NIP? ¿Por qué hace falta también el enmascaramiento?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>DTMF no es secreto.</b> Cada tecla produce siempre las mismas dos frecuencias, públicas y normalizadas, y viajan dentro de banda: cualquiera que tenga el audio (una derivación o una bobina en la línea, o la grabación de un centro de atención "para fines de calidad") recupera el NIP con una FFT. Contramedidas del libro: la norma PCI DSS prohíbe almacenar datos sensibles de autenticación, como el NIP, después de la autorización, y los sistemas de grabación suprimen o enmascaran los tonos DTMF; para la línea, cifrar la voz (telefonía IP con SRTP) o el enlace completo.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap04_tecnologias_comunicacion_modernas.tex (párrafo "Señalización DTMF y phreaking", Figura fig:cap6-dtmf; f<sub>s</sub> = 8000 muestras/s de la Ecuación eq:tasa-pcm) y fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:dft, eq:resolucion-dft y eq:snr-db). Valores ilustrativos: duración de tonos y pausas, SNR inicial y volumen. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles a partir de 5 cifras (estilo del libro): 64 000, 8000, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length > 4) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    s = p.join(".").replace("-", "−");
+    return /^−0(\.0+)?$/.test(s) ? s.slice(1) : s;
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function tam(w) { return w < 480 ? 15 : 16; }
+  // Número de un eje centrado en su marca, sin salirse del lienzo por la derecha
+  function marca(g, t, x, y, w, T) {
+    var wt = anchoTexto(t, T, false);
+    if (x + wt / 2 > w - 3) texto(g, t, w - 3, y, C.gris, T, "right");
+    else texto(g, t, x, y, C.gris, T, "center");
+  }
+
+  // ================================================================ DTMF y DFT
+  var FS = 8000;
+  var FILAS = [697, 770, 852, 941], COLUMNAS = [1209, 1336, 1477, 1633];
+  var TECLAS = [["1", "2", "3", "A"], ["4", "5", "6", "B"], ["7", "8", "9", "C"], ["*", "0", "#", "D"]];
+  function ubicar(tecla) {
+    for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) if (TECLAS[i][j] === tecla) return { i: i, j: j, f1: FILAS[i], f2: COLUMNAS[j] };
+    return null;
+  }
+  // x[n] = sen(2π f1 n/fs) + sen(2π f2 n/fs), n = 0..N-1 (f2 puede faltar)
+  function generarTono(f1, f2, N) {
+    var x = new Float64Array(N);
+    for (var n = 0; n < N; n++) x[n] = Math.sin(2 * Math.PI * f1 * n / FS) + (f2 ? Math.sin(2 * Math.PI * f2 * n / FS) : 0);
+    return x;
+  }
+  // |X[k]| de la DFT (Ecuación eq:dft) para k = 0..N/2, con tablas de seno y coseno
+  function dftModulo(x) {
+    var N = x.length, M = Math.floor(N / 2), cs = new Float64Array(N), sn = new Float64Array(N), mod = new Float64Array(M + 1);
+    for (var i = 0; i < N; i++) { cs[i] = Math.cos(2 * Math.PI * i / N); sn[i] = Math.sin(2 * Math.PI * i / N); }
+    for (var k = 0; k <= M; k++) {
+      var re = 0, im = 0, idx = 0;
+      for (var n = 0; n < N; n++) { re += x[n] * cs[idx]; im -= x[n] * sn[idx]; idx += k; if (idx >= N) idx -= N; }
+      mod[k] = Math.sqrt(re * re + im * im);
+    }
+    return mod;
+  }
+  // |X(f)| = |Σ x[n] e^(−i2πfn/fs)| con la recurrencia de Goertzel (la DFT en una sola frecuencia)
+  function goertzel(x, f) {
+    var c = 2 * Math.cos(2 * Math.PI * f / FS), s1 = 0, s2 = 0;
+    for (var n = 0; n < x.length; n++) { var s = x[n] + c * s1 - s2; s2 = s1; s1 = s; }
+    return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2));
+  }
+  // Decide la tecla de un tramo: en cada grupo el mayor debe superar 1.5 veces al segundo y los dos tonos deben llevar energía
+  function decodificar(x) {
+    var fil = FILAS.map(function (f) { return goertzel(x, f); }), col = COLUMNAS.map(function (f) { return goertzel(x, f); });
+    function mejor(v) { var i = 0; for (var k = 1; k < 4; k++) if (v[k] > v[i]) i = k; var s = 0; for (k = 0; k < 4; k++) if (k !== i && v[k] > s) s = v[k]; return { i: i, razon: s > 0 ? v[i] / s : Infinity }; }
+    var a = mejor(fil), b = mejor(col), energia = 0;
+    for (var n = 0; n < x.length; n++) energia += x[n] * x[n];
+    var fraccion = energia > 0 ? 2 * (fil[a.i] * fil[a.i] + col[b.i] * col[b.i]) / (x.length * energia) : 0;
+    var ok = a.razon >= 1.5 && b.razon >= 1.5 && fraccion >= 0.03;
+    return { fil: fil, col: col, i: a.i, j: b.i, ok: ok, tecla: ok ? TECLAS[a.i][b.i] : "?", fraccion: fraccion };
+  }
+  function gauss() { var u = 1 - Math.random(), v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+  // ================================================================ Audio (solo después de un clic)
+  var audio = null;
+  function contexto() {
+    if (!audio) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audio = new AC();
+    }
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+  function sonarTonos(frecs, durS) {
+    if (!$("sonido").checked) return;
+    try {
+      var ctx = contexto(); if (!ctx) return;
+      var t0 = ctx.currentTime + 0.01, ganancia = ctx.createGain();
+      ganancia.gain.setValueAtTime(0, t0);
+      ganancia.gain.linearRampToValueAtTime(0.12, t0 + 0.005);
+      ganancia.gain.setValueAtTime(0.12, t0 + Math.max(0.006, durS - 0.005));
+      ganancia.gain.linearRampToValueAtTime(0, t0 + durS);
+      ganancia.connect(ctx.destination);
+      frecs.forEach(function (f) {
+        var o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+        o.connect(ganancia); o.start(t0); o.stop(t0 + durS + 0.02);
+      });
+    } catch (e) { /* sin audio: la página sigue funcionando */ }
+  }
+  var fuenteGrab = null;
+  function sonarGrabacion(x) {
+    try {
+      var ctx = contexto(); if (!ctx) return;
+      if (fuenteGrab) { try { fuenteGrab.stop(); } catch (e) { /* ya terminó */ } }
+      var r = ctx.sampleRate, M = Math.floor(x.length * r / FS), buf = ctx.createBuffer(1, M, r), d = buf.getChannelData(0), pico = 0;
+      for (var n = 0; n < x.length; n++) pico = Math.max(pico, Math.abs(x[n]));
+      var esc = pico > 0 ? 0.3 / pico : 0;
+      for (var m = 0; m < M; m++) {   // interpolación lineal de 8000 muestras/s a la tasa de la tarjeta de sonido
+        var t = m * FS / r, i = Math.floor(t), a = t - i, x0 = x[Math.min(i, x.length - 1)], x1 = x[Math.min(i + 1, x.length - 1)];
+        d[m] = esc * (x0 + a * (x1 - x0));
+      }
+      fuenteGrab = ctx.createBufferSource(); fuenteGrab.buffer = buf; fuenteGrab.connect(ctx.destination); fuenteGrab.start();
+    } catch (e) { /* sin audio: la página sigue funcionando */ }
+  }
+
+  // ================================================================ Dibujo del espectro (común a las dos vistas)
+  // op: {mod, N, picos:[{f, txt}], cursor (k o null), fmin, fmax, rotulos (frecuencias DTMF escritas)}
+  function dibujarEspectro(cv, op, angosto) {
+    var d = preparar(cv, angosto ? 0.8 : 0.36), g = d.g, w = d.w, h = d.h, T = tam(w);
+    g.clearRect(0, 0, w, h);
+    var fmin = op.fmin || 0, fmax = op.fmax || FS / 2, x0 = 56, x1 = w - 16, y0 = 40, y1 = h - 50;
+    // |X[k]| se divide entre N/2: un tono de amplitud 1 que cae justo en un bin da 1
+    var mod = op.mod, N = op.N, mitad = N / 2, mx = 0;
+    for (var k = 1; k < mod.length; k++) if (mod[k] / mitad > mx) mx = mod[k] / mitad;
+    var ytop = Math.max(1.15, mx * 1.08);
+    function X(f) { return x0 + (f - fmin) / (fmax - fmin) * (x1 - x0); }
+    function Y(a) { return y1 - a / ytop * (y1 - y0); }
+    g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0, h); g.clip();
+    // Canal de voz
+    g.save(); g.fillStyle = "rgba(184,151,90,0.16)"; g.fillRect(X(300), y0 - 8, X(3400) - X(300), y1 - y0 + 8); g.restore();
+    // Frecuencias DTMF (filas en azul, columnas en guinda)
+    FILAS.concat(COLUMNAS).forEach(function (fr, k) {
+      linea(g, X(fr), y0 + (op.rotulos ? 34 : 0), X(fr), y1, k < 4 ? "rgba(0,64,143,0.5)" : "rgba(140,29,53,0.5)", 1, [2, 4]);
+      if (op.rotulos) texto(g, String(fr), X(fr), y0 + (k % 2 ? 30 : 13), k < 4 ? C.azul : C.guinda, T, "center", "alphabetic", true);
+    });
+    g.restore();
+    texto(g, fmin < 300 ? "canal de voz 300-3400 Hz" : "todo dentro del canal de voz", fmin < 300 ? Math.min(X(3400), x1) - 4 : x1, 20, C.oroTexto, T, "right", "alphabetic", true);
+    // Ejes
+    var paso = (fmax - fmin) > 2000 ? (angosto ? 1000 : 500) : (angosto ? 200 : 100);
+    for (var f = Math.ceil(fmin / paso) * paso; f <= fmax + 1e-9; f += paso) {
+      linea(g, X(f), y1, X(f), y1 + 5, C.gris, 1);
+      marca(g, String(f), X(f), y1 + 21, w, T);
+    }
+    linea(g, x0, y1, x1, y1, C.gris, 1.2);
+    texto(g, "frecuencia (Hz)", x1, h - 6, C.tinta, T, "right");
+    // Eje vertical: 0, 0.5, 1, ...
+    var pv = ytop > 2.5 ? 1 : 0.5;
+    for (var a = 0; a <= ytop + 1e-9; a += pv) {
+      linea(g, x0 - 4, Y(a), x0, Y(a), C.gris, 1);
+      if (a > 0) linea(g, x0, Y(a), x1, Y(a), a === 1 ? "rgba(91,100,114,0.45)" : C.grisClaro, 1, a === 1 ? [6, 4] : null);
+      texto(g, num(a, a % 1 ? 1 : 0), x0 - 7, Y(a) + 5, C.gris, T, "right");
+    }
+    g.save(); g.translate(14, (y0 + y1) / 2); g.rotate(-Math.PI / 2); texto(g, "|X[k]| / (N/2)", 0, 0, C.tinta, T, "center", "middle"); g.restore();
+    // Curva |X[k]| (bins unidos)
+    g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0, h); g.clip();
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+    var empezado = false;
+    for (k = 0; k < mod.length; k++) {
+      var fx = k * FS / N;
+      if (fx < fmin - FS / N || fx > fmax + FS / N) continue;
+      var yy = Y(mod[k] / mitad);
+      if (!empezado) { g.moveTo(X(fx), yy); empezado = true; } else g.lineTo(X(fx), yy);
+    }
+    g.stroke(); g.restore();
+    // Rótulos de los picos (vista 1)
+    (op.picos || []).forEach(function (p, i) {
+      var kk = Math.round(p.f * N / FS), a = mod[kk] / mitad, xp = X(kk * FS / N), yp = Y(a);
+      g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xp, yp, 4.5, 0, 2 * Math.PI); g.fill(); g.restore();
+      var der = i === 0 || xp < w * 0.5;
+      etiqueta(g, p.txt, xp + (der ? 9 : -9), Math.max(yp + 4, y0 + 18) + (i === 1 && angosto ? 20 : 0), C.guinda, T, der ? "left" : "right", true);
+    });
+    // Cursor (vista 2), con su rótulo abajo, sobre el eje
+    if (op.cursor !== null && op.cursor !== undefined) {
+      var fc = op.cursor * FS / N, xc = X(fc);
+      if (fc >= fmin && fc <= fmax) {
+        linea(g, xc, y0 + (op.rotulos ? 34 : 0), xc, y1, C.guinda, 2);
+        var et = "k = " + op.cursor + " · " + num(fc, 0) + " Hz", we = anchoTexto(et, T, true);
+        etiqueta(g, et, Math.min(Math.max(xc, x0 + we / 2 + 4), x1 - we / 2 - 4), y1 - 8, C.guinda, T, "center", true);
+      }
+    }
+    return { X: X, x0: x0, x1: x1, fmin: fmin, fmax: fmax };
+  }
+
+  // ================================================================ Vista 1 · teclado
+  var est1 = { tecla: "5", unico: null };
+  (function construirTeclado() {
+    var cont = $("teclado"), html = "<div class='cab'></div>";
+    COLUMNAS.forEach(function (f, j) { html += "<div class='cab' id='cabC" + j + "'>" + f + "<br>Hz</div>"; });
+    FILAS.forEach(function (f, i) {
+      html += "<div class='cab' id='cabF" + i + "'>" + f + " Hz</div>";
+      TECLAS[i].forEach(function (t, j) {
+        html += "<button type='button' data-tecla='" + t + "' aria-label='Tecla " + t + ": " + f + " Hz y " + COLUMNAS[j] + " Hz'>" + t + "</button>";
+      });
+    });
+    cont.innerHTML = html;
+    cont.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () { pulsar(b.dataset.tecla); });
+    });
+  })();
+  function duracion() { return Number($("duracion").value) / 1000; }
+  function pulsar(tecla) {
+    est1.tecla = tecla; est1.unico = null;
+    var u = ubicar(tecla);
+    sonarTonos([u.f1, u.f2], duracion());
+    var b = document.querySelector("#teclado button[data-tecla='" + tecla + "']");
+    if (b) { b.classList.add("pulsada"); setTimeout(function () { b.classList.remove("pulsada"); }, 160); }
+    actualizar1();
+  }
+  $("tono2600").addEventListener("click", function () {
+    est1.unico = 2600; sonarTonos([2600], Math.max(0.15, duracion())); actualizar1();
+  });
+  $("duracion").addEventListener("input", actualizar1);
+  $("zoom1").addEventListener("change", actualizar1);
+  document.addEventListener("keydown", function (ev) {
+    if (!$("v1").classList.contains("activo") || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    var a = document.activeElement;
+    if (a && (a.tagName === "INPUT" && a.type !== "checkbox" && a.type !== "range" || a.tagName === "TEXTAREA" || a.tagName === "SELECT")) return;
+    var t = ev.key.length === 1 ? ev.key.toUpperCase() : "";
+    if (ubicar(t)) { ev.preventDefault(); pulsar(t); }
+  });
+
+  function lectura1(N) {
+    var h = "", T = duracion();
+    if (est1.unico) {
+      h += "<div class='renglon'><b>Un solo tono de 2600 Hz</b>: <span class='formula'>x(t) = sen(2π·2600·t)</span></div>";
+      h += "<div class='renglon'>Un pico en k = " + Math.round(2600 * N / FS) + " → f = " + num(Math.round(2600 * N / FS) * FS / N, 0) + " Hz: también cae <b>dentro del canal de voz</b> (300-3400 Hz).</div>";
+      h += "<div class='renglon'>Era el tono que indicaba que una troncal estaba libre: quien lo generaba por la línea tomaba el control de la troncal.</div>";
+      $("lectura1").innerHTML = h; return;
+    }
+    var u = ubicar(est1.tecla), k1 = Math.round(u.f1 * N / FS), k2 = Math.round(u.f2 * N / FS), df = FS / N;
+    h += "<div class='renglon'><b>Tecla " + est1.tecla + "</b> = fila " + (u.i + 1) + " (" + u.f1 + " Hz) + columna " + (u.j + 1) + " (" + u.f2 + " Hz)</div>";
+    h += "<div class='renglon'><span class='formula'>x(t) = sen(2π·" + u.f1 + "·t) + sen(2π·" + u.f2 + "·t)</span></div>";
+    h += "<div class='renglon'>Muestras: <span class='formula'>N = f<sub>s</sub>·T = 8000 × " + num(T, 3) + " = " + N + "</span>; resolución <span class='formula'>Δf = f<sub>s</sub>/N = 8000/" + N + " = " + num(df, df < 10 ? 2 : (df % 1 ? 1 : 0)) + " Hz</span></div>";
+    h += "<div class='renglon'>Picos de la DFT en los bins más cercanos: <span class='formula'>k = " + k1 + " → f<sub>k</sub> = " + k1 + " × " + num(df, df % 1 ? 2 : 0) + " = " + num(k1 * df, 0) + " Hz</span> y <span class='formula'>k = " + k2 + " → " + num(k2 * df, 0) + " Hz</span></div>";
+    var entre = [u.f1, u.f2].filter(function (f) { var kf = f * N / FS; return Math.abs(kf - Math.round(kf)) > 0.05; });
+    h += "<div class='renglon'>La gráfica divide |X[k]| entre N/2: un tono de amplitud 1 que cae justo en un bin da 1" +
+         (entre.length ? "; " + entre.map(function (f) { var kf = f * N / FS; return f + " Hz cae entre k = " + Math.floor(kf) + " y " + (Math.floor(kf) + 1); }).join(" y ") + ", por eso su pico sale más bajo." : ".") + "</div>";
+    h += "<div class='renglon'>Los dos tonos caen <b>dentro del canal de voz</b> (300-3400 Hz): viajan dentro de banda, por el mismo canal que la voz.</div>";
+    $("lectura1").innerHTML = h;
+  }
+  function dibujarOnda(angosto) {
+    var cv = $("lienzoOnda"), d = preparar(cv, angosto ? 0.78 : 0.3), g = d.g, w = d.w, h = d.h, T = tam(w);
+    g.clearRect(0, 0, w, h);
+    var fr = est1.unico ? [est1.unico] : (function () { var u = ubicar(est1.tecla); return [u.f1, u.f2]; })();
+    // Leyenda (en uno o dos renglones, según el ancho)
+    var ley = fr.length === 2 ? [[angosto ? "suma" : "suma (lo que viaja por la línea)", C.azulOscuro], [fr[0] + " Hz", C.oro], [fr[1] + " Hz", C.guinda], ["muestras (8000/s)", C.azul]]
+                              : [["tono de " + fr[0] + " Hz", C.azulOscuro], ["muestras (8000/s)", C.azul]];
+    var xl = 46, yl = 20;
+    ley.forEach(function (l) {
+      var wl = anchoTexto(l[0], T, true);
+      if (xl + wl + 22 > w - 8 && xl > 46) { xl = 46; yl += 21; }
+      linea(g, xl, yl - 5, xl + 16, yl - 5, l[1], 3); texto(g, l[0], xl + 20, yl, l[1] === C.oro ? C.oroTexto : l[1], T, "left", "alphabetic", true);
+      xl += wl + 34;
+    });
+    var x0 = 46, x1 = w - 16, y0 = yl + 14, y1 = h - 48, tmax = angosto ? 0.010 : 0.020, tms = tmax * 1000;
+    var amax = fr.length;
+    function X(t) { return x0 + t / tmax * (x1 - x0); }
+    function Y(a) { return (y0 + y1) / 2 - a / (amax * 1.08) * (y1 - y0) / 2; }
+    linea(g, x0, Y(0), x1, Y(0), C.gris, 1);
+    for (var ms = 0; ms <= tms + 1e-9; ms += 2) {
+      linea(g, X(ms / 1000), y1, X(ms / 1000), y1 + 5, C.gris, 1);
+      marca(g, String(ms), X(ms / 1000), y1 + 21, w, T);
+    }
+    texto(g, "tiempo (ms)", x1, h - 6, C.tinta, T, "right");
+    // Cada senoide por separado (tenue) y su suma
+    var col = [C.oro, C.guinda];
+    if (fr.length === 2) {
+      fr.forEach(function (f, i) {
+        g.save(); g.strokeStyle = col[i]; g.globalAlpha = 0.55; g.lineWidth = 1.4; g.beginPath();
+        for (var p = 0; p <= 600; p++) { var t = tmax * p / 600, yy = Y(Math.sin(2 * Math.PI * f * t)); if (p === 0) g.moveTo(X(t), yy); else g.lineTo(X(t), yy); }
+        g.stroke(); g.restore();
+      });
+    }
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2.4; g.beginPath();
+    for (var p = 0; p <= 1200; p++) {
+      var t = tmax * p / 1200, v = 0;
+      fr.forEach(function (f) { v += Math.sin(2 * Math.PI * f * t); });
+      if (p === 0) g.moveTo(X(t), Y(v)); else g.lineTo(X(t), Y(v));
+    }
+    g.stroke(); g.restore();
+    // Muestras a 8000 por segundo
+    g.save(); g.fillStyle = C.azul;
+    for (var n = 0; n <= tmax * FS; n++) {
+      var tn = n / FS, vn = 0;
+      fr.forEach(function (f) { vn += Math.sin(2 * Math.PI * f * tn); });
+      g.beginPath(); g.arc(X(tn), Y(vn), 2.6, 0, 2 * Math.PI); g.fill();
+    }
+    g.restore();
+  }
+  function actualizar1() {
+    var T = duracion(), N = Math.round(FS * T);
+    $("duracionVal").textContent = Math.round(T * 1000) + " ms (N = " + N + " muestras)";
+    document.querySelectorAll("#teclado button").forEach(function (b) { b.classList.toggle("activa", !est1.unico && b.dataset.tecla === est1.tecla); });
+    var u = est1.unico ? null : ubicar(est1.tecla);
+    for (var i = 0; i < 4; i++) { $("cabF" + i).classList.toggle("activa", !!u && u.i === i); $("cabC" + i).classList.toggle("activa", !!u && u.j === i); }
+    lectura1(N);
+    if (!$("v1").classList.contains("activo")) return;
+    var angosto = ($("lienzoEsp1").clientWidth || 600) < 560;
+    dibujarOnda(angosto);
+    var x = est1.unico ? generarTono(est1.unico, 0, N) : generarTono(u.f1, u.f2, N);
+    var picos = est1.unico ? [{ f: est1.unico, txt: est1.unico + " Hz" }]
+                           : [{ f: u.f1, txt: u.f1 + " Hz · fila " + (u.i + 1) }, { f: u.f2, txt: u.f2 + " Hz · columna " + (u.j + 1) }];
+    var zoom = $("zoom1").checked && !est1.unico;
+    dibujarEspectro($("lienzoEsp1"), { mod: dftModulo(x), N: N, picos: picos, cursor: null,
+                                       fmin: zoom ? 600 : 0, fmax: zoom ? 1700 : FS / 2, rotulos: zoom }, angosto);
+  }
+
+  // ================================================================ Vista 2 · escucha la línea
+  var T_TONO = 0.1, T_PAUSA = 0.1, T_BORDE = 0.15, N_TONO = Math.round(FS * T_TONO);
+  var grab = null, sel = 0, cursor = null, intentos = 0, central = false, revelado = false;
+  var cacheEsp = {};
+  function nuevaGrabacion() {
+    var nip = "";
+    for (var i = 0; i < 4; i++) nip += String(Math.floor(Math.random() * 10));
+    var total = Math.round(FS * (2 * T_BORDE + 4 * T_TONO + 3 * T_PAUSA)), limpio = new Float64Array(total), tramos = [];
+    for (i = 0; i < 4; i++) {
+      var ini = Math.round(FS * (T_BORDE + i * (T_TONO + T_PAUSA))), u = ubicar(nip.charAt(i)), x = generarTono(u.f1, u.f2, N_TONO);
+      for (var n = 0; n < N_TONO; n++) limpio[ini + n] = x[n];
+      tramos.push({ ini: ini, fin: ini + N_TONO });
+    }
+    var ruido = new Float64Array(total);
+    for (n = 0; n < total; n++) ruido[n] = gauss();
+    grab = { nip: nip, limpio: limpio, ruido: ruido, tramos: tramos };
+    sel = 0; cursor = null; intentos = 0; central = false; revelado = false; cacheEsp = {};
+    $("respuesta").value = ""; $("resultado").innerHTML = ""; $("cajaCentral").hidden = true;
+    actualizar2();
+  }
+  // Señal grabada: tonos (o nada, si se enmascaran) + ruido blanco con varianza S/10^(SNR/10), S = 1
+  function senal() {
+    var snr = Number($("snr").value), sigma = Math.sqrt(1 / Math.pow(10, snr / 10)), masc = $("enmascarar").checked;
+    var x = new Float64Array(grab.limpio.length);
+    for (var n = 0; n < x.length; n++) x[n] = (masc ? 0 : grab.limpio[n]) + sigma * grab.ruido[n];
+    return x;
+  }
+  function tramo(x, i) { return x.subarray(grab.tramos[i].ini, grab.tramos[i].fin); }
+  function claveEsp() { return [sel, $("snr").value, $("enmascarar").checked].join("|"); }
+  function espectroSel(x) {
+    var c = claveEsp();
+    if (!cacheEsp[c]) cacheEsp[c] = dftModulo(tramo(x, sel));
+    return cacheEsp[c];
+  }
+  (function construirSegmentos() {
+    var h = "<span>Tono:</span>";
+    for (var i = 0; i < 4; i++) h += "<button type='button' data-i='" + i + "' aria-label='Analizar el tono " + (i + 1) + "'>" + (i + 1) + "</button>";
+    $("segmentos").innerHTML = h;
+    $("segmentos").querySelectorAll("button").forEach(function (b) { b.addEventListener("click", function () { elegir(Number(b.dataset.i)); }); });
+  })();
+  function marcarSegmentos() {
+    $("segmentos").querySelectorAll("button").forEach(function (b) { b.classList.toggle("activo", Number(b.dataset.i) === sel); });
+  }
+  function elegir(i) { sel = Math.max(0, Math.min(3, i)); actualizar2(); }
+  var geoTiempo = null;
+  function dibujarTiempo(x, angosto) {
+    var cv = $("lienzoTiempo"), d = preparar(cv, angosto ? 0.62 : 0.26), g = d.g, w = d.w, h = d.h, T = tam(w);
+    g.clearRect(0, 0, w, h);
+    var x0 = 40, x1 = w - 16, y0 = 34, y1 = h - 48, tot = x.length, dur = tot / FS;
+    geoTiempo = { x0: x0, x1: x1, dur: dur };
+    var amax = 2.2;   // escala fija (una tecla limpia llega a ±2) salvo que el ruido la rebase
+    for (var n = 0; n < tot; n++) amax = Math.max(amax, Math.abs(x[n]));
+    function X(t) { return x0 + t / dur * (x1 - x0); }
+    function Y(a) { return (y0 + y1) / 2 - a / amax * (y1 - y0) / 2; }
+    grab.tramos.forEach(function (tr, i) {
+      var xa = X(tr.ini / FS), xb = X(tr.fin / FS);
+      g.save(); g.fillStyle = i === sel ? "rgba(184,151,90,0.30)" : "rgba(0,64,143,0.07)"; g.fillRect(xa, y0 - 6, xb - xa, y1 - y0 + 6); g.restore();
+      texto(g, String(i + 1), (xa + xb) / 2, y0 - 12, i === sel ? C.oroTexto : C.gris, T, "center", "alphabetic", true);
+    });
+    linea(g, x0, Y(0), x1, Y(0), C.gris, 1);
+    // Envolvente mínimo-máximo por columna de píxel
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 1; g.beginPath();
+    var cols = Math.max(1, Math.round(x1 - x0));
+    for (var c = 0; c < cols; c++) {
+      var a = Math.floor(c * tot / cols), b = Math.max(a + 1, Math.floor((c + 1) * tot / cols)), mn = Infinity, mx = -Infinity;
+      for (n = a; n < b; n++) { if (x[n] < mn) mn = x[n]; if (x[n] > mx) mx = x[n]; }
+      g.moveTo(x0 + c + 0.5, Y(mx)); g.lineTo(x0 + c + 0.5, Y(mn));
+    }
+    g.stroke(); g.restore();
+    var pasoMs = angosto ? 250 : 100;
+    for (var ms = 0; ms <= dur * 1000 + 1e-6; ms += pasoMs) {
+      linea(g, X(ms / 1000), y1, X(ms / 1000), y1 + 5, C.gris, 1);
+      marca(g, String(ms), X(ms / 1000), y1 + 21, w, T);
+    }
+    texto(g, "tiempo (ms)", x1, h - 6, C.tinta, T, "right");
+    if ($("enmascarar").checked) etiqueta(g, "tonos enmascarados", x1, y0 + 14, C.guinda, T, "right", true);
+  }
+  function dibujarGoertzel(x) {
+    var cv = $("lienzoGoertzel"), angosto = (cv.clientWidth || 600) < 560, d = preparar(cv, angosto ? 0.62 : 0.24), g = d.g, w = d.w, h = d.h, T = tam(w);
+    g.clearRect(0, 0, w, h);
+    // Misma escala que el espectro: |X(f)| entre N/2 (un tono limpio da cerca de 1)
+    var r = decodificar(tramo(x, sel)), mitad = N_TONO / 2, vals = r.fil.concat(r.col).map(function (v) { return v / mitad; });
+    var ytop = Math.max(1.15, Math.max.apply(null, vals) * 1.08);
+    var x0 = 14, x1 = w - 14, y0 = 30, y1 = h - 44, n = 8, an = (x1 - x0) / n;
+    linea(g, x0, y1 - (y1 - y0) / ytop, x1, y1 - (y1 - y0) / ytop, "rgba(91,100,114,0.45)", 1, [6, 4]);
+    texto(g, "1 = tono limpio", x1, y1 - (y1 - y0) / ytop - 5, C.gris, T, "right");
+    vals.forEach(function (v, k) {
+      var gana = r.ok && (k === r.i || k === 4 + r.j), alto = v / ytop * (y1 - y0);
+      g.save(); g.fillStyle = gana ? (k < 4 ? C.azul : C.guinda) : C.grisClaro; g.strokeStyle = k < 4 ? C.azul : C.guinda; g.lineWidth = 1.2;
+      g.fillRect(x0 + k * an + 6, y1 - alto, an - 12, alto); g.strokeRect(x0 + k * an + 6, y1 - alto, an - 12, alto); g.restore();
+      var fr = k < 4 ? FILAS[k] : COLUMNAS[k - 4];
+      texto(g, String(fr), x0 + (k + 0.5) * an, y1 + 18, k < 4 ? C.azul : C.guinda, angosto ? 15 : T, "center", "alphabetic", true);
+    });
+    linea(g, x0, y1, x1, y1, C.gris, 1.2);
+    texto(g, "filas", x0 + 2 * an, h - 6, C.azul, T, "center", "alphabetic", true);
+    texto(g, "columnas", x0 + 6 * an, h - 6, C.guinda, T, "center", "alphabetic", true);
+    texto(g, r.ok ? "Tono " + (sel + 1) + ": tecla " + r.tecla : "Tono " + (sel + 1) + ": no hay un tono claro", x0 + 2, 18, r.ok ? C.azulOscuro : C.guinda, T, "left", "alphabetic", true);
+  }
+  function lectura2() {
+    var snr = Number($("snr").value), h = "";
+    h += "<div class='renglon'><b>Tono " + (sel + 1) + "</b>: T = 100 ms → <span class='formula'>N = f<sub>s</sub>·T = 8000 × 0.1 = " + N_TONO + "</span>, <span class='formula'>Δf = f<sub>s</sub>/N = 10 Hz</span></div>";
+    if (cursor !== null) h += "<div class='renglon'>Cursor: <span class='formula'>k = " + cursor + " → f<sub>k</sub> = k·f<sub>s</sub>/N = " + cursor + " × 8000/" + N_TONO + " = <b>" + num(cursor * FS / N_TONO, 0) + " Hz</b></span></div>";
+    else h += "<div class='renglon'>Arrastra el cursor sobre el espectro para leer el bin k y su frecuencia.</div>";
+    h += "<div class='renglon'>Ruido: <span class='formula'>SNR = 10 log₁₀(S/N) = " + num(snr, 0) + " dB</span> → el ruido tiene " + num(Math.pow(10, -snr / 10), Math.pow(10, -snr / 10) < 1 ? 3 : 1) + " veces la potencia de los tonos.</div>";
+    h += "<div class='renglon'>La gráfica divide |X[k]| entre N/2 = " + (N_TONO / 2) + ": un tono limpio de amplitud 1 da cerca de 1 (un poco menos si su frecuencia cae entre dos bins).</div>";
+    $("lectura2").innerHTML = h;
+  }
+  var geoEsp2 = null;
+  function actualizar2() {
+    var snr = Number($("snr").value);
+    $("snrVal").textContent = num(snr, 0) + " dB";
+    $("central").disabled = !(intentos > 0 || revelado);
+    $("notaCentral").hidden = intentos > 0 || revelado;
+    marcarSegmentos();
+    lectura2();
+    if (!$("v2").classList.contains("activo") || !grab) return;
+    var x = senal(), angosto = ($("lienzoEsp2").clientWidth || 600) < 560;
+    dibujarTiempo(x, angosto);
+    var zoom = $("zoom").checked;
+    geoEsp2 = dibujarEspectro($("lienzoEsp2"), { mod: espectroSel(x), N: N_TONO, picos: [], cursor: cursor,
+                                                 fmin: zoom ? 600 : 0, fmax: zoom ? 1700 : FS / 2, rotulos: zoom }, angosto);
+    if (central) { $("cajaCentral").hidden = false; dibujarGoertzel(x); textoCentral(x); }
+  }
+  function textoCentral(x) {
+    var partes = [], todo = "";
+    for (var i = 0; i < 4; i++) {
+      var r = decodificar(tramo(x, i));
+      todo += r.tecla;
+      partes.push("tono " + (i + 1) + ": " + (r.ok ? FILAS[r.i] + " + " + COLUMNAS[r.j] + " Hz → " + r.tecla : "sin tono claro"));
+    }
+    $("decodificado").innerHTML = "<b>La central decodifica: " + todo + "</b> (" + partes.join("; ") + "). Calcula X(f) = Σ x[n] e<sup>−i2πfn/f<sub>s</sub></sup> solo en las 8 frecuencias: la DFT de la Ecuación del libro con k = f·N/f<sub>s</sub>.";
+  }
+  $("nueva").addEventListener("click", nuevaGrabacion);
+  $("reproducir").addEventListener("click", function () { if (grab) sonarGrabacion(senal()); });
+  $("snr").addEventListener("input", actualizar2);
+  $("enmascarar").addEventListener("change", actualizar2);
+  $("zoom").addEventListener("change", actualizar2);
+  $("verificar").addEventListener("click", function () {
+    var r = $("respuesta").value.replace(/\s+/g, "");
+    if (!/^\d{4}$/.test(r)) { $("resultado").innerHTML = "<span class='mal'>Escribe los 4 dígitos del NIP.</span>"; return; }
+    intentos++;
+    var bien = [];
+    for (var i = 0; i < 4; i++) if (r.charAt(i) === grab.nip.charAt(i)) bien.push(i + 1);
+    if (bien.length === 4) $("resultado").innerHTML = "<span class='ok'>✓ Correcto: recuperaste el NIP de la grabación.</span> Así de fácil lo haría quien la obtenga.";
+    else $("resultado").innerHTML = "<span class='mal'>✗ " + bien.length + " de 4 dígitos en su lugar.</span> " + (bien.length ? "Correctos: tono " + bien.join(", ") + ". " : "") + "Revisa los demás tonos en el espectro.";
+    actualizar2();
+  });
+  $("respuesta").addEventListener("keydown", function (ev) { if (ev.key === "Enter") $("verificar").click(); });
+  $("central").addEventListener("click", function () { central = true; actualizar2(); });
+  $("revelar").addEventListener("click", function () {
+    revelado = true; $("resultado").innerHTML = "El NIP era <b>" + grab.nip + "</b>.";
+    actualizar2();
+  });
+  // Elegir un tono tocando la forma de onda
+  $("lienzoTiempo").addEventListener("pointerdown", function (ev) {
+    if (!geoTiempo || !grab) return;
+    var r = $("lienzoTiempo").getBoundingClientRect(), t = (ev.clientX - r.left - geoTiempo.x0) / (geoTiempo.x1 - geoTiempo.x0) * geoTiempo.dur;
+    var mejor = 0, dmin = Infinity;
+    grab.tramos.forEach(function (tr, i) { var c = (tr.ini + tr.fin) / 2 / FS, dd = Math.abs(t - c); if (dd < dmin) { dmin = dd; mejor = i; } });
+    elegir(mejor);
+  });
+  $("lienzoTiempo").addEventListener("keydown", function (ev) {
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); elegir(sel - 1); }
+    else if (ev.key === "ArrowRight") { ev.preventDefault(); elegir(sel + 1); }
+  });
+  // Cursor del espectro
+  var cvE = $("lienzoEsp2"), arrE = false;
+  function ponerCursor(ev) {
+    if (!geoEsp2) return;
+    var r = cvE.getBoundingClientRect(), f = geoEsp2.fmin + (ev.clientX - r.left - geoEsp2.x0) / (geoEsp2.x1 - geoEsp2.x0) * (geoEsp2.fmax - geoEsp2.fmin);
+    cursor = Math.max(0, Math.min(N_TONO / 2, Math.round(f * N_TONO / FS)));
+    actualizar2();
+  }
+  cvE.addEventListener("pointerdown", function (ev) { arrE = true; try { cvE.setPointerCapture(ev.pointerId); } catch (e) { /* puntero ya liberado */ } ponerCursor(ev); });
+  cvE.addEventListener("pointermove", function (ev) { if (arrE) ponerCursor(ev); });
+  cvE.addEventListener("pointerup", function () { arrE = false; });
+  cvE.addEventListener("pointercancel", function () { arrE = false; });
+  cvE.addEventListener("keydown", function (ev) {
+    var p = ev.shiftKey ? 10 : 1;
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); cursor = Math.max(0, (cursor === null ? 100 : cursor) - p); actualizar2(); }
+    else if (ev.key === "ArrowRight") { ev.preventDefault(); cursor = Math.min(N_TONO / 2, (cursor === null ? 100 : cursor) + p); actualizar2(); }
+  });
+
+  // ================================================================ general
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) actualizar1();
+    if ($("v2").classList.contains("activo")) actualizar2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  nuevaGrabacion();
+  actualizar1();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) { inicial.click(); window.addEventListener("load", function () { setTimeout(function () { window.scrollTo(0, 0); }, 60); }); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-14-dtmf.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM12 2h3v1h-3zM17 2h2v1h-2zM20 2h2v1h-2zM23 2h1v1h-1zM25 2h1v1h-1zM27 2h4v1h-4zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM14 3h2v1h-2zM17 3h1v1h-1zM22 3h1v1h-1zM28 3h1v1h-1zM30 3h1v1h-1zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM18 4h9v1h-9zM28 4h3v1h-3zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h4v1h-4zM16 5h2v1h-2zM20 5h3v1h-3zM27 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h2v1h-2zM15 6h2v1h-2zM18 6h1v1h-1zM20 6h1v1h-1zM24 6h2v1h-2zM28 6h3v1h-3zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h2v1h-2zM16 7h2v1h-2zM20 7h5v1h-5zM26 7h1v1h-1zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h1v1h-1zM16 9h1v1h-1zM19 9h3v1h-3zM23 9h4v1h-4zM2 10h1v1h-1zM6 10h1v1h-1zM8 10h4v1h-4zM13 10h3v1h-3zM17 10h1v1h-1zM20 10h2v1h-2zM23 10h1v1h-1zM26 10h1v1h-1zM29 10h1v1h-1zM31 10h5v1h-5zM38 10h1v1h-1zM3 11h2v1h-2zM6 11h2v1h-2zM9 11h1v1h-1zM11 11h1v1h-1zM14 11h1v1h-1zM18 11h1v1h-1zM21 11h2v1h-2zM25 11h1v1h-1zM28 11h3v1h-3zM34 11h4v1h-4zM2 12h4v1h-4zM7 12h2v1h-2zM13 12h1v1h-1zM15 12h1v1h-1zM18 12h3v1h-3zM22 12h2v1h-2zM25 12h1v1h-1zM29 12h1v1h-1zM32 12h1v1h-1zM34 12h2v1h-2zM4 13h1v1h-1zM6 13h1v1h-1zM10 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM19 13h2v1h-2zM23 13h1v1h-1zM25 13h2v1h-2zM29 13h1v1h-1zM33 13h2v1h-2zM36 13h2v1h-2zM4 14h1v1h-1zM8 14h1v1h-1zM10 14h1v1h-1zM14 14h1v1h-1zM16 14h2v1h-2zM19 14h1v1h-1zM21 14h1v1h-1zM23 14h2v1h-2zM29 14h1v1h-1zM31 14h3v1h-3zM35 14h4v1h-4zM2 15h1v1h-1zM6 15h2v1h-2zM10 15h1v1h-1zM12 15h1v1h-1zM14 15h1v1h-1zM17 15h4v1h-4zM23 15h1v1h-1zM25 15h1v1h-1zM27 15h4v1h-4zM34 15h2v1h-2zM4 16h6v1h-6zM13 16h1v1h-1zM17 16h2v1h-2zM20 16h1v1h-1zM25 16h2v1h-2zM29 16h1v1h-1zM33 16h4v1h-4zM2 17h1v1h-1zM5 17h1v1h-1zM9 17h2v1h-2zM13 17h1v1h-1zM15 17h1v1h-1zM18 17h1v1h-1zM23 17h3v1h-3zM28 17h3v1h-3zM33 17h2v1h-2zM36 17h1v1h-1zM3 18h4v1h-4zM8 18h1v1h-1zM12 18h1v1h-1zM14 18h2v1h-2zM18 18h1v1h-1zM21 18h5v1h-5zM28 18h1v1h-1zM31 18h3v1h-3zM35 18h4v1h-4zM2 19h1v1h-1zM5 19h2v1h-2zM12 19h1v1h-1zM14 19h1v1h-1zM16 19h1v1h-1zM20 19h2v1h-2zM25 19h1v1h-1zM27 19h5v1h-5zM34 19h2v1h-2zM37 19h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM10 20h2v1h-2zM14 20h4v1h-4zM21 20h1v1h-1zM24 20h2v1h-2zM28 20h2v1h-2zM33 20h4v1h-4zM3 21h1v1h-1zM6 21h1v1h-1zM9 21h1v1h-1zM13 21h3v1h-3zM17 21h3v1h-3zM21 21h6v1h-6zM28 21h2v1h-2zM33 21h2v1h-2zM36 21h2v1h-2zM5 22h2v1h-2zM8 22h1v1h-1zM10 22h1v1h-1zM14 22h2v1h-2zM18 22h2v1h-2zM23 22h1v1h-1zM26 22h1v1h-1zM31 22h3v1h-3zM36 22h1v1h-1zM2 23h1v1h-1zM4 23h1v1h-1zM7 23h1v1h-1zM12 23h7v1h-7zM20 23h1v1h-1zM23 23h1v1h-1zM25 23h1v1h-1zM29 23h2v1h-2zM33 23h2v1h-2zM3 24h13v1h-13zM17 24h3v1h-3zM22 24h5v1h-5zM28 24h2v1h-2zM31 24h1v1h-1zM33 24h4v1h-4zM2 25h1v1h-1zM5 25h1v1h-1zM9 25h1v1h-1zM12 25h3v1h-3zM16 25h9v1h-9zM26 25h1v1h-1zM28 25h1v1h-1zM30 25h1v1h-1zM32 25h3v1h-3zM36 25h1v1h-1zM38 25h1v1h-1zM2 26h1v1h-1zM5 26h1v1h-1zM7 26h2v1h-2zM10 26h2v1h-2zM13 26h1v1h-1zM15 26h2v1h-2zM20 26h1v1h-1zM22 26h3v1h-3zM26 26h1v1h-1zM28 26h1v1h-1zM32 26h2v1h-2zM35 26h2v1h-2zM38 26h1v1h-1zM2 27h3v1h-3zM6 27h1v1h-1zM9 27h2v1h-2zM13 27h3v1h-3zM18 27h1v1h-1zM21 27h5v1h-5zM29 27h2v1h-2zM34 27h1v1h-1zM4 28h2v1h-2zM8 28h1v1h-1zM11 28h1v1h-1zM13 28h3v1h-3zM18 28h2v1h-2zM25 28h3v1h-3zM29 28h1v1h-1zM32 28h2v1h-2zM36 28h1v1h-1zM5 29h1v1h-1zM10 29h2v1h-2zM14 29h1v1h-1zM16 29h1v1h-1zM19 29h2v1h-2zM22 29h5v1h-5zM30 29h1v1h-1zM34 29h1v1h-1zM36 29h1v1h-1zM2 30h9v1h-9zM12 30h2v1h-2zM16 30h4v1h-4zM22 30h5v1h-5zM30 30h5v1h-5zM36 30h1v1h-1zM10 31h1v1h-1zM12 31h2v1h-2zM17 31h3v1h-3zM22 31h1v1h-1zM25 31h1v1h-1zM27 31h4v1h-4zM34 31h1v1h-1zM37 31h1v1h-1zM2 32h7v1h-7zM10 32h3v1h-3zM16 32h2v1h-2zM20 32h1v1h-1zM22 32h2v1h-2zM25 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM2 33h1v1h-1zM8 33h1v1h-1zM14 33h2v1h-2zM17 33h1v1h-1zM21 33h4v1h-4zM26 33h1v1h-1zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h3v1h-3zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM13 34h2v1h-2zM16 34h3v1h-3zM22 34h5v1h-5zM28 34h1v1h-1zM30 34h9v1h-9zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM12 35h1v1h-1zM14 35h2v1h-2zM20 35h1v1h-1zM23 35h1v1h-1zM25 35h3v1h-3zM29 35h5v1h-5zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM11 36h1v1h-1zM13 36h5v1h-5zM22 36h4v1h-4zM27 36h2v1h-2zM31 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h1v1h-1zM13 37h8v1h-8zM22 37h2v1h-2zM25 37h2v1h-2zM28 37h1v1h-1zM32 37h1v1h-1zM34 37h1v1h-1zM36 37h2v1h-2zM2 38h7v1h-7zM10 38h3v1h-3zM14 38h2v1h-2zM19 38h2v1h-2zM22 38h3v1h-3zM26 38h1v1h-1zM28 38h2v1h-2zM31 38h1v1h-1zM33 38h1v1h-1zM36 38h3v1h-3z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-14-dtmf.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

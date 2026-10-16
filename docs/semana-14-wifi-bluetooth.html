@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi y Bluetooth en 2.4 GHz</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  button.accion:disabled { opacity:.45; cursor:not-allowed; background:#fff; color:var(--azul); }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .fila > * { min-width:0; }
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 480px) { header, main, footer { padding-left:10px; padding-right:10px; } h1 { font-size:1.4rem; }
+                              .panel { padding:10px; } nav.pestanas button { padding:8px 9px; } }
+  .rejilla { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; margin-top:6px; }
+  .rejilla button { font:inherit; font-weight:bold; padding:6px 0; border-radius:7px; cursor:pointer;
+                    border:1px solid var(--borde); background:#fff; color:var(--azul-oscuro); }
+  .rejilla button.encendido { background:var(--azul); border-color:var(--azul); color:#fff; }
+  .rejilla button.fuera { border-style:dashed; }
+  .rejilla button:focus-visible { outline:2px solid var(--oro); }
+  .opcion { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; }
+  .opcion input { width:auto; }
+  .nota { color:var(--gris); font-size:.92rem; margin:6px 0 0; }
+  .lista-ap { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:4px 10px; margin-top:6px; }
+  .lista-ap label { margin-top:0; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .veredicto { margin-top:10px; padding:8px 10px; border-radius:8px; background:var(--gris-claro); }
+  .veredicto:empty { display:none; }
+  .linea-pred { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:1.05rem; }
+  .linea-pred input { width:5.5em; font-size:1.1rem; }
+  .chip { display:inline-block; min-width:2.6em; text-align:center; padding:3px 8px; border-radius:7px;
+          border:1px solid var(--borde); background:#fff; font-weight:bold; color:var(--azul-oscuro); margin:2px; }
+  .chip.bien { border-color:var(--azul); background:var(--azul-claro); }
+  .chip.falla { border-color:var(--guinda); background:var(--guinda-claro); color:var(--guinda); }
+  .calc { display:flex; flex-wrap:wrap; gap:4px 6px; align-items:center; margin-top:6px; }
+  .calc input { width:3.6em; }
+  .calc span { font-weight:bold; color:var(--azul-oscuro); }
+  .pistas { margin-top:8px; }
+  .pistas div { margin-top:6px; }
+  .marcador { font-size:1.02rem; }
+  .tabla { border-collapse:collapse; margin-top:4px; }
+  .tabla td { padding:2px 8px 2px 0; vertical-align:top; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 14 · Tecnologías de comunicación: Wi-Fi y Bluetooth</div>
+  <h1>Wi-Fi y Bluetooth: cómo se comparte la banda de 2.4 GHz</h1>
+  <p class="sub">Enciende puntos de acceso, asigna canales sin que se estorben, mira saltar a Bluetooth y juega a ser el espía que predice los saltos.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Canales Wi-Fi</button>
+    <button type="button" data-vista="v2" role="tab">2. Asigna canales (grafo)</button>
+    <button type="button" data-vista="v3" role="tab">3. Saltos de Bluetooth y AFH</button>
+    <button type="button" data-vista="v4" role="tab">4. Reto del espía</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Puntos de acceso encendidos</h2>
+        <div>Toca un canal para encender o apagar un AP.</div>
+        <div class="rejilla" id="rejillaWifi" aria-label="Canales Wi-Fi de 2.4 GHz"></div>
+        <p class="nota">Los canales 12 y 13 (borde punteado) dependen de la región; en América se usan típicamente del 1 al 11.</p>
+        <label for="ancho">Ancho de cada canal</label>
+        <select id="ancho">
+          <option value="22" selected>22 MHz (802.11b)</option>
+          <option value="20">20 MHz (OFDM: 802.11g/n/ax)</option>
+        </select>
+        <label class="opcion"><input type="checkbox" id="verBT"> Ver debajo los 79 canales de Bluetooth</label>
+        <button type="button" class="accion" id="apagarTodo">Apagar todos</button>
+        <div class="lectura" id="lecturaWifi"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoWifi" aria-label="Espectro de 2.4 GHz con los lóbulos de los canales Wi-Fi encendidos, zonas de traslape y bandas de guarda"></canvas>
+        <p class="nota">Lóbulos idealizados (como en la figura del libro). Franja guinda bajo el eje: traslape. Franja oro: banda de guarda.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con el canal 1 encendido, predice el canal más cercano que ya no se traslapa con él. Compruébalo encendiendo canales uno por uno.</li>
+            <li>Cambia el ancho a 20 MHz. ¿Sigue valiendo la regla |n₁ − n₂| ≥ 5? ¿Cuánta banda de guarda queda ahora entre 1 y 6?</li>
+            <li>¿Cuántas redes sin traslape caben en los canales 1 a 13 con 22 MHz? ¿Y con 20 MHz?</li>
+            <li>Activa los canales de Bluetooth: ¿cuántos de ellos quedan debajo del canal 6 de Wi-Fi?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Plano y canales</h2>
+        <label for="escenario">Plano</label>
+        <select id="escenario" style="width:100%">
+          <option value="triangulo">Tres AP que se escuchan (triángulo)</option>
+          <option value="pasillo">Pasillo con 5 AP</option>
+          <option value="oficina" selected>Oficina con 6 AP</option>
+          <option value="k4">Cuatro AP que se escuchan todos</option>
+          <option value="rueda">Reto: un AP central y 5 alrededor</option>
+        </select>
+        <p class="nota">Cada línea une dos AP que se escuchan. Clic en un AP: sin canal → 1 → 6 → 11. Con los selectores puedes probar cualquier canal.</p>
+        <div class="lista-ap" id="listaAP"></div>
+        <button type="button" class="accion" id="verificarGrafo">Verificar</button>
+        <button type="button" class="accion" id="existeGrafo">¿Existe solución con 1, 6 y 11?</button>
+        <button type="button" class="accion" id="limpiarGrafo">Borrar canales</button>
+        <button type="button" class="accion" id="solucionGrafo">Mostrar una solución</button>
+        <div class="veredicto" id="veredictoGrafo" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoGrafo" aria-label="Plano con puntos de acceso (vértices) y pares que se escuchan (aristas)"></canvas>
+        <div class="lectura" id="lecturaGrafo"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de asignar: ¿cuántos canales distintos necesita el pasillo? ¿Y el triángulo?</li>
+            <li>En "Cuatro AP que se escuchan todos", ¿puedes evitar todo conflicto? ¿Qué es mejor: que dos AP compartan canal o poner a uno en el canal 3?</li>
+            <li>El reto del AP central no tiene cuatro AP que se escuchen todos. ¿Alcanza con 1, 6 y 11? ¿Por qué?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Salto de frecuencia (FHSS)</h2>
+        <div>Redes Wi-Fi encendidas cerca (22 MHz cada una):</div>
+        <div class="rejilla" id="rejillaBT" aria-label="Canales Wi-Fi que ocupan la banda"></div>
+        <label class="opcion"><input type="checkbox" id="afh"> Salto adaptativo (AFH)</label>
+        <label for="velBT">Cámara lenta <small id="velBTtxt"></small></label>
+        <input id="velBT" type="range" min="1" max="60" step="1" value="6">
+        <button type="button" class="accion" id="pausaBT">Pausa</button>
+        <button type="button" class="accion" id="pasoBT">Un salto</button>
+        <button type="button" class="accion" id="cienBT">+200 saltos</button>
+        <button type="button" class="accion" id="reiniciarBT">Reiniciar conteo</button>
+        <div class="lectura" id="lecturaBT"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoBT" aria-label="Cascada de saltos: tiempo en slots contra canal de Bluetooth, con la banda ocupada por Wi-Fi sombreada e histograma de saltos por canal"></canvas>
+        <p class="nota">Cada rectángulo es un slot de 625 µs en un canal. Guinda: el salto cayó sobre una red Wi-Fi. Contorno gris: canal que AFH evitó (el salto se reasignó a un canal libre; modelo simplificado de AFH).</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Sin AFH y con Wi-Fi en el canal 6, predice qué porcentaje de los saltos chocará con el Wi-Fi. Agrega 200 saltos y compara.</li>
+            <li>Activa AFH. ¿Cuántos canales usa ahora? ¿Qué les pasa a los saltos que iban a caer sobre el Wi-Fi?</li>
+            <li>Enciende redes en 1, 6 y 11. ¿Cuántos canales libres quedan? ¿Por qué AFH ya no puede evitar todos los choques?</li>
+            <li>Un espía con un receptor que capta los 80 MHz de la banda, ¿necesita seguir los saltos?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v4">
+    <div class="fila">
+      <div class="panel">
+        <h2>¿Se puede predecir el siguiente salto?</h2>
+        <label class="opcion"><input type="radio" name="modoEsp" value="juguete" checked> Regla de juguete: k′ = (a·k + b) mod 79, con a y b ocultos</label>
+        <label class="opcion"><input type="radio" name="modoEsp" value="secreta"> Secuencia secreta (generador criptográfico del navegador)</label>
+        <button type="button" class="accion" id="nuevoReto">Nuevo reto</button>
+        <div class="lectura marcador" id="marcador"></div>
+        <div id="cajaPistas">
+          <h2 style="margin-top:12px">Herramientas del espía</h2>
+          <div>Prueba una hipótesis: k′ = (a·k + b) mod 79</div>
+          <div class="calc">
+            <span>a =</span><input type="number" id="calcA" min="0" max="78" value="2" aria-label="a">
+            <span>b =</span><input type="number" id="calcB" min="0" max="78" value="0" aria-label="b">
+            <span>k =</span><input type="number" id="calcK" min="0" max="78" value="0" aria-label="k">
+          </div>
+          <div class="formula" id="calcRes" style="margin-top:4px"></div>
+          <div class="pistas">
+            <button type="button" class="accion" id="pista1">Pista 1</button>
+            <button type="button" class="accion" id="pista2">Pista 2</button>
+            <button type="button" class="accion" id="pista3">Pista 3</button>
+            <button type="button" class="accion" id="solucion" disabled>Solución del espía</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoEsp" aria-label="Saltos observados y predichos sobre los 79 canales de Bluetooth"></canvas>
+        <div class="linea-pred" id="lineaPred">
+          <span id="etqPred"></span>
+          <input type="number" id="pred" min="0" max="78" aria-label="Canal que predices">
+          <button type="button" class="accion" id="verificarPred" style="margin-top:0">Verificar</button>
+        </div>
+        <div class="lectura" id="lecturaEsp" aria-live="polite"></div>
+        <div class="lectura" id="pistasTxt" style="display:none"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con la regla de juguete, ¿cuántos saltos necesitas observar para predecir todos los demás? ¿Por qué no bastan dos?</li>
+            <li>Con la secuencia secreta, ¿qué probabilidad tienes de acertar cada salto? Compárala con tu marcador.</li>
+            <li>Bluetooth real calcula sus saltos con la dirección (BD_ADDR) y el reloj del dispositivo central. ¿Se parece más al modo de juguete o al secreto? ¿Qué protege entonces la confidencialidad?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad.</b> El salto de frecuencia dificulta la interceptación casual con un receptor de banda estrecha y resiste la interferencia en un solo canal, pero <b>no es un mecanismo criptográfico</b>: la secuencia se calcula con una función pública a partir de la dirección (BD_ADDR) y el reloj del dispositivo central, que no son secretos y se recuperan por el aire; un receptor de banda ancha que capte los 80 MHz ni siquiera necesita conocerla. La confidencialidad de Bluetooth está en el emparejamiento (Diffie-Hellman con curvas elípticas) y en el cifrado del enlace (AES-CCM), y la de Wi-Fi, en WPA2/WPA3, no en el canal.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap04_tecnologias_comunicacion_modernas.tex (Ecuaciones eq:canal-wifi-24, eq:no-traslape-wifi, eq:canales-bluetooth y eq:tasa-saltos; Figuras fig:cap6-canales-wifi y fig:cap6-saltos; ejemplo de la secuencia de juguete). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA", azulMedio:"#4F86C6" };
+  function $(id) { return document.getElementById(id); }
+  var vistaActiva = "v1";
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function txt(g, s, x, y, color, px, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + px + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(s, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function alfa(hex, a) {
+    var r = parseInt(hex.substr(1, 2), 16), gg = parseInt(hex.substr(3, 2), 16), b = parseInt(hex.substr(5, 2), 16);
+    return "rgba(" + r + "," + gg + "," + b + "," + a + ")";
+  }
+  // Entero uniforme en [0, n) con el generador criptográfico del navegador (muestreo por rechazo)
+  function azar(n) {
+    var buf = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n;
+    do { window.crypto.getRandomValues(buf); } while (buf[0] >= lim);
+    return buf[0] % n;
+  }
+  function mod(x, m) { return ((x % m) + m) % m; }
+  function sub(n) { // subíndices para k₀, k₁...
+    var d = "₀₁₂₃₄₅₆₇₈₉"; return String(n).split("").map(function (c) { return d[+c]; }).join("");
+  }
+
+  // =====================================================================
+  // 1. CANALES WI-FI   f_c = 2407 + 5n MHz (eq:canal-wifi-24)
+  // =====================================================================
+  function fc(n) { return 2407 + 5 * n; }
+  var COL5 = [C.azul, C.oroTexto, C.gris, C.azulMedio, C.guinda];   // canales a menos de 5 de distancia: colores distintos
+  function colorCanal(n) { return COL5[(n - 1) % 5]; }
+  var W = { activos: { 1: true, 5: true }, ancho: 22, ultimo: 5, verBT: false };
+
+  function activosW() { var l = []; for (var n = 1; n <= 13; n++) if (W.activos[n]) l.push(n); return l; }
+
+  (function crearRejillaWifi() {
+    var r = $("rejillaWifi");
+    for (var n = 1; n <= 13; n++) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = n; b.dataset.canal = n;
+      if (n >= 12) b.classList.add("fuera");
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () {
+        var k = +this.dataset.canal;
+        W.activos[k] = !W.activos[k];
+        W.ultimo = k;
+        actualizarWifi();
+      });
+      r.appendChild(b);
+    }
+  })();
+  $("ancho").addEventListener("change", function () { W.ancho = +this.value; actualizarWifi(); });
+  $("verBT").addEventListener("change", function () { W.verBT = this.checked; actualizarWifi(); });
+  $("apagarTodo").addEventListener("click", function () { W.activos = {}; actualizarWifi(); });
+
+  function actualizarWifi() {
+    document.querySelectorAll("#rejillaWifi button").forEach(function (b) {
+      var on = !!W.activos[+b.dataset.canal];
+      b.classList.toggle("encendido", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    lecturaWifi();
+    if (vistaActiva === "v1") dibujarWifi();
+  }
+
+  function lecturaWifi() {
+    var B = W.ancho, l = activosW(), h = [], n = W.activos[W.ultimo] ? W.ultimo : l[l.length - 1];
+    var minDn = Math.ceil(B / 5 - 1e-9);
+    h.push('<div class="formula">f<sub>c</sub> = 2407 + 5n MHz</div>');
+    if (n) {
+      var f = fc(n);
+      h.push("<b>Canal " + n + ":</b> f<sub>c</sub> = 2407 + 5(" + n + ") = " + f +
+             " MHz; ocupa " + f + " ± " + (B / 2) + " = " + (f - B / 2) + "–" + (f + B / 2) + " MHz.");
+    }
+    if (l.length < 2) {
+      h.push("<br>Enciende al menos dos canales para comparar.");
+    } else {
+      h.push("<br><b>Vecinos en frecuencia:</b>");
+      for (var i = 0; i + 1 < l.length; i++) {
+        var a = l[i], c = l[i + 1], df = 5 * (c - a), r;
+        if (df < B) r = ' < ' + B + ' MHz → <span class="mal">se traslapan ' + (B - df) + ' MHz</span>';
+        else if (df === B) r = ' = ' + B + ' MHz → <span class="ok">no se traslapan</span> (se tocan: guarda de 0 MHz)';
+        else r = ' ≥ ' + B + ' MHz → <span class="ok">no se traslapan</span>; guarda = ' + df + ' − ' + B + ' = ' + (df - B) + ' MHz';
+        h.push("<br>" + a + " y " + c + ": |Δf| = 5|" + a + " − " + c + "| = " + df + " MHz" + r + ".");
+      }
+      var tras = [], tot = 0;
+      for (i = 0; i < l.length; i++) for (var j = i + 1; j < l.length; j++) {
+        tot++; if (5 * (l[j] - l[i]) < B) tras.push(l[i] + "–" + l[j]);
+      }
+      h.push("<br><b>Pares que se traslapan:</b> " + (tras.length ? tras.join(", ") : "ninguno") + " (" + tras.length + " de " + tot + ").");
+    }
+    h.push("<br><b>Regla:</b> sin traslape si 5|n₁ − n₂| ≥ " + B + " MHz, es decir |n₁ − n₂| ≥ " + B + "/5 = " + num(B / 5, 1) +
+           " → |n₁ − n₂| ≥ " + minDn + ".");
+    $("lecturaWifi").innerHTML = h.join("");
+  }
+
+  function dibujarWifi() {
+    var cv = $("lienzoWifi"), wc = cv.clientWidth || 600, angosto = wc < 560;
+    var P = preparar(cv, angosto ? 0.82 : 0.5), g = P.g, w = P.w, h = P.h;
+    var fs = angosto ? 12.5 : 15, B = W.ancho;
+    var m = { l: 12, r: 12, t: 58, b: W.verBT ? 92 : 66 };
+    var fmin = 2396, fmax = 2489;
+    function X(f) { return m.l + (f - fmin) / (fmax - fmin) * (w - m.l - m.r); }
+    var y0 = h - m.b, alto = (y0 - m.t) * 0.9;
+    g.clearRect(0, 0, w, h);
+    // Banda ISM
+    g.fillStyle = C.azulClaro; g.fillRect(X(2400), m.t - 44, X(2483.5) - X(2400), y0 - m.t + 44);
+    txt(g, "Banda ISM: 2400–2483.5 MHz", X(2400) + 6, m.t - 24, C.azulOscuro, fs, "left", "alphabetic", true);
+    var l = activosW();
+    // Lóbulos
+    var etiq = [];
+    l.forEach(function (n) {
+      var f0 = fc(n), col = colorCanal(n);
+      g.beginPath();
+      for (var s = 0; s <= 80; s++) {
+        var f = f0 - B / 2 + B * s / 80;
+        var y = y0 - alto * Math.pow(Math.max(0, Math.cos(Math.PI * (f - f0) / B)), 0.5);
+        if (s === 0) g.moveTo(X(f), y0); g.lineTo(X(f), y);
+      }
+      g.lineTo(X(f0 + B / 2), y0); g.closePath();
+      g.fillStyle = alfa(col === C.oroTexto ? C.oro : col, 0.17); g.fill();
+      g.strokeStyle = col; g.lineWidth = 2.5; g.stroke();
+      etiq.push({ n: n, x: X(f0), col: col });
+    });
+    // Etiquetas de canal con escalonado si se enciman
+    var ult = [-1e9, -1e9];
+    etiq.forEach(function (e) {
+      var fila = (e.x - ult[0] >= (angosto ? 22 : 30)) ? 0 : 1; ult[fila] = e.x;
+      var y = y0 - alto - 6 - fila * (fs + 3);
+      txt(g, String(e.n), e.x, y, e.col, fs + 2, "center", "alphabetic", true);
+    });
+    // Eje
+    linea(g, m.l, y0, w - m.r, y0, C.tinta, 1.5);
+    var paso = angosto ? 20 : 10;
+    for (var f = 2400; f <= fmax; f += paso) {
+      linea(g, X(f), y0, X(f), y0 + 5, C.tinta, 1);
+      txt(g, String(f), X(f), y0 + 8 + fs, C.gris, fs - 1, "center");
+    }
+    txt(g, "f (MHz)", w - m.r, y0 - 6, C.gris, fs - 1, "right");
+    // Franja de traslapes (guinda) y bandas de guarda (oro)
+    var etqAbajo = [];
+    for (var i = 0; i < l.length; i++) for (var j = i + 1; j < l.length; j++) {
+      var lo = Math.max(fc(l[i]), fc(l[j])) - B / 2, hi = Math.min(fc(l[i]), fc(l[j])) + B / 2;
+      if (hi > lo) {
+        g.fillStyle = C.guinda; g.fillRect(X(lo), y0 + 1, X(hi) - X(lo), 6);
+        if (j === i + 1) etqAbajo.push({ x: (X(lo) + X(hi)) / 2, s: "traslape " + num(hi - lo, 0) + " MHz", col: C.guinda });
+      }
+    }
+    for (i = 0; i + 1 < l.length; i++) {
+      var a = fc(l[i]) + B / 2, c = fc(l[i + 1]) - B / 2;
+      if (c >= a) {
+        g.fillStyle = C.oro; g.fillRect(X(a), y0 + 1, Math.max(2, X(c) - X(a)), 6);
+        etqAbajo.push({ x: (X(a) + X(c)) / 2, s: "guarda " + num(c - a, 0) + " MHz", col: C.oroTexto });
+      }
+    }
+    etqAbajo.sort(function (p, q) { return p.x - q.x; });
+    var finAnt = -1e9;
+    g.save(); g.font = "bold " + (fs - 1) + "px Calibri, 'Segoe UI', sans-serif";
+    etqAbajo.forEach(function (e) {
+      var an = g.measureText(e.s).width, x = Math.min(Math.max(e.x, an / 2 + 2), w - an / 2 - 2);
+      if (x - an / 2 > finAnt + 6) { txt(g, e.s, x, y0 + 30 + fs, e.col, fs - 1, "center", "alphabetic", true); finAnt = x + an / 2; }
+    });
+    g.restore();
+    // Canales de Bluetooth (f_k = 2402 + k)
+    if (W.verBT) {
+      var yb = y0 + 44 + fs;
+      for (var k = 0; k <= 78; k++) linea(g, X(2402 + k), yb, X(2402 + k), yb + 12, (k % 10 === 0) ? C.azulOscuro : C.azulMedio, k % 10 === 0 ? 1.6 : 1);
+      txt(g, angosto ? "Bluetooth: 79 canales de 1 MHz" : "Bluetooth: 79 canales de 1 MHz, f = 2402 + k MHz (k = 0 a 78)",
+          X(2402), yb + 14 + fs, C.azulOscuro, fs - 1);
+    }
+    if (!l.length) txt(g, "Enciende un canal en el panel", w / 2, (m.t + y0) / 2, C.gris, fs + 2, "center");
+  }
+
+  // =====================================================================
+  // 2. ASIGNA CANALES: coloración de grafos con 1, 6 y 11
+  // =====================================================================
+  var ESC = {
+    triangulo: { n: [["P", .25, .28], ["Q", .75, .28], ["R", .5, .78]],
+                 a: [["P", "Q"], ["Q", "R"], ["P", "R"]] },
+    pasillo:   { n: [["P", .1, .45], ["Q", .3, .62], ["R", .5, .45], ["S", .7, .62], ["T", .9, .45]],
+                 a: [["P", "Q"], ["Q", "R"], ["R", "S"], ["S", "T"]] },
+    oficina:   { n: [["P", .18, .25], ["Q", .5, .22], ["R", .82, .25], ["S", .18, .78], ["T", .5, .8], ["U", .82, .78]],
+                 a: [["P", "Q"], ["Q", "R"], ["S", "T"], ["T", "U"], ["P", "S"], ["Q", "T"], ["R", "U"], ["P", "T"], ["Q", "U"]] },
+    k4:        { n: [["P", .22, .25], ["Q", .78, .25], ["R", .22, .78], ["S", .78, .78]],
+                 a: [["P", "Q"], ["P", "R"], ["P", "S"], ["Q", "R"], ["Q", "S"], ["R", "S"]] },
+    rueda:     { n: [["V", .5, .53]], a: [] }
+  };
+  (function () { // rueda: V al centro y P, Q, R, S, T en pentágono
+    var nombres = ["P", "Q", "R", "S", "T"];
+    nombres.forEach(function (s, i) {
+      var t = -Math.PI / 2 + 2 * Math.PI * i / 5;
+      ESC.rueda.n.push([s, .5 + .3 * Math.cos(t), .53 + .36 * Math.sin(t)]);
+      ESC.rueda.a.push(["V", s]);
+      ESC.rueda.a.push([s, nombres[(i + 1) % 5]]);
+    });
+  })();
+  var G = { esc: "oficina", asig: {}, sel: null };
+
+  function nodos() { return ESC[G.esc].n; }
+  function aristas() { return ESC[G.esc].a; }
+  function conflictosDe(asig) {
+    var r = [];
+    aristas().forEach(function (e) {
+      var c1 = asig[e[0]], c2 = asig[e[1]];
+      if (!c1 || !c2) return;
+      if (c1 === c2) r.push({ u: e[0], v: e[1], tipo: "co", c1: c1, c2: c2 });
+      else if (Math.abs(c1 - c2) < 5) r.push({ u: e[0], v: e[1], tipo: "ady", c1: c1, c2: c2 });
+    });
+    return r;
+  }
+  // Busca la mejor asignación con 1, 6 y 11 (3^n posibilidades, n ≤ 6)
+  function mejorAsignacion() {
+    var ns = nodos().map(function (x) { return x[0]; }), canales = [1, 6, 11], mejor = null, minC = 1e9;
+    var total = Math.pow(3, ns.length);
+    for (var code = 0; code < total; code++) {
+      var a = {}, c = code;
+      for (var i = 0; i < ns.length; i++) { a[ns[i]] = canales[c % 3]; c = Math.floor(c / 3); }
+      var nc = conflictosDe(a).length;
+      if (nc < minC) { minC = nc; mejor = a; }
+    }
+    return { asig: mejor, conflictos: minC };
+  }
+
+  function crearListaAP() {
+    var cont = $("listaAP"); cont.innerHTML = "";
+    nodos().forEach(function (nd) {
+      var lab = document.createElement("label");
+      lab.textContent = "AP " + nd[0];
+      var s = document.createElement("select");
+      s.dataset.ap = nd[0];
+      s.setAttribute("aria-label", "Canal del AP " + nd[0]);
+      var o = document.createElement("option"); o.value = ""; o.textContent = "—"; s.appendChild(o);
+      for (var k = 1; k <= 13; k++) { o = document.createElement("option"); o.value = k; o.textContent = k; s.appendChild(o); }
+      s.addEventListener("change", function () {
+        G.asig[this.dataset.ap] = this.value ? +this.value : 0; G.sel = this.dataset.ap;
+        $("veredictoGrafo").innerHTML = ""; actualizarGrafo();
+      });
+      lab.appendChild(s); cont.appendChild(lab);
+    });
+  }
+  function sincronizarListaAP() {
+    document.querySelectorAll("#listaAP select").forEach(function (s) { s.value = G.asig[s.dataset.ap] ? String(G.asig[s.dataset.ap]) : ""; });
+  }
+  $("escenario").addEventListener("change", function () {
+    G.esc = this.value; G.asig = {}; G.sel = null; $("veredictoGrafo").innerHTML = "";
+    crearListaAP(); actualizarGrafo();
+  });
+  $("limpiarGrafo").addEventListener("click", function () { G.asig = {}; $("veredictoGrafo").innerHTML = ""; actualizarGrafo(); });
+  $("solucionGrafo").addEventListener("click", function () {
+    var m = mejorAsignacion(); G.asig = {}; for (var k in m.asig) G.asig[k] = m.asig[k];
+    $("veredictoGrafo").innerHTML = m.conflictos === 0
+      ? "Una asignación sin conflictos (hay otras: permuta los canales)."
+      : "No hay asignación sin conflictos: esta es una de las mejores, con " + m.conflictos + " par(es) de vecinos en el mismo canal.";
+    actualizarGrafo();
+  });
+  $("existeGrafo").addEventListener("click", function () {
+    var m = mejorAsignacion();
+    $("veredictoGrafo").innerHTML = m.conflictos === 0
+      ? '<span class="ok">Sí existe</span> una asignación con 1, 6 y 11 en la que ningún par de vecinos comparte canal. Sigue intentando.'
+      : '<span class="mal">No existe.</span> Con solo tres canales, lo mejor posible deja ' + m.conflictos +
+        ' par(es) de vecinos en el mismo canal: este grafo necesitaría un cuarto canal que no hay. Esos AP compartirán canal y se turnarán con CSMA/CA.';
+  });
+  $("verificarGrafo").addEventListener("click", function () {
+    var faltan = nodos().filter(function (nd) { return !G.asig[nd[0]]; }).map(function (nd) { return nd[0]; });
+    var conf = conflictosDe(G.asig), v;
+    if (faltan.length) v = '<span class="mal">Faltan por asignar:</span> AP ' + faltan.join(", ") + ".";
+    else if (!conf.length) {
+      var usados = {}; nodos().forEach(function (nd) { usados[G.asig[nd[0]]] = 1; });
+      v = '<span class="ok">¡Asignación válida!</span> Ningún par de vecinos comparte canal ni se traslapa. Usaste ' +
+          Object.keys(usados).length + " canal(es) distinto(s): " + Object.keys(usados).sort(function (a, b) { return a - b; }).join(", ") + ".";
+    } else {
+      var co = conf.filter(function (c) { return c.tipo === "co"; }).length, ad = conf.length - co;
+      v = '<span class="mal">Hay ' + conf.length + " conflicto(s)</span>: " + co + " co-canal y " + ad + " de canal adyacente. Revisa las líneas resaltadas.";
+    }
+    $("veredictoGrafo").innerHTML = v;
+  });
+  // Clic sobre el lienzo: ciclo sin canal → 1 → 6 → 11 → sin canal
+  $("lienzoGrafo").addEventListener("click", function (ev) {
+    var cv = this, rect = cv.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    var geo = geoGrafo(cv.clientWidth, cv.clientHeight), mejor = null, dmin = 1e9;
+    nodos().forEach(function (nd) {
+      var d = Math.hypot(x - geo.X(nd[1]), y - geo.Y(nd[2]));
+      if (d < dmin) { dmin = d; mejor = nd[0]; }
+    });
+    if (mejor && dmin <= geo.r + 12) {
+      var c = G.asig[mejor] || 0, sig = { 0: 1, 1: 6, 6: 11, 11: 0 };
+      G.asig[mejor] = (c in sig) ? sig[c] : 1; G.sel = mejor;
+      $("veredictoGrafo").innerHTML = ""; actualizarGrafo();
+    }
+  });
+  function geoGrafo(w, h) {
+    var m = 34, r = Math.max(20, Math.min(32, w * 0.036));
+    return { r: r, X: function (u) { return m + u * (w - 2 * m); }, Y: function (v) { return m + v * (h - 2 * m); } };
+  }
+  function colorNodo(c) { return c === 1 ? C.azul : c === 6 ? C.oro : c === 11 ? C.guinda : C.gris; }
+
+  function actualizarGrafo() { sincronizarListaAP(); lecturaGrafo(); if (vistaActiva === "v2") dibujarGrafo(); }
+
+  function lecturaGrafo() {
+    var conf = conflictosDe(G.asig), h = [];
+    h.push("<b>Vértices</b> (AP): " + nodos().length + " · <b>aristas</b> (pares que se escuchan): " + aristas().length + ".");
+    h.push('<br>Dos canales se traslapan si <span class="formula">5|n₁ − n₂| &lt; 22 MHz</span>, es decir |n₁ − n₂| &lt; 5.');
+    if (!conf.length) h.push("<br>Sin conflictos entre vecinos por ahora.");
+    conf.forEach(function (c) {
+      if (c.tipo === "co")
+        h.push('<br><span class="mal">' + c.u + "–" + c.v + "</span>: los dos en el canal " + c.c1 +
+               " → interferencia co-canal (comparten el tiempo de aire y se turnan con CSMA/CA).");
+      else
+        h.push('<br><span class="mal">' + c.u + "–" + c.v + "</span>: |" + c.c1 + " − " + c.c2 + "| = " + Math.abs(c.c1 - c.c2) +
+               " &lt; 5 (Δf = " + (5 * Math.abs(c.c1 - c.c2)) + " MHz) → interferencia de canal adyacente (se estorban sin poder coordinarse; suele ser peor).");
+    });
+    $("lecturaGrafo").innerHTML = h.join("");
+  }
+
+  function dibujarGrafo() {
+    var cv = $("lienzoGrafo"), wc = cv.clientWidth || 600, angosto = wc < 560;
+    var P = preparar(cv, angosto ? 0.9 : 0.58), g = P.g, w = P.w, h = P.h, fs = angosto ? 13 : 15;
+    var geo = geoGrafo(w, h);
+    g.clearRect(0, 0, w, h);
+    // Plano del piso (decorativo)
+    g.save(); g.strokeStyle = C.borde; g.lineWidth = 3; g.strokeRect(10, 10, w - 20, h - 20);
+    g.lineWidth = 1.5; g.setLineDash([6, 6]);
+    g.beginPath(); g.moveTo(w * 0.36, 10); g.lineTo(w * 0.36, h * 0.42); g.moveTo(w * 0.64, h - 10); g.lineTo(w * 0.64, h * 0.6);
+    g.moveTo(10, h * 0.52); g.lineTo(w * 0.22, h * 0.52); g.stroke(); g.restore();
+    txt(g, "Plano del piso", 18, h - 18, C.gris, fs - 1);
+    var pos = {}; nodos().forEach(function (nd) { pos[nd[0]] = [geo.X(nd[1]), geo.Y(nd[2])]; });
+    var conf = conflictosDe(G.asig), tipo = {};
+    conf.forEach(function (c) { tipo[c.u + c.v] = c.tipo; tipo[c.v + c.u] = c.tipo; });
+    aristas().forEach(function (e) {
+      var a = pos[e[0]], b = pos[e[1]], t = tipo[e[0] + e[1]];
+      if (t === "co") linea(g, a[0], a[1], b[0], b[1], C.oroTexto, 6, [10, 7]);
+      else if (t === "ady") linea(g, a[0], a[1], b[0], b[1], C.guinda, 6);
+      else linea(g, a[0], a[1], b[0], b[1], "#9AA3B2", 2.5);
+    });
+    nodos().forEach(function (nd) {
+      var p = pos[nd[0]], c = G.asig[nd[0]] || 0, r = geo.r;
+      g.save();
+      g.beginPath(); g.arc(p[0], p[1], r, 0, 2 * Math.PI);
+      g.fillStyle = c ? colorNodo(c) : "#fff"; g.fill();
+      g.lineWidth = G.sel === nd[0] ? 4 : 2.5; g.strokeStyle = G.sel === nd[0] ? C.tinta : (c ? colorNodo(c) : C.gris);
+      if (!c) g.setLineDash([5, 4]);
+      g.stroke(); g.restore();
+      var colTxt = !c ? C.gris : (c === 6 ? C.azulOscuro : "#fff");
+      txt(g, c ? String(c) : "?", p[0], p[1] + 1, colTxt, Math.round(r * 0.85), "center", "middle", true);
+      txt(g, "AP " + nd[0], p[0], p[1] - r - 7, C.azulOscuro, fs, "center", "alphabetic", true);
+    });
+    // Leyenda
+    var ly = 30, lx = w - 20;
+    [["co-canal", C.oroTexto, [10, 7]], ["canal adyacente", C.guinda, null]].forEach(function (it, i) {
+      linea(g, lx - 150, ly + i * 22, lx - 112, ly + i * 22, it[1], 5, it[2]);
+      txt(g, it[0], lx - 106, ly + i * 22 + 5, C.tinta, fs - 1);
+    });
+  }
+
+  // =====================================================================
+  // 3. SALTOS DE BLUETOOTH Y AFH   f_k = 2402 + k ; R_h = 1/625 µs = 1600 saltos/s
+  // =====================================================================
+  var BT = { wifi: { 6: true }, afh: false, hist: [], cuenta: [], slot: 0, corriendo: true, vel: 6, acum: 0,
+             est: { sin: { n: 0, ch: 0 }, con: { n: 0, ch: 0 } }, ventana: 40 };
+  function reiniciarCuenta() { BT.cuenta = []; for (var k = 0; k < 79; k++) BT.cuenta.push(0); BT.est = { sin: { n: 0, ch: 0 }, con: { n: 0, ch: 0 } }; }
+  reiniciarCuenta();
+  function ocupadoPor(k) { // lista de canales Wi-Fi (22 MHz) que cubren el canal k de Bluetooth
+    var f = 2402 + k, r = [];
+    for (var n = 1; n <= 13; n++) if (BT.wifi[n] && Math.abs(f - fc(n)) <= 11) r.push(n);
+    return r;
+  }
+  function mapaAFH() {
+    var libres = [], ocup = [];
+    for (var k = 0; k < 79; k++) {
+      var o = ocupadoPor(k);
+      if (!o.length) libres.push(k);
+      else {
+        var d = 1e9; o.forEach(function (n) { d = Math.min(d, Math.abs(2402 + k - fc(n))); });
+        ocup.push({ k: k, d: d });
+      }
+    }
+    var usados = libres.slice(), agregados = 0;
+    if (usados.length < 20) {
+      ocup.sort(function (a, b) { return b.d - a.d || a.k - b.k; });
+      while (usados.length < 20) { usados.push(ocup[agregados].k); agregados++; }
+      usados.sort(function (a, b) { return a - b; });
+    }
+    return { usados: usados, libres: libres.length, agregados: agregados };
+  }
+  function nuevoSalto() {
+    var k = azar(79), orig = null;
+    if (BT.afh) {
+      var m = mapaAFH(), ok = m.usados.indexOf(k) >= 0;
+      if (!ok) { orig = k; k = m.usados[azar(m.usados.length)]; }
+    }
+    var choque = ocupadoPor(k).length > 0, e = BT.afh ? BT.est.con : BT.est.sin;
+    e.n++; if (choque) e.ch++;
+    BT.cuenta[k]++;
+    BT.hist.push({ slot: BT.slot, k: k, orig: orig, choque: choque });
+    if (BT.hist.length > 120) BT.hist.shift();
+    BT.slot++;
+  }
+  (function crearRejillaBT() {
+    var r = $("rejillaBT");
+    for (var n = 1; n <= 13; n++) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = n; b.dataset.canal = n;
+      if (n >= 12) b.classList.add("fuera");
+      b.addEventListener("click", function () { var k = +this.dataset.canal; BT.wifi[k] = !BT.wifi[k]; actualizarBT(); });
+      r.appendChild(b);
+    }
+  })();
+  $("afh").addEventListener("change", function () { BT.afh = this.checked; actualizarBT(); });
+  $("velBT").addEventListener("input", function () { BT.vel = +this.value; actualizarBT(); });
+  $("pausaBT").addEventListener("click", function () { BT.corriendo = !BT.corriendo; this.textContent = BT.corriendo ? "Pausa" : "Continuar"; });
+  $("pasoBT").addEventListener("click", function () { nuevoSalto(); actualizarBT(); });
+  $("cienBT").addEventListener("click", function () { for (var i = 0; i < 200; i++) nuevoSalto(); actualizarBT(); });
+  $("reiniciarBT").addEventListener("click", function () { reiniciarCuenta(); BT.hist = []; BT.slot = 0; actualizarBT(); });
+
+  function actualizarBT() {
+    document.querySelectorAll("#rejillaBT button").forEach(function (b) {
+      var on = !!BT.wifi[+b.dataset.canal]; b.classList.toggle("encendido", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("velBTtxt").textContent = "(" + BT.vel + " saltos/s en pantalla)";
+    lecturaBT();
+    if (vistaActiva === "v3") dibujarBT();
+  }
+  function porc(a, b) { return b ? num(100 * a / b, 1) + " %" : "—"; }
+  function lecturaBT() {
+    var h = [], ult = BT.hist[BT.hist.length - 1];
+    var ocup = 0, rangos = [], ini = null;
+    for (var k = 0; k <= 79; k++) {
+      var o = k < 79 && ocupadoPor(k).length > 0;
+      if (o) { ocup++; if (ini === null) ini = k; }
+      else if (ini !== null) { rangos.push(ini === k - 1 ? String(ini) : ini + " a " + (k - 1)); ini = null; }
+    }
+    if (ult) {
+      var t = ult.slot * 625;
+      h.push("<b>Salto del slot " + ult.slot + ":</b> t = " + ult.slot + " × 625 µs = " + num(t, 0) + " µs; canal k = " + ult.k +
+             ' → <span class="formula">f = 2402 + ' + ult.k + " = " + (2402 + ult.k) + " MHz</span>" +
+             (ult.choque ? ' <span class="mal">(cae sobre Wi-Fi)</span>' : "") + (ult.orig !== null ? " (AFH lo movió desde k = " + ult.orig + ")" : "") + ".");
+    } else h.push("Aún no hay saltos.");
+    h.push('<br><b>Tasa real:</b> <span class="formula">R<sub>h</sub> = 1/T<sub>slot</sub> = 1/(625 × 10⁻⁶ s) = 1600 saltos/s</span>. En pantalla: ' +
+           BT.vel + " saltos/s, " + num(1600 / BT.vel, 0) + " veces más lento.");
+    if (ocup) {
+      h.push("<br><b>Wi-Fi ocupa</b> " + ocup + " de los 79 canales (k = " + rangos.join(", ") + "). Sin AFH se espera que choquen " +
+             ocup + "/79 = " + num(100 * ocup / 79, 1) + " % de los saltos.");
+    } else h.push("<br>No hay redes Wi-Fi encendidas: ningún salto choca.");
+    h.push("<br><b>Sin AFH:</b> " + BT.est.sin.ch + " choques de " + BT.est.sin.n + " saltos (" + porc(BT.est.sin.ch, BT.est.sin.n) + ").");
+    var m = mapaAFH();
+    var txtAFH = "<br><b>Con AFH:</b> usa " + m.usados.length + " canales";
+    if (m.agregados) txtAFH += ': solo quedan ' + m.libres + ' libres, menos de 20, así que <span class="mal">conserva además ' + m.agregados + " canales ocupados</span>";
+    else txtAFH += " (79 − " + ocup + " = " + m.usados.length + " ≥ 20)";
+    txtAFH += "; " + BT.est.con.ch + " choques de " + BT.est.con.n + " saltos (" + porc(BT.est.con.ch, BT.est.con.n) + ").";
+    h.push(txtAFH);
+    $("lecturaBT").innerHTML = h.join("");
+  }
+  function dibujarBT() {
+    var cv = $("lienzoBT"), wc = cv.clientWidth || 600, angosto = wc < 560;
+    var P = preparar(cv, angosto ? 1.0 : 0.6), g = P.g, w = P.w, h = P.h, fs = angosto ? 12.5 : 15;
+    var hw = angosto ? 0.2 * w : 0.17 * w;          // ancho del histograma
+    var m = { l: angosto ? 40 : 52, r: 10, t: 28, b: 40 };
+    var x0 = m.l, x1 = w - m.r - hw - 14, y0 = h - m.b, y1 = m.t;
+    var ch = (y0 - y1) / 79, ven = angosto ? 24 : BT.ventana, cw = (x1 - x0) / ven;
+    function Y(k) { return y0 - (k + 1) * ch; }
+    g.clearRect(0, 0, w, h);
+    // Bandas Wi-Fi
+    for (var k = 0; k < 79; k++) if (ocupadoPor(k).length) { g.fillStyle = C.guindaClaro; g.fillRect(x0, Y(k), x1 - x0, ch + 0.5); g.fillRect(x1 + 14, Y(k), hw, ch + 0.5); }
+    for (var n = 1; n <= 13; n++) if (BT.wifi[n]) {
+      var kc = fc(n) - 2402;
+      txt(g, "Wi-Fi canal " + n, x1 - 6, Y(Math.min(78, kc)) + fs / 2, C.guinda, fs - 1, "right", "middle", true);
+    }
+    // Ejes
+    g.strokeStyle = C.borde; g.lineWidth = 1; g.strokeRect(x0, y1, x1 - x0, y0 - y1);
+    for (k = 0; k <= 78; k += (angosto ? 20 : 10)) {
+      linea(g, x0 - 4, Y(k) + ch / 2, x0, Y(k) + ch / 2, C.tinta, 1);
+      txt(g, String(k), x0 - 6, Y(k) + ch / 2, C.gris, fs - 2, "right", "middle");
+    }
+    txt(g, "canal k (f = 2402 + k MHz)", x0, y1 - 9, C.azulOscuro, fs - 1, "left", "alphabetic", true);
+    txt(g, "tiempo → (slots de 625 µs)", x0, y0 + 18 + fs / 2, C.gris, fs - 1);
+    // Saltos visibles
+    var ultimo = BT.slot - 1, desde = ultimo - ven + 1;
+    BT.hist.forEach(function (s) {
+      if (s.slot < desde) return;
+      var x = x0 + (s.slot - desde) * cw;
+      if (s.orig !== null) {
+        g.save(); g.strokeStyle = C.gris; g.lineWidth = 1.5; g.strokeRect(x + cw * 0.12, Y(s.orig) - 1, cw * 0.76, Math.max(3, ch) + 2); g.restore();
+        linea(g, x + cw / 2, Y(s.orig) + ch / 2, x + cw / 2, Y(s.k) + ch / 2, C.gris, 1, [3, 3]);
+      }
+      g.fillStyle = s.choque ? C.guinda : C.azul;
+      g.fillRect(x + cw * 0.12, Y(s.k) - (ch < 6 ? (6 - ch) / 2 : 0), cw * 0.76, Math.max(6, ch));
+      if (s.slot === ultimo) {
+        g.save(); g.strokeStyle = C.oro; g.lineWidth = 3; g.strokeRect(x + cw * 0.05, Y(s.k) - 4, cw * 0.9, Math.max(4, ch) + 8); g.restore();
+        txt(g, "k = " + s.k, Math.min(x + cw + 4, x1 - 4), Y(s.k) - 6, C.azulOscuro, fs, x + cw + 60 > x1 ? "right" : "left", "alphabetic", true);
+      }
+    });
+    if (BT.slot) txt(g, "slot " + ultimo, x1, y0 + 18 + fs / 2, C.gris, fs - 1, "right");
+    // Histograma
+    var hx = x1 + 14, maxc = 1;
+    BT.cuenta.forEach(function (c) { if (c > maxc) maxc = c; });
+    g.strokeStyle = C.borde; g.strokeRect(hx, y1, hw, y0 - y1);
+    for (k = 0; k < 79; k++) if (BT.cuenta[k]) {
+      g.fillStyle = ocupadoPor(k).length ? C.guinda : C.azul;
+      g.fillRect(hx, Y(k), hw * BT.cuenta[k] / maxc, Math.max(1, ch - 0.6));
+    }
+    txt(g, "saltos por canal", hx + hw, y1 - 9, C.azulOscuro, fs - 1, "right", "alphabetic", true);
+    txt(g, "total " + (BT.est.sin.n + BT.est.con.n), hx + hw, y0 + 18 + fs / 2, C.gris, fs - 1, "right");
+  }
+  var tPrevio = null;
+  function ciclo(t) {
+    if (tPrevio === null) tPrevio = t;
+    var dt = Math.min(0.25, (t - tPrevio) / 1000); tPrevio = t;
+    if (BT.corriendo && vistaActiva === "v3" && !document.hidden) {
+      BT.acum += dt * BT.vel;
+      var hubo = false;
+      while (BT.acum >= 1) { nuevoSalto(); BT.acum -= 1; hubo = true; }
+      if (hubo) actualizarBT();
+    }
+    window.requestAnimationFrame(ciclo);
+  }
+
+  // =====================================================================
+  // 4. RETO DEL ESPÍA   k' = (a·k + b) mod 79  frente a una secuencia secreta
+  // =====================================================================
+  var ESP = { modo: "juguete", a: 0, b: 0, sec: [], vis: 3, intentos: [], pistas: 0,
+              marc: { juguete: { ok: 0, n: 0 }, secreta: { ok: 0, n: 0 } }, intentosReto: 0 };
+  var MAXSALTOS = 9;
+  function inverso79(x) { x = mod(x, 79); for (var i = 1; i < 79; i++) if ((x * i) % 79 === 1) return i; return null; }
+  function nuevoReto() {
+    ESP.sec = []; ESP.vis = 3; ESP.intentos = []; ESP.pistas = 0; ESP.intentosReto = 0;
+    if (ESP.modo === "juguete") {
+      // a entre 2 y 77 (a = 78 ≡ −1 da una secuencia de periodo 2); se evitan (5, 3) del libro y (7, 11) del taller
+      var ok = false;
+      while (!ok) {
+        ESP.a = 2 + azar(76); ESP.b = 1 + azar(78);
+        if ((ESP.a === 5 && ESP.b === 3) || (ESP.a === 7 && ESP.b === 11)) continue;
+        var k0 = azar(79), s = [k0];
+        for (var i = 1; i <= MAXSALTOS; i++) s.push(mod(ESP.a * s[i - 1] + ESP.b, 79));
+        ok = s[1] !== s[0] && s[2] !== s[1] && s[2] !== s[0] && s[3] !== s[2] && s[3] !== s[1] && s[3] !== s[0];
+        if (ok) ESP.sec = s;
+      }
+    } else {
+      for (var j = 0; j <= MAXSALTOS; j++) ESP.sec.push(azar(79));
+    }
+    $("pred").value = ""; $("pistasTxt").style.display = "none"; $("pistasTxt").innerHTML = "";
+    $("lecturaEsp").innerHTML = "Observaste " + ESP.vis + " saltos consecutivos (" + ESP.vis + " × 625 µs = " + num(ESP.vis * 625, 0) +
+      " µs de escucha). Escribe el canal (0 a 78) que crees que sigue.";
+    actualizarEsp();
+  }
+  document.querySelectorAll('input[name="modoEsp"]').forEach(function (r) {
+    r.addEventListener("change", function () { if (this.checked) { ESP.modo = this.value; nuevoReto(); } });
+  });
+  $("nuevoReto").addEventListener("click", nuevoReto);
+  function verificarPred() {
+    if (ESP.vis > MAXSALTOS) return;
+    var v = $("pred").value.trim(), p = parseInt(v, 10);
+    if (v === "" || isNaN(p) || p < 0 || p > 78 || String(p) !== v.replace(/^0+(?=\d)/, "")) {
+      $("lecturaEsp").innerHTML = '<span class="mal">Escribe un número entero de canal entre 0 y 78.</span>'; return;
+    }
+    var real = ESP.sec[ESP.vis], bien = p === real, mk = ESP.marc[ESP.modo];
+    mk.n++; if (bien) mk.ok++;
+    ESP.intentos.push({ n: ESP.vis, p: p, real: real, bien: bien });
+    ESP.intentosReto++;
+    var h = (bien ? '<span class="ok">¡Acertaste!</span> ' : '<span class="mal">No.</span> ') +
+            "Predijiste k" + sub(ESP.vis) + " = " + p + " y el salto real fue k" + sub(ESP.vis) + " = " + real + ".";
+    ESP.vis++;
+    if (ESP.vis > MAXSALTOS) h += " Fin del reto: pide uno nuevo.";
+    else h += " Ahora predice k" + sub(ESP.vis) + ".";
+    var t = ESP.vis * 625;
+    h += "<br>El espía lleva escuchando " + ESP.vis + " saltos × 625 µs = " + num(t, 0) + " µs = " + String(+(t / 1000).toFixed(3)) + " ms.";
+    $("lecturaEsp").innerHTML = h;
+    $("pred").value = "";
+    actualizarEsp();
+  }
+  $("verificarPred").addEventListener("click", verificarPred);
+  $("pred").addEventListener("keydown", function (e) { if (e.key === "Enter") verificarPred(); });
+
+  function mostrarPistas() {
+    var s = ESP.sec, k0 = s[0], k1 = s[1], k2 = s[2], h = [];
+    function sg(x) { return String(x).replace("-", "−"); }
+    function ca(c) { return c === 1 ? "a" : c === 0 ? "0·a" : c + "a"; }
+    var e = k1 - k0, d = k2 - k1, em = mod(e, 79), dm = mod(d, 79), inv = inverso79(em);
+    if (ESP.pistas >= 1)
+      h.push("<b>Pista 1.</b> Cada par de saltos consecutivos da una ecuación con dos incógnitas, a y b:<br>" +
+             '<span class="formula">k₁ ≡ a·k₀ + b → ' + k1 + " ≡ " + ca(k0) + " + b (mod 79)</span><br>" +
+             '<span class="formula">k₂ ≡ a·k₁ + b → ' + k2 + " ≡ " + ca(k1) + " + b (mod 79)</span>");
+    if (ESP.pistas >= 2)
+      h.push("<b>Pista 2.</b> Réstalas para eliminar b: " +
+             '<span class="formula">k₂ − k₁ ≡ a(k₁ − k₀) → ' + k2 + " − " + k1 + " ≡ a(" + k1 + " − " + k0 + ") → " +
+             (d === dm ? dm : sg(d) + " ≡ " + dm) + " ≡ " + (e === em ? ca(em) : sg(e) + "a ≡ " + ca(em)) + " (mod 79)</span>");
+    if (ESP.pistas >= 3)
+      h.push("<b>Pista 3.</b> Para despejar a, multiplica por el inverso de " + em + " módulo 79: el número x con " + em +
+             "·x ≡ 1. Es x = " + inv + ", porque " + em + " × " + inv + " = " + (em * inv) + " = " + Math.floor(em * inv / 79) +
+             " × 79 + 1. Entonces a ≡ " + dm + " × " + inv + " (mod 79).");
+    if (ESP.pistas >= 4) {
+      var a = mod(dm * inv, 79), b = mod(k1 - a * k0, 79);
+      h.push("<b>Solución del espía.</b> a ≡ " + dm + " × " + inv + " = " + (dm * inv) + " ≡ " + a + " (mod 79); " +
+             "b ≡ k₁ − a·k₀ = " + k1 + " − " + a + "(" + k0 + ") = " + sg(k1 - a * k0) + " ≡ " + b + " (mod 79).<br>" +
+             '<span class="formula">k′ = (' + a + "k + " + b + ") mod 79</span>: con ella el espía predice todos los saltos siguientes.");
+    }
+    $("pistasTxt").innerHTML = h.join("<br>");
+    $("pistasTxt").style.display = h.length ? "block" : "none";
+  }
+  $("pista1").addEventListener("click", function () { ESP.pistas = Math.max(ESP.pistas, 1); mostrarPistas(); });
+  $("pista2").addEventListener("click", function () { ESP.pistas = Math.max(ESP.pistas, 2); mostrarPistas(); });
+  $("pista3").addEventListener("click", function () { ESP.pistas = Math.max(ESP.pistas, 3); mostrarPistas(); });
+  $("solucion").addEventListener("click", function () { ESP.pistas = 4; mostrarPistas(); });
+
+  function calcular() {
+    var a = parseInt($("calcA").value, 10), b = parseInt($("calcB").value, 10), k = parseInt($("calcK").value, 10);
+    if ([a, b, k].some(function (v) { return isNaN(v); })) { $("calcRes").textContent = "Escribe a, b y k."; return; }
+    var t = a * k + b, r = mod(t, 79);
+    $("calcRes").innerHTML = "(" + a + "·" + k + " + " + b + ") mod 79 = " + t + " mod 79 = " +
+      (t >= 79 ? t + " − " + Math.floor(t / 79) + "·79 = " : "") + "<b>" + r + "</b>";
+  }
+  ["calcA", "calcB", "calcK"].forEach(function (id) { $(id).addEventListener("input", calcular); });
+
+  function actualizarEsp() {
+    var mj = ESP.marc.juguete, ms = ESP.marc.secreta;
+    $("marcador").innerHTML = "<b>Marcador</b><br>Regla de juguete: " + mj.ok + " de " + mj.n + " (" + porc(mj.ok, mj.n) + ")" +
+      "<br>Secuencia secreta: " + ms.ok + " de " + ms.n + " (" + porc(ms.ok, ms.n) + ")" +
+      "<br>Al azar se espera 1/79 = " + num(100 / 79, 1) + " %.";
+    var jug = ESP.modo === "juguete";
+    $("cajaPistas").style.display = "block";
+    ["pista1", "pista2", "pista3"].forEach(function (id) { $(id).disabled = !jug; });
+    $("solucion").disabled = !jug || ESP.intentosReto < 1;
+    if (!jug) { $("pistasTxt").style.display = "block";
+      $("pistasTxt").innerHTML = "<b>Sin pistas:</b> en la secuencia secreta cada salto se elige al azar con el generador criptográfico; no hay a ni b que despejar, y cada predicción acierta con probabilidad 1/79."; }
+    else if (!ESP.pistas) $("pistasTxt").style.display = "none";
+    var fin = ESP.vis > MAXSALTOS;
+    $("etqPred").innerHTML = fin ? "Reto terminado." : "Predice k" + sub(ESP.vis) + " =";
+    $("pred").disabled = fin; $("verificarPred").disabled = fin;
+    if (vistaActiva === "v4") dibujarEsp();
+  }
+  function dibujarEsp() {
+    var cv = $("lienzoEsp"), wc = cv.clientWidth || 600, angosto = wc < 560, fs = angosto ? 12.5 : 15;
+    var filas = MAXSALTOS + 1, fh = angosto ? 24 : 30, m = { l: angosto ? 34 : 44, r: 14, t: 34, b: 30 };
+    var hTot = m.t + filas * fh + m.b;
+    var P = preparar(cv, hTot / wc), g = P.g, w = P.w, h = P.h;
+    function X(k) { return m.l + (k + 0.5) / 79 * (w - m.l - m.r); }
+    function Y(i) { return m.t + i * fh + fh / 2; }
+    g.clearRect(0, 0, w, h);
+    txt(g, ESP.modo === "juguete" ? "Regla de juguete: k′ = (a·k + b) mod 79 (a y b ocultos)" : "Secuencia secreta (crypto.getRandomValues)",
+        m.l, 20, C.azulOscuro, fs, "left", "alphabetic", true);
+    // Cuadrícula de canales
+    for (var k = 0; k <= 78; k++) if (k % 10 === 0 || k === 78) {
+      linea(g, X(k), m.t, X(k), h - m.b, C.grisClaro, 1);
+      txt(g, String(k), X(k), h - m.b + 16, C.gris, fs - 2, "center");
+    }
+    txt(g, "canal k", w - m.r, h - 4, C.gris, fs - 2, "right");
+    var porN = {}; ESP.intentos.forEach(function (it) { porN[it.n] = it; });
+    for (var i = 0; i < filas; i++) {
+      var y = Y(i);
+      if (i % 2 === 0) { g.fillStyle = "#FAFBFD"; g.fillRect(m.l, y - fh / 2, w - m.l - m.r, fh); }
+      txt(g, "k" + sub(i), m.l - 6, y, C.azulOscuro, fs, "right", "middle", true);
+      if (i < ESP.vis) {
+        var kk = ESP.sec[i], it = porN[i];
+        if (it && !it.bien) { // predicción fallida
+          g.save(); g.strokeStyle = C.guinda; g.lineWidth = 3;
+          var px = X(it.p), r = fh * 0.22;
+          g.beginPath(); g.moveTo(px - r, y - r); g.lineTo(px + r, y + r); g.moveTo(px + r, y - r); g.lineTo(px - r, y + r); g.stroke(); g.restore();
+        }
+        g.beginPath(); g.arc(X(kk), y, fh * 0.28, 0, 2 * Math.PI);
+        g.fillStyle = i < 3 ? C.azul : (it && it.bien ? C.azul : C.guinda); g.fill();
+        if (it && it.bien) { g.save(); g.strokeStyle = C.oro; g.lineWidth = 3; g.beginPath(); g.arc(X(kk), y, fh * 0.4, 0, 2 * Math.PI); g.stroke(); g.restore(); }
+        var etq = String(kk) + (i < 3 ? " (observado)" : "");
+        var der = X(kk) > w * 0.7;
+        txt(g, etq, X(kk) + (der ? -fh * 0.45 : fh * 0.45), y, C.azulOscuro, fs - 1, der ? "right" : "left", "middle", true);
+        if (i > 0 && i < ESP.vis) linea(g, X(ESP.sec[i - 1]), Y(i - 1) + fh * 0.28, X(kk), y - fh * 0.28, alfa(C.azul, 0.35), 1.5);
+      } else if (i === ESP.vis) {
+        txt(g, "?", m.l + 8, y, C.oroTexto, fs + 2, "left", "middle", true);
+      }
+    }
+  }
+
+  // =====================================================================
+  function dibujarTodo() {
+    if (vistaActiva === "v1") dibujarWifi();
+    else if (vistaActiva === "v2") dibujarGrafo();
+    else if (vistaActiva === "v3") dibujarBT();
+    else dibujarEsp();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  crearListaAP();
+  actualizarWifi(); actualizarGrafo(); actualizarBT(); nuevoReto(); calcular();
+  // Abrir directamente una pestaña con #p1 ... #p4 al final de la dirección
+  var hash = (location.hash || "").replace("#p", "v"), bHash = document.querySelector('nav.pestanas button[data-vista="' + hash + '"]');
+  if (bHash) bHash.click(); else dibujarTodo();
+  window.requestAnimationFrame(ciclo);
+  // Acceso para pruebas desde la consola
+  window.__sim = { W: W, G: G, BT: BT, ESP: ESP, mapaAFH: mapaAFH, mejorAsignacion: mejorAsignacion, nuevoSalto: nuevoSalto,
+                   inverso79: inverso79, ocupadoPor: ocupadoPor };
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-14-wifi-bluetooth.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h1v1h-1zM15 2h1v1h-1zM17 2h1v1h-1zM21 2h2v1h-2zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM13 3h6v1h-6zM22 3h2v1h-2zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM21 4h3v1h-3zM25 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h3v1h-3zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM15 6h1v1h-1zM18 6h1v1h-1zM20 6h3v1h-3zM24 6h2v1h-2zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM14 7h4v1h-4zM23 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h2v1h-2zM13 9h2v1h-2zM17 9h2v1h-2zM20 9h2v1h-2zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM14 10h3v1h-3zM19 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM2 11h3v1h-3zM6 11h2v1h-2zM11 11h1v1h-1zM13 11h6v1h-6zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h4v1h-4zM8 12h2v1h-2zM13 12h1v1h-1zM16 12h1v1h-1zM22 12h3v1h-3zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM4 13h1v1h-1zM6 13h1v1h-1zM9 13h1v1h-1zM14 13h2v1h-2zM18 13h1v1h-1zM21 13h4v1h-4zM26 13h1v1h-1zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM6 14h3v1h-3zM11 14h5v1h-5zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h2v1h-2zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM3 15h1v1h-1zM6 15h2v1h-2zM10 15h2v1h-2zM14 15h3v1h-3zM18 15h5v1h-5zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM2 16h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM11 16h2v1h-2zM14 16h4v1h-4zM20 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM3 17h4v1h-4zM12 17h1v1h-1zM15 17h1v1h-1zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM6 18h1v1h-1zM8 18h3v1h-3zM12 18h2v1h-2zM17 18h1v1h-1zM19 18h2v1h-2zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h2v1h-2zM10 19h3v1h-3zM17 19h1v1h-1zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM4 20h1v1h-1zM6 20h3v1h-3zM10 20h2v1h-2zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h2v1h-2zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h2v1h-2zM6 21h1v1h-1zM9 21h6v1h-6zM17 21h2v1h-2zM20 21h1v1h-1zM22 21h2v1h-2zM25 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM5 22h1v1h-1zM8 22h3v1h-3zM13 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM22 22h1v1h-1zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h1v1h-1zM10 23h2v1h-2zM13 23h1v1h-1zM15 23h2v1h-2zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM4 24h2v1h-2zM7 24h2v1h-2zM10 24h8v1h-8zM19 24h1v1h-1zM22 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h1v1h-1zM4 25h1v1h-1zM11 25h3v1h-3zM16 25h2v1h-2zM20 25h4v1h-4zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h3v1h-3zM7 26h2v1h-2zM10 26h1v1h-1zM12 26h1v1h-1zM16 26h2v1h-2zM19 26h1v1h-1zM21 26h2v1h-2zM24 26h1v1h-1zM27 26h1v1h-1zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM5 27h2v1h-2zM12 27h2v1h-2zM15 27h1v1h-1zM18 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM8 28h2v1h-2zM11 28h1v1h-1zM13 28h1v1h-1zM16 28h3v1h-3zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h1v1h-1zM6 29h2v1h-2zM16 29h3v1h-3zM22 29h2v1h-2zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM7 30h3v1h-3zM11 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h13v1h-13zM38 30h1v1h-1zM10 31h3v1h-3zM16 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h4v1h-4zM16 32h3v1h-3zM20 32h1v1h-1zM22 32h3v1h-3zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM13 33h1v1h-1zM17 33h2v1h-2zM20 33h4v1h-4zM25 33h1v1h-1zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM16 34h1v1h-1zM19 34h1v1h-1zM21 34h1v1h-1zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM14 35h3v1h-3zM18 35h1v1h-1zM21 35h2v1h-2zM24 35h3v1h-3zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h3v1h-3zM16 36h2v1h-2zM19 36h2v1h-2zM22 36h2v1h-2zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM16 37h3v1h-3zM22 37h3v1h-3zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM14 38h4v1h-4zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-14-wifi-bluetooth.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

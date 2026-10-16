@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El código Morse</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .barra { text-decoration:overline; }
+  .fila > .panel { min-width:0; }   /* que el lienzo desplazable no ensanche la columna en celular */
+  input[type=text] { width:100%; font-size:1.1rem; }
+  textarea { font:inherit; width:100%; border:1px solid var(--borde); border-radius:6px; padding:6px 8px; resize:vertical; }
+  .check { display:inline-flex; gap:6px; align-items:center; font-weight:normal; color:var(--tinta); margin:10px 12px 0 0; }
+  .aviso { color:var(--guinda); min-height:0; margin-top:4px; }
+  .nota { color:var(--gris); }
+  .grupoLampara { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  .lampara { flex:none; width:90px; height:90px; border-radius:50%; background:#3A3F4A; border:3px solid #1B1F2A;
+             box-shadow:inset 0 -6px 12px rgba(0,0,0,.35); }
+  .lampara.grande { width:150px; height:150px; margin:6px auto 4px; }
+  .lampara.on { background:radial-gradient(circle at 40% 35%, #FFF8DC, #FFD54A 55%, #E0A400);
+                box-shadow:0 0 30px 12px rgba(255,196,40,.7); }
+  .morse { font-family:Consolas,"Courier New",monospace; font-size:1.2rem; color:var(--azul-oscuro);
+           overflow-wrap:anywhere; margin:0 0 8px; }
+  .morse b { font-family:Calibri,"Segoe UI",sans-serif; color:var(--guinda); margin-right:4px; }
+  .leyenda { color:var(--gris); margin-top:6px; }
+  .tablaMorse { display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:2px 14px; font-size:1.1rem; }
+  .tablaMorse div { display:flex; gap:10px; border-bottom:1px solid var(--gris-claro); padding:2px 0; }
+  .tablaMorse b { width:1.1em; color:var(--guinda); }
+  .tablaMorse span { font-family:Consolas,"Courier New",monospace; color:var(--azul-oscuro); letter-spacing:.08em; }
+  .progreso { height:10px; background:var(--gris-claro); border-radius:5px; overflow:hidden; margin-top:8px; }
+  .progreso div { height:100%; width:0; background:var(--oro); }
+  .marcador { font-size:1.1rem; margin-top:8px; }
+  .desliza { overflow-x:auto; }
+  .desliza canvas { min-width:640px; }
+  table.datos { border-collapse:collapse; margin-top:6px; font-size:1rem; }
+  table.datos th, table.datos td { border:1px solid var(--borde); padding:3px 8px; text-align:center; }
+  table.datos th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 7 · Código Morse y tasa de transferencia</div>
+  <h1>El código Morse: tiempo, luz y sonido</h1>
+  <p class="sub">Escribe un mensaje y mide cuánto dura; luego recibe uno con la lámpara y el tono, y descubre por qué la E es un solo punto.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Codificador</button>
+    <button type="button" data-vista="v2" role="tab">Reto de recepción</button>
+    <button type="button" data-vista="v3" role="tab">¿Por qué la E es tan corta?</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Mensaje y velocidad</h2>
+        <label for="texto">Texto <small>(letras, dígitos y . , ? / =)</small></label>
+        <input id="texto" type="text" value="SOS" maxlength="40" autocomplete="off" spellcheck="false">
+        <div class="aviso" id="aviso1"></div>
+        <label for="ppm">Velocidad v = <span id="ppmTxt">20</span> ppm <small>(palabras por minuto)</small></label>
+        <input id="ppm" type="range" min="5" max="40" step="1" value="20">
+        <div class="grupoLampara">
+          <div class="lampara" id="lamp1" aria-label="lámpara del telégrafo"></div>
+          <div>
+            <button type="button" class="accion" id="play1">▶ Transmitir</button>
+            <button type="button" class="accion" id="stop1">■ Detener</button><br>
+            <label class="check"><input type="checkbox" id="son1" checked> con sonido</label>
+          </div>
+        </div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si duplicas la velocidad de 20 a 40 ppm, ¿qué pasa con N<sub>u</sub>, con t<sub>u</sub> y con T? Compruébalo.</li>
+            <li>Escribe EEEE, luego TTTT y luego QQQQ. Son 4 letras en los tres casos: ¿por qué duran tan distinto? ¿Qué decidió Vail con eso?</li>
+            <li>Imagina SOS sin las pausas de 3 u entre letras: • • • − − − • • •. ¿Qué otras lecturas admite? ¿Por qué el Morse necesita esas pausas?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>La señal en la línea: alto = corriente (tecla abajo), bajo = sin corriente</h2>
+        <div class="morse" id="morseTxt"></div>
+        <canvas id="lienzo1" aria-label="Señal Morse en el tiempo: pulsos de 1 y 3 unidades separados por pausas de 1, 3 y 7 unidades"></canvas>
+        <div class="leyenda">Cada casilla es una unidad t<sub>u</sub>. Los números dorados son las pausas entre letras (3) y entre palabras (7); entre los elementos de una letra la pausa es de 1. La línea dorada avanza al transmitir.</div>
+        <div class="lectura" id="lect1"></div>
+        <div class="seguridad"><b>Seguridad.</b> El Morse es un código <i>público</i>: quien intercepte la línea y conozca la tabla lee el mensaje; no aporta confidencialidad. El mismo esquema de pulsos sirve para un canal encubierto de temporización: un <i>malware</i> que hace parpadear el LED de un equipo aislado (<i>air-gapped</i>) frente a una cámara; su tasa la limita la duración mínima de pulso que distingue la cámara del atacante.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Recibe la palabra</h2>
+        <div class="lampara grande" id="lamp2" aria-label="lámpara del receptor"></div>
+        <div class="progreso" aria-hidden="true"><div id="barra2"></div></div>
+        <div id="estado2" class="nota">Pulsa "Nueva palabra" y observa la lámpara.</div>
+        <button type="button" class="accion" id="nueva2">Nueva palabra</button>
+        <button type="button" class="accion" id="repite2">▶ Transmitir otra vez</button>
+        <label for="ppm2">Velocidad v = <span id="ppm2Txt">8</span> ppm <small>(t<sub>u</sub> = <span id="tu2Txt">150</span> ms)</small></label>
+        <input id="ppm2" type="range" min="4" max="30" step="1" value="8">
+        <label for="pausa2">Pausa entre letras</label>
+        <select id="pausa2">
+          <option value="3">3 u (estándar del libro)</option>
+          <option value="6">6 u (alargada, solo para practicar)</option>
+        </select>
+        <label class="check"><input type="checkbox" id="son2" checked> con sonido</label>
+        <label for="resp2">Tu lectura</label>
+        <input id="resp2" type="text" maxlength="12" autocomplete="off" spellcheck="false" placeholder="escribe la palabra">
+        <button type="button" class="accion" id="verif2">Verificar</button>
+        <button type="button" class="accion" id="ver2">Ver la respuesta</button>
+        <div class="lectura" id="lect2">Las palabras son términos cortos de seguridad de la información.</div>
+        <div class="marcador" id="marca2">Aciertos: 0 de 0</div>
+      </div>
+      <div class="panel">
+        <h2>Tabla del Morse internacional (UIT-R M.1677)</h2>
+        <div class="tablaMorse" id="tabla2"></div>
+        <p class="nota">• punto (1 u) · − raya (3 u) · pausas: 1 u entre elementos, 3 u entre letras, 7 u entre palabras.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>¿Qué te costó más: distinguir un punto de una raya, o una pausa de 1 u de una de 3 u? ¿Qué errores cometiste y qué letras te salieron en su lugar?</li>
+            <li>Baja la velocidad a 5 ppm: ¿cuánto dura un punto? ¿Por qué quien recibe (tu ojo, tu oído o una cámara) le pone un límite a la velocidad y, con ella, a la tasa?</li>
+            <li>Acabas de leer el mensaje sin conocer ninguna clave. ¿Qué propiedad de la tríada CIA no protege el Morse?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> Codificar no es cifrar: el Morse, como Huffman o ZIP, es <i>codificación de fuente</i> y su tabla es pública. Solo el cifrado, con una clave secreta, protege la confidencialidad.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Texto de muestra</h2>
+        <label for="muestra">Se cuentan sus letras <small>(A-Z; acentos y Ñ cuentan como su letra base)</small></label>
+        <textarea id="muestra" rows="7" spellcheck="false"></textarea>
+        <button type="button" class="accion" id="libro3">Usar el párrafo del libro</button>
+        <h2 style="margin-top:14px">Tabla del libro (frecuencia en inglés)</h2>
+        <table class="datos">
+          <tr><th>Letra</th><th>Morse</th><th>Frec. (inglés)</th><th>Duración</th></tr>
+          <tr><td>E</td><td class="mono">•</td><td>12.7 %</td><td>1 u</td></tr>
+          <tr><td>T</td><td class="mono">−</td><td>9.1 %</td><td>3 u</td></tr>
+          <tr><td>A</td><td class="mono">•−</td><td>8.2 %</td><td>5 u</td></tr>
+          <tr><td>O</td><td class="mono">−−−</td><td>7.5 %</td><td>11 u</td></tr>
+          <tr><td>Q</td><td class="mono">−−•−</td><td>0.10 %</td><td>13 u</td></tr>
+          <tr><td>Z</td><td class="mono">−−••</td><td>0.07 %</td><td>11 u</td></tr>
+        </table>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mirar la gráfica: ¿qué letra crees que es la más frecuente en un texto en español? ¿Tiene el código más corto?</li>
+            <li>Busca una letra muy frecuente en español con un código largo. ¿Por qué Vail no la habría "castigado" así?</li>
+            <li>Pega otro texto (un correo, una lista de contraseñas, un texto en inglés): ¿cambia el orden de las letras? ¿Cuánto se podría ganar reordenando los códigos?</li>
+            <li>Aun con el mejor orden, esos códigos siguen necesitando la pausa entre letras. ¿Por qué? ¿Qué tendría que cumplir un código para no necesitarla?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Frecuencia de cada letra en el texto (barras) contra la duración de su código Morse (puntos)</h2>
+        <div class="desliza"><canvas id="lienzo3" aria-label="Gráfica: frecuencia de cada letra del texto y duración de su código Morse"></canvas></div>
+        <p class="nota">Las frecuencias se miden en el texto de la caja: no son estadísticas oficiales del español. La duración de cada letra incluye sus pausas internas de 1 u, pero no la pausa de 3 u entre letras (es igual para todas).</p>
+        <div class="lectura" id="lect3"></div>
+        <div class="seguridad"><b>Seguridad.</b> Contar cuántas veces aparece cada letra es también el <i>análisis de frecuencias</i> con el que se rompen cifrados clásicos como César: si la letra cifrada más común es la H, probablemente es una E desplazada (capítulo <i>Transformadas y teoremas</i>).</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex, subsección El código Morse (tiempos 1/3/1/3/7 y PARIS = 50 u; Ecuación eq:unidad-morse, t<sub>u</sub> = 1200/v ms; Ecuación eq:longitud-promedio, <span class='barra'>L</span> = Σ p<sub>i</sub> l<sub>i</sub>) y párrafo Tasa de transferencia (Ecuación eq:tasa-transferencia). Tono de 600 Hz y 8 bits por carácter: valores ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      detener();
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function fTu(t) { return num(t, Math.abs(t - Math.round(t)) < 1e-9 ? 0 : 2); }   // t_u en ms
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+
+  // ------------------------------------------------------------------ Morse internacional
+  var MORSE = { A:".-", B:"-...", C:"-.-.", D:"-..", E:".", F:"..-.", G:"--.", H:"....", I:"..", J:".---",
+    K:"-.-", L:".-..", M:"--", N:"-.", O:"---", P:".--.", Q:"--.-", R:".-.", S:"...", T:"-", U:"..-",
+    V:"...-", W:".--", X:"-..-", Y:"-.--", Z:"--..",
+    "0":"-----", "1":".----", "2":"..---", "3":"...--", "4":"....-", "5":".....", "6":"-....",
+    "7":"--...", "8":"---..", "9":"----.",
+    ".":".-.-.-", ",":"--..--", "?":"..--..", "/":"-..-.", "=":"-...-" };
+  var PUNTO = 1, RAYA = 3, P_ELEM = 1, P_LETRA = 3, P_PALABRA = 7;      // unidades (libro)
+  var TONO = 600, VOL = 0.12;                                             // Hz (ilustrativo) y volumen moderado
+  function bonito(cod) { return cod.replace(/\./g, "•").replace(/-/g, "−"); }
+  function durLetra(cod) {
+    var d = 0;
+    for (var i = 0; i < cod.length; i++) d += cod[i] === "." ? PUNTO : RAYA;
+    return d + (cod.length - 1) * P_ELEM;
+  }
+  function desglose(cod) {        // "3(1) + 0(3) + 2(1) = 5"
+    var p = cod.split(".").length - 1, r = cod.length - p;
+    return p + "(1) + " + r + "(3) + " + (cod.length - 1) + "(1) = " + durLetra(cod);
+  }
+
+  // Limpia el texto: mayúsculas, sin acentos (Ñ → N), solo símbolos de la tabla.
+  function limpiar(t) {
+    var orig = String(t).toUpperCase(), base = orig.normalize ? orig.normalize("NFD").replace(/[̀-ͯ]/g, "") : orig;
+    var acentos = base !== orig, omitidos = [], palabras = [];
+    base.split(/\s+/).forEach(function (pal) {
+      var ok = "";
+      for (var i = 0; i < pal.length; i++) {
+        if (MORSE[pal[i]]) ok += pal[i];
+        else if (omitidos.indexOf(pal[i]) < 0) omitidos.push(pal[i]);
+      }
+      if (ok) palabras.push(ok);
+    });
+    return { palabras: palabras, acentos: acentos, omitidos: omitidos };
+  }
+
+  // Plan de transmisión en unidades: letras, elementos (pulsos) y pausas.
+  function planear(palabras, pLetra, pPalabra) {
+    var letras = [], elems = [], u = 0, nLetra = 0, nPalabra = 0;
+    palabras.forEach(function (pal, ip) {
+      if (ip > 0) { u += pPalabra; nPalabra++; }
+      for (var il = 0; il < pal.length; il++) {
+        if (il > 0) { u += pLetra; nLetra++; }
+        var c = pal[il], cod = MORSE[c], L = { c: c, cod: cod, ini: u, elems: [], palabra: ip };
+        for (var ie = 0; ie < cod.length; ie++) {
+          if (ie > 0) u += P_ELEM;
+          var d = cod[ie] === "." ? PUNTO : RAYA, e = { ini: u, dur: d, letra: letras.length };
+          elems.push(e); L.elems.push(e); u += d;
+        }
+        L.fin = u; L.dur = u - L.ini; letras.push(L);
+      }
+    });
+    var caracteres = letras.length + Math.max(0, palabras.length - 1);   // los espacios también son caracteres
+    return { letras: letras, elems: elems, total: u, nLetra: nLetra, nPalabra: nPalabra,
+             pLetra: pLetra, pPalabra: pPalabra, caracteres: caracteres };
+  }
+  function encendido(plan, u) {
+    for (var i = 0; i < plan.elems.length; i++) {
+      var e = plan.elems[i];
+      if (u >= e.ini && u < e.ini + e.dur) return e;
+      if (e.ini > u) break;
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------------ sonido y lámpara
+  var audio = null, rep = null;
+  function ctxAudio() {
+    if (!audio) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { audio = new AC(); } catch (e) { return null; }
+    }
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+  function detener() {
+    if (!rep) return;
+    var r = rep; rep = null;
+    if (r.osc && audio) {
+      try { r.gan.gain.cancelScheduledValues(0); r.gan.gain.setValueAtTime(0, audio.currentTime); r.osc.stop(audio.currentTime + 0.03); } catch (e) { /* ya detenido */ }
+    }
+    cancelAnimationFrame(r.raf);
+    r.lamp.classList.remove("on");
+    if (r.alTerminar) r.alTerminar(true);
+  }
+  // Transmite el plan: el sonido se programa en el reloj de audio; la lámpara sigue el reloj de la página.
+  function transmitir(plan, tuMs, conSonido, lamp, cadaCuadro, alTerminar) {
+    detener();
+    if (!plan.total) return;
+    var tu = tuMs / 1000, retraso = 0.15, r = { lamp: lamp, alTerminar: alTerminar };
+    if (conSonido) {
+      var ac = ctxAudio();
+      if (ac) {
+        var osc = ac.createOscillator(), gan = ac.createGain(), t0 = ac.currentTime + retraso, rampa = Math.min(0.005, tu / 6);
+        osc.type = "sine"; osc.frequency.value = TONO; gan.gain.setValueAtTime(0, ac.currentTime);
+        osc.connect(gan); gan.connect(ac.destination);
+        plan.elems.forEach(function (e) {
+          var a = t0 + e.ini * tu, b = t0 + (e.ini + e.dur) * tu;
+          gan.gain.setValueAtTime(0, a); gan.gain.linearRampToValueAtTime(VOL, a + rampa);
+          gan.gain.setValueAtTime(VOL, b - rampa); gan.gain.linearRampToValueAtTime(0, b);
+        });
+        osc.start(ac.currentTime); osc.stop(t0 + plan.total * tu + 0.1);
+        r.osc = osc; r.gan = gan;
+      }
+    }
+    r.inicio = performance.now() + retraso * 1000;
+    function cuadro(ahora) {
+      if (rep !== r) return;
+      var u = (ahora - r.inicio) / tuMs;
+      lamp.classList.toggle("on", u >= 0 && !!encendido(plan, u));
+      if (cadaCuadro) cadaCuadro(u);
+      if (u >= plan.total) { rep = null; lamp.classList.remove("on"); if (alTerminar) alTerminar(false); return; }
+      r.raf = requestAnimationFrame(cuadro);
+    }
+    rep = r; r.raf = requestAnimationFrame(cuadro);
+  }
+
+  // ================================================================== VISTA 1: CODIFICADOR
+  var plan1 = null, cursor1 = null;
+  function actualizar1() {
+    var L = limpiar($("texto").value), v = Number($("ppm").value), tu = 1200 / v;
+    plan1 = planear(L.palabras, P_LETRA, P_PALABRA);
+    $("ppmTxt").textContent = v;
+    var avisos = [];
+    if (L.omitidos.length) avisos.push("Se omiten (no están en la tabla): " + L.omitidos.join(" "));
+    if (L.acentos) avisos.push("Los acentos y la Ñ se envían como su letra base (convención de este simulador).");
+    $("aviso1").innerHTML = avisos.join("<br>");
+    // Texto en Morse
+    var partes = [];
+    L.palabras.forEach(function (pal, ip) {
+      var s = pal.split("").map(function (c) { return "<b>" + c + "</b>" + bonito(MORSE[c]); }).join("&nbsp;&nbsp;");
+      partes.push(s);
+    });
+    $("morseTxt").innerHTML = partes.length ? partes.join("&nbsp;&nbsp;│&nbsp;&nbsp;") : "<span class='nota'>Escribe un texto.</span>";
+    // Lecturas
+    var P = plan1, h = "";
+    if (!P.total) { $("lect1").innerHTML = "Escribe al menos una letra o un dígito."; dibujar1(); return; }
+    h += "<b>Tiempos del libro:</b> punto 1 u, raya 3 u; pausas de 1 u entre elementos, 3 u entre letras y 7 u entre palabras.<br>";
+    var vistos = [];
+    P.letras.forEach(function (x) { if (vistos.indexOf(x.c) < 0 && vistos.length < 6) vistos.push(x.c); });
+    h += vistos.map(function (c) { return "<span class='mono'>" + c + " " + bonito(MORSE[c]) + "</span>: " + desglose(MORSE[c]) + " u"; }).join("<br>");
+    var sumas = P.letras.map(function (x) { return x.dur; }), sumaL = sumas.reduce(function (a, b) { return a + b; }, 0);
+    var lista = sumas.length > 10 ? sumas.slice(0, 10).join(" + ") + " + …" : sumas.join(" + ");
+    h += "<br><span class='formula'>N<sub>u</sub> = (" + lista + ") + " + P.nLetra + "×3 + " + P.nPalabra + "×7 = " + num(sumaL, 0) + " + " + (P.nLetra * 3) + " + " + (P.nPalabra * 7) + " = <b>" + num(P.total, 0) + " u</b></span>";
+    h += "<br><span class='formula'>t<sub>u</sub> = 1200 / v = 1200 / " + v + " = <b>" + fTu(tu) + " ms</b></span>";
+    var T = P.total * tu;
+    h += "<br><span class='formula'>T = N<sub>u</sub> · t<sub>u</sub> = " + num(P.total, 0) + " × " + fTu(tu) + " ms = <b>" + num(T, 0) + " ms = " + num(T / 1000, 2) + " s</b></span>";
+    var bits = 8 * P.caracteres;
+    h += "<br><b>Tasa de transferencia</b> = datos / tiempo. Si cada carácter ocupara 1 byte (8 bits, valor ilustrativo): " +
+         "<span class='formula'>" + P.caracteres + " × 8 = " + bits + " bits / " + num(T / 1000, 2) + " s = <b>" + num(bits / (T / 1000), 2) + " bps</b></span> (" +
+         num(P.caracteres / (T / 1000), 2) + " caracteres/s).";
+    h += "<br><span class='nota'>Referencia: PARIS + su pausa final = 50 u → a " + v + " ppm dura 50 × " + fTu(tu) + " ms = " + num(50 * tu / 1000, 2) + " s, así caben " + v + " palabras en 60 s.</span>";
+    $("lect1").innerHTML = h;
+    dibujar1();
+  }
+
+  function dibujar1() {
+    var cv = $("lienzo1"), P = plan1, w = cv.clientWidth || 600;
+    if (!P || !P.total) {
+      var d0 = preparar(cv, 0.16);
+      texto(d0.g, "Escribe un texto para ver su señal.", d0.w / 2, d0.h / 2, C.gris, 17, "center", "middle");
+      return;
+    }
+    var mI = 14, util = w - 2 * mI;
+    var ppu = Math.max(9, Math.min(34, util / P.total)), cap = util / ppu;
+    var filas = [[]], x = 0;
+    P.letras.forEach(function (L, i) {
+      var gap = i === 0 ? 0 : L.ini - P.letras[i - 1].fin;
+      if (i > 0 && x + gap + L.dur > cap) { filas.push([]); x = 0; gap = 0; }
+      L.fila = filas.length - 1; L.x = x + gap; L.gapAntes = gap; x = L.x + L.dur; filas[L.fila].push(L);
+    });
+    var rowH = 100, alto = filas.length * rowH + 6;
+    var d = preparar(cv, alto / w), g = d.g;
+    function X(u) { return mI + u * ppu; }
+    var activo = cursor1 === null ? null : encendido(P, cursor1);
+    filas.forEach(function (fila, r) {
+      var y0 = 6 + r * rowH, arriba = y0 + 14, base = y0 + 56;
+      var ultimo = fila[fila.length - 1], fin = ultimo.x + ultimo.dur;
+      for (var u = 0; u <= fin; u++) linea(g, X(u), arriba, X(u), base, "#EEF0F4", 1);
+      linea(g, X(0), base, X(fin), base, C.gris, 1.5);
+      fila.forEach(function (L) {
+        L.elems.forEach(function (e) {
+          var x0 = X(L.x + e.ini - L.ini);
+          g.fillStyle = e === activo ? C.guinda : C.azul;
+          g.fillRect(x0 + 1, arriba + 2, e.dur * ppu - 2, base - arriba - 2);
+        });
+        texto(g, L.c, X(L.x + L.dur / 2), base + 26, C.azulOscuro, 19, "center", "alphabetic", true);
+        if (L.gapAntes > 0 && L.gapAntes * ppu >= 14) {
+          var gx0 = X(L.x - L.gapAntes) + 2, gx1 = X(L.x) - 2, ym = base - 10;
+          linea(g, gx0, ym, gx1, ym, C.oro, 1.5);
+          linea(g, gx0, ym - 4, gx0, ym + 4, C.oro, 1.5); linea(g, gx1, ym - 4, gx1, ym + 4, C.oro, 1.5);
+          texto(g, String(L.gapAntes), (gx0 + gx1) / 2, ym - 7, C.oroTexto, 15, "center", "alphabetic", true);
+        }
+      });
+    });
+    if (cursor1 !== null && cursor1 >= 0) {
+      var cu = Math.min(cursor1, P.total), pos = null;
+      for (var i = P.letras.length - 1; i >= 0; i--) {
+        var L = P.letras[i];
+        if (cu >= L.ini) {
+          if (cu <= L.fin) pos = { fila: L.fila, u: L.x + cu - L.ini };
+          else {
+            var sig = P.letras[i + 1], lim = sig && sig.fila === L.fila ? sig.x : cap;
+            pos = { fila: L.fila, u: Math.min(L.x + L.dur + (cu - L.fin), lim) };
+          }
+          break;
+        }
+      }
+      if (!pos) pos = { fila: 0, u: 0 };
+      var yc = 6 + pos.fila * rowH;
+      linea(g, X(pos.u), yc + 4, X(pos.u), yc + 64, C.oro, 3);
+    }
+  }
+
+  $("texto").addEventListener("input", function () { detener(); cursor1 = null; actualizar1(); });
+  $("ppm").addEventListener("input", function () { detener(); cursor1 = null; actualizar1(); });
+  $("play1").addEventListener("click", function () {
+    var v = Number($("ppm").value);
+    transmitir(plan1, 1200 / v, $("son1").checked, $("lamp1"),
+      function (u) { cursor1 = u; dibujar1(); },
+      function () { cursor1 = null; dibujar1(); });
+  });
+  $("stop1").addEventListener("click", function () { detener(); });
+
+  // ================================================================== VISTA 2: RETO
+  // Términos cortos de seguridad para el reto.
+  var PALABRAS = ["LOG", "VPN", "DNS", "SSH", "AES", "RSA", "HASH", "SPAM", "PING", "BUG", "NUBE", "VIRUS"];
+  var reto = { palabra: null, intentos: 0, resuelta: false }, marcador = { ok: 0, total: 0 };
+  (function llenarTabla() {
+    var h = "";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").forEach(function (c) {
+      h += "<div><b>" + c + "</b><span>" + bonito(MORSE[c]) + "</span></div>";
+    });
+    $("tabla2").innerHTML = h;
+  })();
+  function tu2() { return 1200 / Number($("ppm2").value); }
+  function actualizarVel2() {
+    $("ppm2Txt").textContent = $("ppm2").value;
+    $("tu2Txt").textContent = fTu(tu2());
+  }
+  function transmitirReto() {
+    if (!reto.palabra) return;
+    var P = planear([reto.palabra], Number($("pausa2").value), P_PALABRA);
+    $("estado2").textContent = "Transmitiendo… (" + reto.palabra.length + " letras)";
+    transmitir(P, tu2(), $("son2").checked, $("lamp2"),
+      function (u) { $("barra2").style.width = Math.max(0, Math.min(100, 100 * u / P.total)) + "%"; },
+      function (cancelado) {
+        $("barra2").style.width = cancelado ? "0%" : "100%";
+        $("estado2").textContent = cancelado ? "Transmisión detenida." : "Fin de la transmisión. Escribe tu lectura o transmite otra vez.";
+      });
+  }
+  function revelar(prefijo) {
+    var P = planear([reto.palabra], P_LETRA, P_PALABRA), t = tu2();
+    var durs = P.letras.map(function (x) { return x.dur; }).join(" + ");
+    $("lect2").innerHTML = prefijo + "<br><span class='mono'>" + reto.palabra.split("").map(function (c) { return c + " " + bonito(MORSE[c]); }).join("&nbsp;&nbsp;&nbsp;") + "</span>" +
+      "<br><span class='formula'>N<sub>u</sub> = (" + durs + ") + " + P.nLetra + "×3 = " + P.total + " u</span>" +
+      "<br><span class='formula'>T = " + P.total + " × " + fTu(t) + " ms = " + num(P.total * t / 1000, 2) + " s</span> <span class='nota'>(con pausas estándar, a " + $("ppm2").value + " ppm)</span>";
+  }
+  $("nueva2").addEventListener("click", function () {
+    var opciones = PALABRAS.filter(function (p) { return p !== reto.palabra; });
+    reto = { palabra: opciones[Math.floor(Math.random() * opciones.length)], intentos: 0, resuelta: false };
+    marcador.total++;
+    $("marca2").textContent = "Aciertos: " + marcador.ok + " de " + marcador.total;
+    $("resp2").value = "";
+    $("lect2").innerHTML = "Palabra nueva de <b>" + reto.palabra.length + " letras</b>. Anota puntos, rayas y pausas; luego consulta la tabla.";
+    transmitirReto();
+  });
+  $("repite2").addEventListener("click", function () {
+    if (!reto.palabra) { $("nueva2").click(); return; }
+    transmitirReto();
+  });
+  $("verif2").addEventListener("click", function () {
+    if (!reto.palabra) { $("lect2").innerHTML = "Primero pulsa \"Nueva palabra\"."; return; }
+    var r = $("resp2").value.toUpperCase().replace(/\s+/g, "");
+    if (!r) return;
+    reto.intentos++;
+    if (r === reto.palabra) {
+      if (!reto.resuelta) { marcador.ok++; reto.resuelta = true; }
+      $("marca2").textContent = "Aciertos: " + marcador.ok + " de " + marcador.total;
+      revelar("<span class='ok'>Correcto: " + reto.palabra + ".</span>");
+    } else {
+      $("lect2").innerHTML = "<span class='mal'>" + r + " no es la palabra.</span> Transmítela otra vez" +
+        (reto.intentos >= 2 ? "; prueba con menos ppm o con la pausa alargada." : ".");
+    }
+  });
+  $("ver2").addEventListener("click", function () {
+    if (!reto.palabra) return;
+    reto.resuelta = true;
+    revelar("La palabra era <b>" + reto.palabra + "</b>.");
+  });
+  $("resp2").addEventListener("keydown", function (e) { if (e.key === "Enter") $("verif2").click(); });
+  $("ppm2").addEventListener("input", function () { detener(); actualizarVel2(); });
+  $("pausa2").addEventListener("change", function () { detener(); });
+
+  // ================================================================== VISTA 3: FRECUENCIAS
+  // Párrafo del propio libro (subsección El código Morse), sin LaTeX.
+  var TEXTO_LIBRO = "El código Morse representa letras y números mediante combinaciones de puntos y rayas, " +
+    "transmitidos históricamente como pulsos de corriente eléctrica: los telegrafistas controlaban la duración " +
+    "de la corriente en el circuito para codificar mensajes. Fue creado por Samuel Morse y Alfred Vail a finales " +
+    "de la década de 1830 y resultó crucial para la telegrafía. Es un código público: quien intercepte la línea y " +
+    "conozca la tabla lee el mensaje, así que no aporta ninguna confidencialidad. Hacia 1838, Vail estimó la " +
+    "frecuencia de cada letra en inglés, según el relato más difundido contando los tipos móviles de una imprenta " +
+    "local, y asignó las combinaciones más cortas a las letras más frecuentes. La letra más frecuente del idioma " +
+    "inglés, la E, recibe el código más corto posible: un solo punto. Las letras más raras, como Q o Z, usan " +
+    "combinaciones de cuatro símbolos.";
+  var ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  var frec = null;
+  function calcular3() {
+    var t = $("muestra").value.toUpperCase();
+    t = t.normalize ? t.normalize("NFD").replace(/[̀-ͯ]/g, "") : t;
+    var cuenta = {}, N = 0;
+    ABC.forEach(function (c) { cuenta[c] = 0; });
+    for (var i = 0; i < t.length; i++) if (cuenta[t[i]] !== undefined) { cuenta[t[i]]++; N++; }
+    var orden = ABC.slice().sort(function (a, b) { return cuenta[b] - cuenta[a] || (a < b ? -1 : 1); });
+    var durs = ABC.map(function (c) { return durLetra(MORSE[c]); });
+    var asc = durs.slice().sort(function (a, b) { return a - b; }), desc = asc.slice().reverse();
+    var Lreal = 0, Lmejor = 0, Lpeor = 0;
+    orden.forEach(function (c, k) {
+      var p = N ? cuenta[c] / N : 0;
+      Lreal += p * durLetra(MORSE[c]); Lmejor += p * asc[k]; Lpeor += p * desc[k];
+    });
+    frec = { cuenta: cuenta, N: N, orden: orden, Lreal: Lreal, Lmejor: Lmejor, Lpeor: Lpeor, asc: asc };
+    var h;
+    if (N < 2) {
+      h = "Escribe o pega un texto con letras.";
+    } else {
+      var top = orden.slice(0, 5);
+      h = "<b>Letras contadas:</b> N = " + num(N, 0) + ". Las más frecuentes: " +
+        top.map(function (c) { return c + " " + num(100 * cuenta[c] / N, 1) + " %"; }).join(", ") + ".<br>";
+      h += "<b>Duración promedio por letra</b> (Ec. eq:longitud-promedio, con l<sub>i</sub> en unidades):<br><span class='formula'><span class='barra'>L</span> = Σ p<sub>i</sub> l<sub>i</sub> = " +
+        top.map(function (c) { return num(cuenta[c] / N, 3) + "(" + durLetra(MORSE[c]) + ")"; }).join(" + ") +
+        " + … = <b>" + num(Lreal, 2) + " u</b></span> con el Morse real.<br>";
+      h += "Mismos 26 códigos reordenados para este texto (el más corto a la más frecuente): <b>" + num(Lmejor, 2) + " u</b>.<br>";
+      h += "Al revés (el más largo a la más frecuente): <b>" + num(Lpeor, 2) + " u</b>.<br>";
+      h += "El Morse real queda a <b>" + num(100 * (Lreal - Lmejor) / Lmejor, 1) + " %</b> del mejor orden posible para este texto, y ahorra <b>" +
+        num(100 * (Lpeor - Lreal) / Lpeor, 1) + " %</b> frente al peor.";
+    }
+    $("lect3").innerHTML = h;
+    dibujar3();
+  }
+  function dibujar3() {
+    var cv = $("lienzo3");
+    if (!frec || !cv.clientWidth) return;
+    var d = preparar(cv, 0.5), g = d.g, w = d.w, h = d.h;
+    var izq = 48, der = w - 48, arr = 34, abj = h - 40;
+    var N = frec.N, maxP = 0;
+    frec.orden.forEach(function (c) { maxP = Math.max(maxP, N ? 100 * frec.cuenta[c] / N : 0); });
+    var topP = Math.max(5, Math.ceil(maxP / 5) * 5), topD = 14;
+    var paso = (der - izq) / 26;
+    function Yp(p) { return abj - (p / topP) * (abj - arr); }
+    function Yd(u) { return abj - (u / topD) * (abj - arr); }
+    // ejes y cuadrícula
+    for (var p = 0; p <= topP; p += 5) {
+      linea(g, izq, Yp(p), der, Yp(p), "#F0F2F6", 1);
+      texto(g, p + " %", izq - 6, Yp(p) + 5, C.azul, 14, "right");
+    }
+    [0, 3, 5, 7, 9, 11, 13].forEach(function (u) { texto(g, u + " u", der + 6, Yd(u) + 5, C.guinda, 14, "left"); });
+    linea(g, izq, abj, der, abj, C.gris, 1.5);
+    texto(g, "frecuencia en el texto", izq, 18, C.azul, 15, "left", "alphabetic", true);
+    texto(g, "duración del código", der, 18, C.guinda, 15, "right", "alphabetic", true);
+    var pts = [];
+    frec.orden.forEach(function (c, k) {
+      var x = izq + paso * (k + 0.5), pc = N ? 100 * frec.cuenta[c] / N : 0, du = durLetra(MORSE[c]);
+      g.fillStyle = C.azul; g.fillRect(x - paso * 0.32, Yp(pc), paso * 0.64, abj - Yp(pc));
+      texto(g, c, x, abj + 20, C.azulOscuro, 16, "center", "alphabetic", true);
+      pts.push([x, Yd(du)]);
+    });
+    pts.forEach(function (q) { g.fillStyle = C.guinda; g.beginPath(); g.arc(q[0], q[1], 6, 0, 2 * Math.PI); g.fill(); });
+    texto(g, "← más frecuentes", izq, h - 6, C.gris, 14, "left");
+    texto(g, "menos frecuentes →", der, h - 6, C.gris, 14, "right");
+  }
+  $("muestra").value = TEXTO_LIBRO;
+  $("muestra").addEventListener("input", calcular3);
+  $("libro3").addEventListener("click", function () { $("muestra").value = TEXTO_LIBRO; calcular3(); });
+
+  function dibujarTodo() {
+    dibujar1();
+    dibujar3();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  // Abrir directamente una vista con la URL: semana-07-morse.html#v2
+  var porHash = Array.prototype.filter.call(document.querySelectorAll("nav.pestanas button"),
+    function (b) { return "#" + b.dataset.vista === location.hash; })[0];
+  actualizarVel2();
+  actualizar1();
+  calcular3();
+  if (porHash) { porHash.click(); setTimeout(function () { window.scrollTo(0, 0); }, 30); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-07-morse.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM11 2h4v1h-4zM18 2h1v1h-1zM24 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h2v1h-2zM14 3h2v1h-2zM17 3h1v1h-1zM22 3h2v1h-2zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM14 4h5v1h-5zM23 4h1v1h-1zM25 4h2v1h-2zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM14 5h1v1h-1zM16 5h2v1h-2zM19 5h1v1h-1zM22 5h1v1h-1zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM17 6h9v1h-9zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h4v1h-4zM15 7h2v1h-2zM19 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h2v1h-2zM15 9h1v1h-1zM19 9h3v1h-3zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM13 10h3v1h-3zM17 10h2v1h-2zM24 10h1v1h-1zM27 10h2v1h-2zM32 10h5v1h-5zM2 11h1v1h-1zM4 11h1v1h-1zM6 11h2v1h-2zM13 11h1v1h-1zM16 11h2v1h-2zM20 11h1v1h-1zM22 11h2v1h-2zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM4 12h3v1h-3zM8 12h2v1h-2zM12 12h1v1h-1zM17 12h2v1h-2zM21 12h1v1h-1zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM4 13h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM16 13h2v1h-2zM21 13h5v1h-5zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM6 14h1v1h-1zM8 14h1v1h-1zM10 14h1v1h-1zM12 14h1v1h-1zM14 14h1v1h-1zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h2v1h-2zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM3 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM13 15h1v1h-1zM15 15h2v1h-2zM18 15h1v1h-1zM20 15h4v1h-4zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM2 16h1v1h-1zM6 16h1v1h-1zM8 16h2v1h-2zM12 16h2v1h-2zM16 16h2v1h-2zM20 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM4 17h1v1h-1zM6 17h1v1h-1zM10 17h1v1h-1zM13 17h1v1h-1zM15 17h2v1h-2zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM3 18h1v1h-1zM7 18h4v1h-4zM13 18h1v1h-1zM15 18h1v1h-1zM17 18h1v1h-1zM20 18h1v1h-1zM25 18h3v1h-3zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM2 19h6v1h-6zM12 19h2v1h-2zM17 19h2v1h-2zM23 19h1v1h-1zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h1v1h-1zM8 20h2v1h-2zM12 20h4v1h-4zM19 20h2v1h-2zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h1v1h-1zM9 21h1v1h-1zM12 21h4v1h-4zM18 21h1v1h-1zM20 21h1v1h-1zM22 21h2v1h-2zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h3v1h-3zM6 22h7v1h-7zM14 22h1v1h-1zM18 22h2v1h-2zM21 22h2v1h-2zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h4v1h-4zM10 23h1v1h-1zM12 23h2v1h-2zM18 23h5v1h-5zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h1v1h-1zM5 24h8v1h-8zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM3 25h1v1h-1zM11 25h1v1h-1zM13 25h5v1h-5zM19 25h5v1h-5zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h2v1h-2zM5 26h2v1h-2zM8 26h1v1h-1zM10 26h6v1h-6zM17 26h2v1h-2zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM5 27h3v1h-3zM9 27h1v1h-1zM11 27h1v1h-1zM14 27h2v1h-2zM17 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM5 28h1v1h-1zM7 28h2v1h-2zM10 28h3v1h-3zM15 28h4v1h-4zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h2v1h-2zM10 29h3v1h-3zM15 29h3v1h-3zM22 29h2v1h-2zM31 29h2v1h-2zM34 29h1v1h-1zM2 30h1v1h-1zM5 30h5v1h-5zM13 30h3v1h-3zM17 30h3v1h-3zM21 30h1v1h-1zM24 30h13v1h-13zM10 31h2v1h-2zM15 31h1v1h-1zM18 31h1v1h-1zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h3v1h-3zM17 32h2v1h-2zM20 32h1v1h-1zM22 32h2v1h-2zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM12 33h1v1h-1zM14 33h1v1h-1zM17 33h2v1h-2zM21 33h3v1h-3zM25 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h3v1h-3zM16 34h1v1h-1zM20 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM13 35h1v1h-1zM17 35h2v1h-2zM21 35h2v1h-2zM24 35h3v1h-3zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h2v1h-2zM14 36h1v1h-1zM16 36h1v1h-1zM19 36h2v1h-2zM23 36h1v1h-1zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM14 37h1v1h-1zM16 37h1v1h-1zM18 37h1v1h-1zM22 37h4v1h-4zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM12 38h2v1h-2zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-07-morse.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

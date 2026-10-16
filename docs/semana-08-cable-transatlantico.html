@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulsos que se alargan: el cable de 1858</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+  /* Propios de este simulador */
+  .valor { float:right; color:var(--guinda); font-weight:bold; }
+  input#bits { width:100%; letter-spacing:.12em; font-family:Consolas,"Courier New",monospace; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 16px; margin:8px 0 0; color:var(--gris); font-size:.95rem; }
+  .leyenda span::before { content:""; display:inline-block; width:22px; height:0; vertical-align:middle;
+                          margin-right:6px; border-top:3px solid var(--c); }
+  .leyenda span.punteada::before { border-top-style:dashed; }
+  .barra { height:16px; border:1px solid var(--borde); border-radius:4px; background:var(--gris-claro); margin-top:6px; overflow:hidden; }
+  .barra div { height:100%; background:linear-gradient(90deg, var(--oro), var(--guinda)); }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 8 · Día 3 · El cable transatlántico</div>
+  <h1>Pulsos que se alargan: el cable de 1858</h1>
+  <p class="sub">El cable se comporta como un capacitor enorme: cada pulso tarda en formarse y en desvanecerse. Cambia la longitud y la tasa, y descubre cuándo el receptor empieza a equivocarse.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1 · Pulsos que se alargan</button>
+    <button type="button" data-vista="v2" role="tab">2 · Una o dos corrientes</button>
+    <button type="button" data-vista="v3" role="tab">3 · ¿Y si subo el voltaje?</button>
+  </nav>
+
+  <div id="comunes">
+    <h2>Controles de la línea</h2>
+    <label for="lon">Longitud del cable L <small>(km)</small> <span class="valor" id="lonTxt"></span></label>
+    <input id="lon" type="range" min="100" max="4000" step="50" value="1600">
+    <label for="tasa">Tasa de señalización <small>(bits/s)</small> <span class="valor" id="tasaTxt"></span></label>
+    <input id="tasa" type="range" min="0" max="20" step="1" value="9">
+    <label for="bits">Bits que se envían <small>(de 2 a 24)</small></label>
+    <input id="bits" type="text" value="1011011100010110" maxlength="24" inputmode="numeric" spellcheck="false" autocomplete="off">
+    <button type="button" class="accion" id="azar">Bits al azar</button>
+    <p class="nota">R' = 4 Ω/km y C' = 0.2 µF/km: valores ilustrativos del libro.</p>
+  </div>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <label for="umbral">Umbral del receptor <small>(fracción de V)</small> <span class="valor" id="umbralTxt"></span></label>
+        <input id="umbral" type="range" min="0.1" max="0.9" step="0.05" value="0.5">
+        <div class="lectura" id="lectura1"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Señal enviada y señal recibida al final del cable, con el umbral del receptor y los bits mal leídos"></canvas>
+        <div class="leyenda">
+          <span style="--c:#5B6472" class="punteada">enviada</span>
+          <span style="--c:#0A2A57">recibida al final del cable</span>
+          <span style="--c:#B8975A" class="punteada">umbral</span>
+          <span style="--c:#B8975A">τ (constante de tiempo)</span>
+        </div>
+        <p class="nota">Modelo ilustrativo: la línea como un solo circuito RC, con subida 1 − e<sup>−t/τ</sup> y bajada e<sup>−t/τ</sup>, y τ de la ley de los cuadrados. El cable real reparte su resistencia y su capacitancia a lo largo de miles de kilómetros, y sus colas son todavía más largas. El receptor lee cada bit al final de su intervalo (punto).</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con L = 1600 km, sube la tasa paso a paso. ¿A partir de cuántos bits por segundo se equivoca el receptor? ¿Cuánto vale T/τ en ese momento?</li>
+            <li>Antes de moverlo: si duplicas la longitud, ¿la tasa máxima sin errores se divide entre 2 o entre 4? Compruébalo.</li>
+            <li>¿Qué bits se leen mal primero: los que están en medio de una racha o los aislados que vienen después de una racha? ¿Por qué?</li>
+            <li>Mueve el umbral a 0.3 y a 0.7. ¿Mejora o empeora? ¿Qué tipo de bit falla en cada caso?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad:</b> los cables submarinos de hoy siguen siendo pocos, largos y lentos de reparar, y por ellos pasa casi todo el tráfico internacional de internet: son un punto crítico de disponibilidad y de espionaje (operación <i>Ivy Bells</i>).</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <label for="lento">Descarga pasiva de la corriente simple <small>(τ<sub>desc</sub> = k·τ, valor ilustrativo)</small> <span class="valor" id="lentoTxt"></span></label>
+        <input id="lento" type="range" min="1" max="6" step="0.5" value="3">
+        <div class="lectura" id="lectura2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Comparación de la misma línea con corriente simple y con dos corrientes"></canvas>
+        <p class="nota">Corriente simple: para el espacio se desconecta la batería y la carga se escapa sola, despacio (k veces más lento que la carga). Dos corrientes: para el espacio se invierte la polaridad y la corriente inversa saca la carga. Mismo cable, mismo voltaje máximo V.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mover nada: ¿cuál de las dos líneas aguantará más bits por segundo? ¿Por qué?</li>
+            <li>Sube la tasa hasta que cada línea empiece a equivocarse. ¿Cuántas veces más rápido puedes ir con dos corrientes?</li>
+            <li>Pon k = 1 (la descarga pasiva tan rápida como la carga). ¿Siguen siendo distintos los errores? ¿Qué ventaja le queda a la de dos corrientes? (Mira la escala vertical.)</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <label for="volt">Voltaje de la batería V <small>(V)</small> <span class="valor" id="voltTxt"></span></label>
+        <input id="volt" type="range" min="50" max="2000" step="50" value="200">
+        <div style="margin-top:10px"><b style="color:var(--azul-oscuro)">Esfuerzo sobre el aislamiento</b> <small style="color:var(--gris)">(cualitativo)</small>
+          <div class="barra"><div id="barraAisl"></div></div>
+        </div>
+        <div class="lectura" id="lectura3"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo3" aria-label="La misma señal en volts y dividida entre el voltaje de la batería"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si subes de 200 V a 2000 V, ¿cuántas veces más rápido podrás transmitir sin errores?</li>
+            <li>Mueve V. ¿Cambia la gráfica de abajo (v/V)? ¿Cambia el número de bits mal leídos?</li>
+            <li>Entonces, ¿qué sí acelera la línea? Busca la respuesta en la fórmula de τ.</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad:</b> en 1858, el electricista jefe Wildman Whitehouse aplicó pulsos de hasta unos 2000 V convencido de que más voltaje daría señales más rápidas, y terminó de dañar un aislamiento que ya tenía defectos de fabricación. Una falla catastrófica rara vez tiene una sola causa: aquí se sumaron un producto defectuoso y un operador que no entendía la física del sistema.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex (Ecuación eq:ley-thomson, τ ≈ R'·C'·L²; telégrafo de dos corrientes; Figura fig:isi-cable). Modelo RC de un solo tramo y factor k de la descarga pasiva: ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA" };
+  var RP = 4, CP = 0.2e-6;                       // Ω/km y F/km (valores ilustrativos del libro)
+  var TASAS = [0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.7, 1, 1.5, 2, 3, 4, 5, 7, 10, 15, 20];
+  function $(id) { return document.getElementById(id); }
+
+  var est = { L: 1600, iTasa: 9, bits: [], umbral: 0.5, k: 3, V: 200 };
+  var vistaActiva = "v1";
+
+  // Pestañas (los controles comunes se mueven a la vista activa)
+  function activar(id) {
+    vistaActiva = id;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) {
+      x.classList.toggle("activo", x.dataset.vista === id);
+    });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.toggle("activo", x.id === id); });
+    document.querySelector("#" + id + " .ranura").appendChild($("comunes"));
+    dibujarTodo();
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activar(b.dataset.vista); });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal; espacio de miles desde 5 cifras (estilo del libro: 3200, 10 000)
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length >= 5) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");   // espacio de miles que no se parte
+    return p.join(".").replace("-", "−");
+  }
+  function tasaTxt(r) {
+    function entero(x) { return Math.abs(x - Math.round(x)) < 1e-9; }
+    return r < 0.1 ? num(r, 2) : (r < 1 ? num(r, entero(r * 10) ? 1 : 2) : num(r, entero(r) ? 0 : 1));
+  }
+
+  // ---------------------------------------------------------------- modelo
+  function tau() { return RP * CP * est.L * est.L; }
+  function Tbit() { return 1 / TASAS[est.iTasa]; }
+
+  // Línea RC: durante el bit k la entrada vale u_k y la salida se acerca a u_k con constante τ_k:
+  //   v(kT + s) = u_k + (v_k − u_k)·e^(−s/τ_k)   (subida 1 − e^(−t/τ), bajada e^(−t/τ))
+  // tauMarca: la llave conecta la batería; tauEspacio: según el sistema (pasiva o activa).
+  function simular(bits, T, tauMarca, tauEspacio, alto, bajo) {
+    var n = bits.length, v = [bajo], u = [], ta = [];
+    for (var k = 0; k < n; k++) {
+      u[k] = bits[k] ? alto : bajo; ta[k] = bits[k] ? tauMarca : tauEspacio;
+      v[k + 1] = u[k] + (v[k] - u[k]) * Math.exp(-T / ta[k]);
+    }
+    return { n: n, T: T, u: u, ta: ta, v: v, bajo: bajo, alto: alto, tauEspacio: tauEspacio, bits: bits };
+  }
+  function evaluar(s, t) {
+    var k = Math.floor(t / s.T);
+    if (k < 0) return s.bajo;
+    if (k >= s.n) return s.bajo + (s.v[s.n] - s.bajo) * Math.exp(-(t - s.n * s.T) / s.tauEspacio);
+    return s.u[k] + (s.v[k] - s.u[k]) * Math.exp(-(t - k * s.T) / s.ta[k]);
+  }
+  // El receptor lee cada bit al final de su intervalo: 1 si v > umbral
+  function leer(s, umbral) {
+    var r = [];
+    for (var k = 0; k < s.n; k++) r.push(s.v[k + 1] > umbral ? 1 : 0);
+    return r;
+  }
+  function contarErrores(s, umbral) {
+    var r = leer(s, umbral), e = 0;
+    for (var k = 0; k < s.n; k++) if (r[k] !== s.bits[k]) e++;
+    return e;
+  }
+
+  // ---------------------------------------------------------------- dibujo
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = "middle"; g.fillText(t, x, y); g.restore();
+  }
+  function punto(g, x, y, r, color) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); g.restore(); }
+  function pasoBonito(x) {
+    var p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+  }
+
+  // Un carril: señal enviada, recibida, umbral, lecturas y bits. Devuelve los errores.
+  function carril(g, x0, y0, w, h, s, o) {
+    var izq = x0 + (w < 520 ? 56 : 66), der = x0 + w - 12;
+    var yTit = y0 + 14, yEnv = y0 + (o.titulo ? 40 : 16), arr = yEnv + 14, yLei = y0 + h - 34, abj = yLei - 16, yT = y0 + h - 12;
+    var tTot = (s.n + 2) * s.T;
+    function X(t) { return izq + (t / tTot) * (der - izq); }
+    function Y(v) { return abj - (v - o.ymin) / (o.ymax - o.ymin) * (abj - arr); }
+    var leidos = leer(s, o.umbral), errores = 0, ancho = (der - izq) / (s.n + 2);
+    if (o.titulo) texto(g, o.titulo, x0 + 8, yTit, C.azulOscuro, 16, "left", true);
+    // fondo de los bits mal leídos
+    for (var k = 0; k < s.n; k++) {
+      if (leidos[k] !== s.bits[k]) {
+        errores++;
+        g.save(); g.fillStyle = C.guindaClaro; g.fillRect(X(k * s.T), arr, ancho, abj - arr); g.restore();
+      }
+    }
+    // divisiones de bit y eje de tiempo
+    for (k = 0; k <= s.n + 2; k++) linea(g, X(k * s.T), arr, X(k * s.T), abj, k <= s.n ? "#E4E8EE" : "#F1F3F6", 1);
+    var paso = pasoBonito(tTot / (w < 520 ? 4 : 7));
+    for (var t = 0; t <= tTot + 1e-9; t += paso) {
+      linea(g, X(t), abj, X(t), abj + 4, C.gris, 1);
+      texto(g, num(t, paso < 0.1 ? 2 : paso < 1 ? 1 : 0), X(t), yT, C.gris, 15, "center");
+    }
+    texto(g, "t (s)", izq - 8, yT, C.gris, 15, "right");
+    // eje vertical
+    o.marcas.forEach(function (m) {
+      linea(g, izq, Y(m[0]), der, Y(m[0]), m[0] === 0 ? "#C9CFD8" : "#EEF0F4", 1);
+      texto(g, m[1], izq - 6, Y(m[0]), C.gris, 15, "right");
+    });
+    // τ como barra (vista 1)
+    if (o.barraTau) {
+      var xt = Math.min(X(o.barraTau), der), yb = arr + 10;
+      linea(g, X(0), yb, xt, yb, C.oro, 4);
+      linea(g, X(0), yb - 6, X(0), yb + 6, C.oro, 2);
+      if (X(o.barraTau) <= der) linea(g, xt, yb - 6, xt, yb + 6, C.oro, 2);
+      texto(g, "τ = " + num(o.barraTau, 2) + " s" + (X(o.barraTau) > der ? " →" : ""), Math.min(xt, der - 90) + 6, yb + 14, C.oroTexto, 15, "left", true);
+    }
+    // entrada (punteada)
+    g.save(); g.strokeStyle = C.gris; g.lineWidth = 1.6; g.setLineDash([6, 4]); g.beginPath();
+    g.moveTo(X(0), Y(s.bajo));
+    for (k = 0; k < s.n; k++) { g.lineTo(X(k * s.T), Y(s.u[k])); g.lineTo(X((k + 1) * s.T), Y(s.u[k])); }
+    g.lineTo(X(s.n * s.T), Y(s.bajo)); g.lineTo(X(tTot), Y(s.bajo)); g.stroke(); g.restore();
+    // umbral
+    linea(g, izq, Y(o.umbral), der, Y(o.umbral), C.oro, 2, [8, 5]);
+    // salida
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath();
+    var pasos = Math.max(200, Math.round(der - izq));
+    for (var i = 0; i <= pasos; i++) {
+      var ti = tTot * i / pasos, yi = Y(evaluar(s, ti));
+      if (i === 0) g.moveTo(X(ti), yi); else g.lineTo(X(ti), yi);
+    }
+    g.stroke(); g.restore();
+    // lecturas del receptor y filas de bits
+    texto(g, w < 520 ? "Env." : "Enviado", izq - 6, yEnv, C.gris, 15, "right");
+    texto(g, w < 520 ? "Leído" : "Leído", izq - 6, yLei, C.gris, 15, "right");
+    for (k = 0; k < s.n; k++) {
+      var bien = leidos[k] === s.bits[k], xc = X((k + 0.5) * s.T);
+      texto(g, String(s.bits[k]), xc, yEnv, C.gris, 16, "center", true);
+      texto(g, String(leidos[k]), xc, yLei, bien ? C.azul : C.guinda, bien ? 16 : 18, "center", true);
+      punto(g, X((k + 1) * s.T), Y(s.v[k + 1]), bien ? 4.5 : 6.5, bien ? C.azul : C.guinda);
+    }
+    return errores;
+  }
+
+  function proporcion(cv, base) { return cv.clientWidth < 560 ? base * 1.6 : base; }
+
+  // ---------------------------------------------------------------- vistas
+  function vista1() {
+    var cv = $("lienzo1"), d = preparar(cv, proporcion(cv, 0.5)), g = d.g;
+    var ta = tau(), T = Tbit();
+    g.clearRect(0, 0, d.w, d.h);
+    var s = simular(est.bits, T, ta, ta, 1, 0);
+    var e = carril(g, 0, 0, d.w, d.h, s, {
+      ymin: -0.08, ymax: 1.12, umbral: est.umbral, barraTau: ta,
+      marcas: [[0, "0"], [1, "V"]]
+    });
+    $("lectura1").innerHTML =
+      "<div class='formula'>τ = R'·C'·L² = (4)(0.2×10<sup>−6</sup>)(" + num(est.L, 0) + ")² = <b>" + num(ta, 2) + " s</b></div>" +
+      "<div class='formula'>T = 1/tasa = 1/" + tasaTxt(TASAS[est.iTasa]) + " = <b>" + num(T, 2) + " s</b></div>" +
+      "<div class='formula'>T/τ = " + num(T, 2) + "/" + num(ta, 2) + " = <b>" + num(T / ta, 2) + "</b></div>" +
+      "<div>Bits mal leídos: <span class='" + (e ? "mal" : "ok") + "'>" + e + " de " + s.n + "</span></div>" +
+      "<div>Un pulso de T = " + num(T, 2) + " s llega a 1 − e<sup>−T/τ</sup> = " + num(1 - Math.exp(-T / ta), 2) + " de V.</div>";
+  }
+
+  function vista2() {
+    var cv = $("lienzo2"), d = preparar(cv, proporcion(cv, 0.62)), g = d.g;
+    var ta = tau(), T = Tbit(), k = est.k;
+    g.clearRect(0, 0, d.w, d.h);
+    var sS = simular(est.bits, T, ta, k * ta, 1, 0);
+    var sD = simular(est.bits, T, ta, ta, 1, -1);
+    var marcas = [[-1, "−V"], [0, "0"], [1, "+V"]];
+    var eS = carril(g, 0, 0, d.w, d.h / 2, sS, { ymin: -1.1, ymax: 1.12, umbral: 0.5, marcas: marcas,
+      titulo: "Corriente simple: marca = +V · espacio = sin corriente (umbral V/2)" });
+    linea(g, 8, d.h / 2, d.w - 8, d.h / 2, C.borde, 1.5);
+    var eD = carril(g, 0, d.h / 2, d.w, d.h / 2, sD, { ymin: -1.1, ymax: 1.12, umbral: 0, marcas: marcas,
+      titulo: "Dos corrientes: marca = +V · espacio = −V (umbral 0)" });
+    var finS = k * ta * Math.LN2, finD = ta * Math.LN2;
+    $("lectura2").innerHTML =
+      "<div class='formula'>τ = R'·C'·L² = <b>" + num(ta, 2) + " s</b>; T = <b>" + num(T, 2) + " s</b></div>" +
+      "<div><b>Fin de un pulso</b> (de V hasta cruzar el umbral):</div>" +
+      "<div class='formula'>simple: k·τ·ln 2 = " + num(k, 1) + " × " + num(ta, 2) + " × 0.693 = <b>" + num(finS, 2) + " s</b></div>" +
+      "<div class='formula'>dos corrientes: τ·ln 2 = " + num(ta, 2) + " × 0.693 = <b>" + num(finD, 2) + " s</b></div>" +
+      "<div>Mal leídos · simple: <span class='" + (eS ? "mal" : "ok") + "'>" + eS + " de " + sS.n + "</span>" +
+      " · dos corrientes: <span class='" + (eD ? "mal" : "ok") + "'>" + eD + " de " + sD.n + "</span></div>" +
+      "<div>Excursión: simple de 0 a V; dos corrientes de −V a +V.</div>";
+  }
+
+  function vista3() {
+    var cv = $("lienzo3"), d = preparar(cv, proporcion(cv, 0.62)), g = d.g;
+    var ta = tau(), T = Tbit(), V = est.V;
+    g.clearRect(0, 0, d.w, d.h);
+    var sV = simular(est.bits, T, ta, ta, V, 0);
+    var sN = simular(est.bits, T, ta, ta, 1, 0);
+    carril(g, 0, 0, d.w, d.h / 2, sV, { ymin: -80, ymax: 2150, umbral: V / 2,
+      marcas: [[0, "0 V"], [1000, "1000"], [2000, "2000"]], titulo: "Señal recibida en volts (umbral V/2)" });
+    linea(g, 8, d.h / 2, d.w - 8, d.h / 2, C.borde, 1.5);
+    var e = carril(g, 0, d.h / 2, d.w, d.h / 2, sN, { ymin: -0.08, ymax: 1.12, umbral: 0.5,
+      marcas: [[0, "0"], [1, "1"]], titulo: "La misma señal dividida entre V: v/V" });
+    $("barraAisl").style.width = (100 * V / 2000) + "%";
+    $("lectura3").innerHTML =
+      "<div class='formula'>τ = R'·C'·L² = (4)(0.2×10<sup>−6</sup>)(" + num(est.L, 0) + ")² = <b>" + num(ta, 2) + " s</b></div>" +
+      "<div>V no aparece en la fórmula.</div>" +
+      "<div class='formula'>Llegar a la mitad: τ·ln 2 = <b>" + num(ta * Math.LN2, 2) + " s</b>, con " + num(V, 0) + " V o con cualquier otro voltaje.</div>" +
+      "<div>Bits mal leídos: <span class='" + (e ? "mal" : "ok") + "'>" + e + " de " + sN.n + "</span></div>" +
+      "<div>Lo único que crece con V es el esfuerzo sobre el aislamiento (barra).</div>";
+  }
+
+  function dibujarTodo() {
+    $("lonTxt").textContent = num(est.L, 0) + " km";
+    var r = TASAS[est.iTasa];
+    $("tasaTxt").textContent = tasaTxt(r) + " bits/s";
+    $("umbralTxt").textContent = num(est.umbral, 2) + " × V";
+    $("lentoTxt").textContent = "k = " + num(est.k, 1);
+    $("voltTxt").textContent = num(est.V, 0) + " V";
+    if (vistaActiva === "v1") vista1();
+    else if (vistaActiva === "v2") vista2();
+    else vista3();
+  }
+
+  // ---------------------------------------------------------------- controles
+  function leerBits() {
+    var limpio = $("bits").value.replace(/[^01]/g, "").slice(0, 24);
+    if (limpio.length >= 2) est.bits = limpio.split("").map(Number);
+  }
+  $("lon").addEventListener("input", function () { est.L = Number(this.value); dibujarTodo(); });
+  $("tasa").addEventListener("input", function () { est.iTasa = Number(this.value); dibujarTodo(); });
+  $("umbral").addEventListener("input", function () { est.umbral = Number(this.value); dibujarTodo(); });
+  $("lento").addEventListener("input", function () { est.k = Number(this.value); dibujarTodo(); });
+  $("volt").addEventListener("input", function () { est.V = Number(this.value); dibujarTodo(); });
+  $("bits").addEventListener("input", function () { leerBits(); dibujarTodo(); });
+  $("azar").addEventListener("click", function () {
+    var b = "";
+    for (var i = 0; i < 16; i++) b += Math.random() < 0.5 ? "0" : "1";
+    $("bits").value = b; leerBits(); dibujarTodo();
+  });
+  window.addEventListener("resize", dibujarTodo);
+
+  // Para verificar desde la consola: modelo y errores
+  window.simCable = { simular: simular, leer: leer, contarErrores: contarErrores, est: est, TASAS: TASAS, tau: tau };
+
+  leerBits();
+  activar("v1");
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-08-cable-transatlantico.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h2v1h-2zM16 2h8v1h-8zM25 2h1v1h-1zM27 2h1v1h-1zM30 2h2v1h-2zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h4v1h-4zM17 3h1v1h-1zM19 3h1v1h-1zM23 3h1v1h-1zM26 3h4v1h-4zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h3v1h-3zM15 4h1v1h-1zM17 4h1v1h-1zM19 4h2v1h-2zM22 4h6v1h-6zM32 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h4v1h-4zM23 5h1v1h-1zM28 5h3v1h-3zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h4v1h-4zM18 6h1v1h-1zM20 6h3v1h-3zM24 6h2v1h-2zM30 6h5v1h-5zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h1v1h-1zM16 7h3v1h-3zM22 7h1v1h-1zM26 7h1v1h-1zM29 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM18 9h1v1h-1zM20 9h4v1h-4zM25 9h1v1h-1zM28 9h2v1h-2zM34 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM13 10h1v1h-1zM15 10h5v1h-5zM21 10h2v1h-2zM24 10h2v1h-2zM27 10h3v1h-3zM31 10h1v1h-1zM36 10h5v1h-5zM2 11h1v1h-1zM4 11h2v1h-2zM10 11h1v1h-1zM14 11h1v1h-1zM16 11h1v1h-1zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h3v1h-3zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h3v1h-3zM13 12h1v1h-1zM16 12h4v1h-4zM22 12h3v1h-3zM27 12h1v1h-1zM29 12h4v1h-4zM34 12h1v1h-1zM36 12h3v1h-3zM3 13h2v1h-2zM9 13h5v1h-5zM18 13h1v1h-1zM20 13h1v1h-1zM23 13h1v1h-1zM32 13h5v1h-5zM38 13h2v1h-2zM41 13h1v1h-1zM2 14h1v1h-1zM4 14h2v1h-2zM8 14h5v1h-5zM14 14h1v1h-1zM18 14h2v1h-2zM21 14h2v1h-2zM24 14h1v1h-1zM26 14h6v1h-6zM33 14h1v1h-1zM37 14h1v1h-1zM39 14h2v1h-2zM2 15h6v1h-6zM13 15h1v1h-1zM15 15h1v1h-1zM18 15h3v1h-3zM23 15h1v1h-1zM27 15h1v1h-1zM29 15h1v1h-1zM31 15h10v1h-10zM42 15h1v1h-1zM2 16h1v1h-1zM4 16h2v1h-2zM8 16h1v1h-1zM13 16h6v1h-6zM22 16h2v1h-2zM25 16h2v1h-2zM28 16h3v1h-3zM32 16h1v1h-1zM34 16h2v1h-2zM37 16h1v1h-1zM40 16h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM9 17h1v1h-1zM11 17h2v1h-2zM15 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM23 17h3v1h-3zM29 17h1v1h-1zM32 17h1v1h-1zM34 17h1v1h-1zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM2 18h4v1h-4zM8 18h2v1h-2zM12 18h2v1h-2zM16 18h2v1h-2zM19 18h1v1h-1zM22 18h1v1h-1zM24 18h2v1h-2zM27 18h3v1h-3zM31 18h5v1h-5zM37 18h1v1h-1zM40 18h1v1h-1zM42 18h1v1h-1zM9 19h1v1h-1zM14 19h1v1h-1zM20 19h3v1h-3zM25 19h1v1h-1zM30 19h4v1h-4zM36 19h3v1h-3zM41 19h2v1h-2zM5 20h2v1h-2zM8 20h2v1h-2zM11 20h1v1h-1zM13 20h3v1h-3zM20 20h1v1h-1zM22 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM29 20h3v1h-3zM34 20h2v1h-2zM38 20h4v1h-4zM7 21h1v1h-1zM13 21h1v1h-1zM17 21h1v1h-1zM28 21h2v1h-2zM31 21h2v1h-2zM34 21h2v1h-2zM38 21h2v1h-2zM41 21h2v1h-2zM2 22h2v1h-2zM5 22h1v1h-1zM7 22h4v1h-4zM16 22h3v1h-3zM20 22h1v1h-1zM23 22h2v1h-2zM26 22h1v1h-1zM29 22h2v1h-2zM33 22h1v1h-1zM40 22h2v1h-2zM2 23h1v1h-1zM4 23h4v1h-4zM9 23h3v1h-3zM13 23h3v1h-3zM19 23h1v1h-1zM21 23h3v1h-3zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h1v1h-1zM38 23h1v1h-1zM40 23h3v1h-3zM2 24h5v1h-5zM8 24h3v1h-3zM12 24h3v1h-3zM16 24h2v1h-2zM20 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM27 24h4v1h-4zM34 24h1v1h-1zM36 24h2v1h-2zM39 24h1v1h-1zM3 25h2v1h-2zM9 25h1v1h-1zM12 25h2v1h-2zM16 25h1v1h-1zM20 25h1v1h-1zM23 25h2v1h-2zM29 25h2v1h-2zM34 25h4v1h-4zM39 25h1v1h-1zM3 26h1v1h-1zM6 26h1v1h-1zM8 26h4v1h-4zM13 26h1v1h-1zM15 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM40 26h3v1h-3zM5 27h3v1h-3zM9 27h1v1h-1zM11 27h6v1h-6zM21 27h3v1h-3zM25 27h1v1h-1zM30 27h1v1h-1zM32 27h2v1h-2zM35 27h5v1h-5zM42 27h1v1h-1zM2 28h1v1h-1zM8 28h5v1h-5zM14 28h1v1h-1zM16 28h3v1h-3zM22 28h2v1h-2zM26 28h1v1h-1zM28 28h3v1h-3zM32 28h1v1h-1zM34 28h5v1h-5zM3 29h2v1h-2zM7 29h1v1h-1zM10 29h2v1h-2zM16 29h2v1h-2zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h3v1h-3zM37 29h1v1h-1zM39 29h1v1h-1zM41 29h2v1h-2zM5 30h2v1h-2zM8 30h4v1h-4zM13 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h2v1h-2zM27 30h2v1h-2zM31 30h1v1h-1zM33 30h1v1h-1zM39 30h2v1h-2zM42 30h1v1h-1zM2 31h3v1h-3zM9 31h3v1h-3zM13 31h1v1h-1zM15 31h2v1h-2zM18 31h1v1h-1zM22 31h1v1h-1zM26 31h1v1h-1zM28 31h4v1h-4zM33 31h2v1h-2zM36 31h1v1h-1zM38 31h1v1h-1zM40 31h3v1h-3zM2 32h1v1h-1zM5 32h6v1h-6zM12 32h5v1h-5zM20 32h2v1h-2zM24 32h1v1h-1zM28 32h1v1h-1zM35 32h3v1h-3zM39 32h1v1h-1zM41 32h1v1h-1zM2 33h1v1h-1zM5 33h3v1h-3zM12 33h2v1h-2zM15 33h4v1h-4zM21 33h3v1h-3zM26 33h1v1h-1zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h4v1h-4zM39 33h1v1h-1zM42 33h1v1h-1zM2 34h1v1h-1zM5 34h2v1h-2zM8 34h1v1h-1zM10 34h8v1h-8zM19 34h1v1h-1zM21 34h1v1h-1zM24 34h1v1h-1zM27 34h1v1h-1zM31 34h1v1h-1zM34 34h5v1h-5zM40 34h2v1h-2zM10 35h1v1h-1zM12 35h2v1h-2zM17 35h1v1h-1zM19 35h7v1h-7zM27 35h1v1h-1zM30 35h1v1h-1zM32 35h1v1h-1zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM11 36h1v1h-1zM18 36h2v1h-2zM22 36h2v1h-2zM27 36h4v1h-4zM32 36h3v1h-3zM36 36h1v1h-1zM38 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h2v1h-2zM17 37h1v1h-1zM19 37h3v1h-3zM23 37h2v1h-2zM27 37h1v1h-1zM34 37h1v1h-1zM38 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h2v1h-2zM16 38h1v1h-1zM23 38h1v1h-1zM25 38h2v1h-2zM28 38h2v1h-2zM32 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h7v1h-7zM19 39h4v1h-4zM24 39h2v1h-2zM31 39h1v1h-1zM33 39h1v1h-1zM35 39h1v1h-1zM37 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h2v1h-2zM13 40h1v1h-1zM16 40h2v1h-2zM20 40h1v1h-1zM22 40h1v1h-1zM24 40h1v1h-1zM27 40h1v1h-1zM29 40h2v1h-2zM35 40h6v1h-6zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM15 41h1v1h-1zM17 41h1v1h-1zM20 41h2v1h-2zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h2v1h-2zM14 42h1v1h-1zM16 42h1v1h-1zM18 42h1v1h-1zM24 42h1v1h-1zM26 42h4v1h-4zM31 42h1v1h-1zM33 42h1v1h-1zM35 42h4v1h-4zM40 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-08-cable-transatlantico.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

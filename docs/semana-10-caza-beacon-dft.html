@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La caza del beacon</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+  /* Propios de este simulador */
+  .valor { float:right; color:var(--guinda); font-weight:bold; }
+  select { width:100%; margin-top:4px; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .casilla { display:inline-block; font-weight:normal; color:var(--tinta); margin:10px 14px 0 0; cursor:pointer; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 16px; margin:8px 0 0; color:var(--gris); font-size:.95rem; }
+  .leyenda span::before { content:""; display:inline-block; width:22px; height:0; vertical-align:middle;
+                          margin-right:6px; border-top:3px solid var(--c); }
+  .leyenda span.punteada::before { border-top-style:dashed; }
+  .leyenda span.bloque::before { height:12px; border:none; background:var(--c); }
+  .ejemplos { margin-bottom:2px; }
+  .ejemplos button.accion { padding:5px 9px; margin-top:4px; }
+  #comunes label { margin-top:7px; }
+  .lectura.doble { columns:2 300px; column-gap:28px; }
+  .lectura.doble > div { break-inside:avoid; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 10 · Días 3 y 4 · La DFT contra el beaconing</div>
+  <h1>La caza del beacon: un malware que "llama a casa"</h1>
+  <p class="sub">En el tiempo, el beacon se pierde entre el tráfico humano; en la DFT aparece como un pico estrecho en k = N/P y sus armónicos. Cambia el periodo, la captura y el jitter.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1 · Tráfico</button>
+    <button type="button" data-vista="v2" role="tab">2 · Espectro</button>
+  </nav>
+
+  <div id="comunes">
+    <h2>La captura (f<sub>s</sub> = 1 Hz)</h2>
+    <div class="ejemplos">
+      <button type="button" class="accion" id="ejLibro">Ejemplo del libro: cada 300 s</button>
+      <button type="button" class="accion" id="ejSSH">SSH: cada 12 s</button>
+    </div>
+    <label for="per">Periodo del beacon P <small>(s)</small> <span class="valor" id="perTxt"></span></label>
+    <input id="per" type="range" min="10" max="600" step="1" value="300">
+    <label for="ses">Duración de cada sesión D <small>(s)</small> <span class="valor" id="sesTxt"></span></label>
+    <input id="ses" type="range" min="1" max="60" step="1" value="20">
+    <label for="jit">Jitter: retardo aleatorio de 0 a J <small>(s)</small> <span class="valor" id="jitTxt"></span></label>
+    <input id="jit" type="range" min="0" max="300" step="5" value="0">
+    <label for="dur">Duración de la captura N <small>(muestras = s)</small> <span class="valor" id="durTxt"></span></label>
+    <input id="dur" type="range" min="600" max="21600" step="600" value="3600">
+    <label for="hum">Tráfico humano <small>(conexiones/s, promedio)</small> <span class="valor" id="humTxt"></span></label>
+    <input id="hum" type="range" min="0" max="3" step="0.05" value="0.3">
+    <label for="bea">Beacon <small>(conexiones extra por segundo de sesión)</small> <span class="valor" id="beaTxt"></span></label>
+    <input id="bea" type="range" min="0" max="3" step="0.05" value="0.6">
+    <button type="button" class="accion" id="otra">Otra captura</button>
+    <p class="nota">Tráfico humano y fuerza del beacon: valores ilustrativos (los de la figura del libro).</p>
+  </div>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <label for="ventana">Ver</label>
+        <select id="ventana">
+          <option value="0">Toda la captura</option>
+          <option value="3600">La primera hora</option>
+          <option value="1200">Los primeros 20 minutos</option>
+        </select>
+        <label class="casilla"><input type="checkbox" id="revelar"> Revelar las sesiones del beacon</label>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Conexiones salientes por segundo durante la captura"></canvas>
+        <div class="leyenda">
+          <span style="--c:#5B6472">conexiones salientes por segundo</span>
+          <span style="--c:rgba(140,29,53,0.3)" class="bloque">sesiones del beacon (al revelarlas)</span>
+        </div>
+        <div class="lectura" id="lectura1"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Sin revelar las sesiones, ¿puedes decir a simple vista cada cuánto "llama a casa" el beacon? Ahora revélalas.</li>
+            <li>¿Cuántas sesiones caben en la captura? ¿Cómo se calcula ese número con N y P? Guárdalo: lo vas a volver a ver en el Espectro.</li>
+            <li>Sube el tráfico humano. ¿Se esconde mejor el beacon en el tiempo? Pasa al Espectro y compara.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <label for="fmax">Mostrar hasta</label>
+        <select id="fmax">
+          <option value="0.02">20 mHz</option>
+          <option value="0.05">50 mHz</option>
+          <option value="0.1">100 mHz</option>
+          <option value="0.5">500 mHz (fs/2)</option>
+        </select>
+        <label class="casilla"><input type="checkbox" id="marcar" checked> Marcar k = N/P y sus armónicos</label>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Módulo de la DFT del tráfico, con los bins esperados del beacon"></canvas>
+        <div class="leyenda">
+          <span style="--c:#0A2A57">|X[k]| del tráfico sin su promedio</span>
+          <span style="--c:#B8975A" class="punteada">k = N/P y sus armónicos</span>
+          <span style="--c:#8C1D35" class="bloque">pico más alto</span>
+        </div>
+        <div class="lectura doble" id="lectura2"></div>
+        <p class="nota">Se calcula como en el libro: np.abs(np.fft.rfft(x − x.mean())), con una FFT en el navegador.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con el ejemplo del libro, predice el bin del pico y compruébalo. Después cambia P a 200 s: ¿dónde quedará?</li>
+            <li>Duplica la captura (N = 7200). ¿Qué les pasa a Δf, al bin del pico y a cuánto destaca el pico sobre el fondo?</li>
+            <li>Sube el jitter poco a poco. ¿Qué le pasa al pico? ¿Qué armónicos desaparecen primero?</li>
+            <li>Pon P = 280 s con N = 3600. ¿Por qué el pico se reparte entre dos bins?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad:</b> una conexión breve y casi perfectamente periódica es una firma de actividad automatizada, como un malware que "llama a casa" a su servidor de control remoto (C2), muy distinta del patrón irregular del tráfico humano. Como esta detección es tan sencilla, muchas herramientas de control remoto agregan jitter: el pico se ensancha y baja, y el analista necesita observar más tiempo. Ojo: un pico también puede ser un proceso legítimo programado, como un respaldo; amerita investigación, no es una prueba.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:periodo-frecuencia, eq:dft y eq:resolucion-dft; Figura fig:beacon-dft). Tráfico humano y fuerza del beacon: valores ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  function $(id) { return document.getElementById(id); }
+  var NMAX = 21600, FS = 1;
+
+  var est = { P: 300, D: 20, J: 0, N: 3600, lh: 0.3, lb: 0.6, semilla: 1, ventana: 0, revelar: false,
+              fmax: 0.02, marcar: true };
+  var vistaActiva = "v1";
+
+  // Pestañas (los controles comunes se mueven a la vista activa)
+  function activar(id) {
+    vistaActiva = id;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) {
+      x.classList.toggle("activo", x.dataset.vista === id);
+    });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.toggle("activo", x.id === id); });
+    document.querySelector("#" + id + " .ranura").appendChild($("comunes"));
+    dibujarTodo();
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activar(b.dataset.vista); });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal; espacio de miles desde 5 cifras (estilo del libro: 3600, 10 000)
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length >= 5) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");   // espacio de miles que no se parte
+    return p.join(".").replace("-", "−");
+  }
+  function sci(x, dec) {
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = x / Math.pow(10, e);
+    if (Math.abs(m) >= 9.995) { m /= 10; e++; }
+    return num(m, dec === undefined ? 2 : dec) + "×10<sup>" + num(e, 0) + "</sup>";
+  }
+  function duracion(s) {
+    if (s % 3600 === 0) return num(s / 3600, 0) + " h";
+    if (s >= 3600) return num(s / 3600, 1) + " h";
+    return num(s / 60, 0) + " min";
+  }
+
+  // ---------------------------------------------------------------- datos reproducibles
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  // Uniformes fijas por segundo y por sesión: al mover un control, el resto de la captura no cambia
+  var U = null;
+  function sortear() {
+    var azar = mulberry32(est.semilla);
+    U = { h: new Float64Array(NMAX), b: new Float64Array(NMAX), j: new Float64Array(NMAX) };
+    for (var i = 0; i < NMAX; i++) { U.h[i] = azar(); U.b[i] = azar(); U.j[i] = azar(); }
+  }
+  function poissonInv(u, lam) {              // cuantil de Poisson: k tal que F(k−1) < u ≤ F(k)
+    if (lam <= 0) return 0;
+    var p = Math.exp(-lam), F = p, k = 0;
+    while (u > F && k < 60) { k++; p *= lam / k; F += p; }
+    return k;
+  }
+
+  var datos = null;
+  function generar() {
+    var N = est.N, x = new Float64Array(N), sesion = new Uint8Array(N), extra = 0, total = 0, inicios = [];
+    for (var m = 0; m * est.P < N; m++) {
+      var ini = m * est.P + Math.floor(U.j[m] * (est.J + 1));       // retardo de 0 a J s
+      inicios.push(ini);
+      for (var n = ini; n < ini + est.D && n < N; n++) sesion[n] = 1;
+    }
+    for (n = 0; n < N; n++) {
+      var b = sesion[n] ? poissonInv(U.b[n], est.lb) : 0;
+      x[n] = poissonInv(U.h[n], est.lh) + b;
+      extra += b; total += x[n];
+    }
+    datos = { N: N, x: x, sesion: sesion, extra: extra, total: total, sesiones: inicios.length };
+    espectro();
+  }
+
+  // ---------------------------------------------------------------- FFT de base mixta
+  // X[k] = Σ x[n]·e^(−i2πkn/N) (Ecuación eq:dft). Cooley-Tukey con el menor factor primo de N.
+  function menorFactor(n) {
+    if (n % 2 === 0) return 2;
+    for (var f = 3; f * f <= n; f += 2) if (n % f === 0) return f;
+    return n;
+  }
+  function fft(re, im) {
+    var N = re.length;
+    if (N === 1) return [Float64Array.from(re), Float64Array.from(im)];
+    var p = menorFactor(N), m = N / p, Xr = new Float64Array(N), Xi = new Float64Array(N), k, r;
+    if (p === N) {                                   // N primo: DFT directa
+      for (k = 0; k < N; k++) {
+        var sr = 0, si = 0;
+        for (var n = 0; n < N; n++) {
+          var a = -2 * Math.PI * ((k * n) % N) / N, c = Math.cos(a), s = Math.sin(a);
+          sr += re[n] * c - im[n] * s; si += re[n] * s + im[n] * c;
+        }
+        Xr[k] = sr; Xi[k] = si;
+      }
+      return [Xr, Xi];
+    }
+    var sub = [];
+    for (r = 0; r < p; r++) {
+      var ar = new Float64Array(m), ai = new Float64Array(m);
+      for (var j = 0; j < m; j++) { ar[j] = re[j * p + r]; ai[j] = im[j * p + r]; }
+      sub.push(fft(ar, ai));
+    }
+    for (k = 0; k < N; k++) {
+      var km = k % m, tr = 0, ti = 0;
+      for (r = 0; r < p; r++) {
+        var ang = -2 * Math.PI * ((r * k) % N) / N, cs = Math.cos(ang), sn = Math.sin(ang);
+        var yr = sub[r][0][km], yi = sub[r][1][km];
+        tr += yr * cs - yi * sn; ti += yr * sn + yi * cs;
+      }
+      Xr[k] = tr; Xi[k] = ti;
+    }
+    return [Xr, Xi];
+  }
+
+  var esp = null;
+  function espectro() {
+    var N = datos.N, prom = datos.total / N, re = new Float64Array(N), im = new Float64Array(N);
+    for (var n = 0; n < N; n++) re[n] = datos.x[n] - prom;
+    var X = fft(re, im), K = Math.floor(N / 2), mag = new Float64Array(K + 1);
+    for (var k = 0; k <= K; k++) mag[k] = Math.hypot(X[0][k], X[1][k]);
+    var kPico = 1;
+    for (k = 2; k <= K; k++) if (mag[k] > mag[kPico]) kPico = k;
+    var orden = Array.prototype.slice.call(mag, 1).sort(function (a, b) { return a - b; });
+    var mediana = orden[Math.floor(orden.length / 2)];
+    esp = { mag: mag, K: K, kPico: kPico, mediana: mediana, prom: prom };
+  }
+
+  // ---------------------------------------------------------------- dibujo
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = "middle"; g.fillText(t, x, y); g.restore();
+  }
+  function punto(g, x, y, r, color) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); g.restore(); }
+  function pasoBonito(x) {
+    var p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+  }
+
+  function vista1() {
+    var cv = $("lienzo1"), estrecho = cv.parentNode.clientWidth < 560;
+    var d = preparar(cv, estrecho ? 0.8 : 0.46), g = d.g, w = d.w, h = d.h;
+    var N = datos.N, Nv = est.ventana ? Math.min(est.ventana, N) : N, x = datos.x;
+    var izq = estrecho ? 40 : 52, der = w - 12, arr = 30, abj = h - 40;
+    var ymax = 1;
+    for (var n = 0; n < Nv; n++) ymax = Math.max(ymax, x[n]);
+    ymax = Math.max(6, ymax + 1);
+    function X(t) { return izq + t / Nv * (der - izq); }
+    function Y(v) { return abj - v / ymax * (abj - arr); }
+    g.clearRect(0, 0, w, h);
+    // sesiones del beacon
+    if (est.revelar) {
+      g.save(); g.fillStyle = "rgba(140,29,53,0.22)";
+      for (n = 0; n < Nv; n++) {
+        if (datos.sesion[n] && (n === 0 || !datos.sesion[n - 1])) {
+          var fin = n; while (fin < Nv && datos.sesion[fin]) fin++;
+          g.fillRect(X(n), arr, Math.max(2, X(fin) - X(n)), abj - arr);
+        }
+      }
+      g.restore();
+    }
+    // ejes
+    linea(g, izq, abj, der, abj, C.gris, 1.2);
+    for (var v = 0; v <= ymax; v += (ymax > 10 ? 4 : 2)) {
+      if (v) linea(g, izq, Y(v), der, Y(v), "#EEF0F4", 1);
+      texto(g, num(v, 0), izq - 6, Y(v), C.gris, 15, "right");
+    }
+    texto(g, "conexiones/s", izq - 4, arr - 14, C.gris, 15, "left");
+    var pasoMin = pasoBonito(Nv / 60 / (estrecho ? 4 : 8));
+    for (var t = 0; t <= Nv / 60 + 1e-9; t += pasoMin) {
+      linea(g, X(t * 60), abj, X(t * 60), abj + 5, C.gris, 1);
+      texto(g, num(t, 0), X(t * 60), abj + 16, C.gris, 15, "center");
+    }
+    texto(g, "tiempo (min)", der, h - 8, C.gris, 15, "right");
+    // la serie: un trazo vertical por columna de píxeles (mín a máx), como una gráfica de líneas
+    var cols = Math.round(der - izq), porCol = Nv / cols;
+    g.save(); g.strokeStyle = C.gris; g.lineWidth = porCol < 1 ? 1.4 : 1; g.beginPath();
+    if (porCol <= 1) {
+      for (n = 0; n < Nv; n++) { if (n === 0) g.moveTo(X(n), Y(x[n])); else g.lineTo(X(n), Y(x[n])); }
+    } else {
+      for (var cI = 0; cI < cols; cI++) {
+        var a0 = Math.floor(cI * porCol), a1 = Math.min(Nv, Math.floor((cI + 1) * porCol)), mn = Infinity, mx = -Infinity;
+        for (n = a0; n < a1; n++) { if (x[n] < mn) mn = x[n]; if (x[n] > mx) mx = x[n]; }
+        if (mx === -Infinity) continue;
+        g.moveTo(izq + cI + 0.5, Y(mn)); g.lineTo(izq + cI + 0.5, Y(mx) - (mx === mn ? 1 : 0));
+      }
+    }
+    g.stroke(); g.restore();
+    $("lectura1").innerHTML =
+      "<div class='formula'>Duración = N/f<sub>s</sub> = " + num(N, 0) + "/1 = <b>" + num(N, 0) + " s</b> (" + duracion(N) + ")</div>" +
+      "<div class='formula'>Sesiones del beacon ≈ N/P = " + num(N, 0) + "/" + est.P + " = <b>" + num(N / est.P, N % est.P ? 2 : 0) + "</b></div>" +
+      "<div>Promedio: <b>" + num(esp.prom, 2) + "</b> conexiones/s</div>" +
+      "<div>El beacon aporta " + num(datos.extra, 0) + " de " + num(datos.total, 0) + " conexiones: <b>" +
+      num(datos.total ? 100 * datos.extra / datos.total : 0, 1) + " %</b></div>" +
+      (est.ventana && est.ventana < N ? "<div><small>Se ve " + duracion(Nv) + " de " + duracion(N) + ".</small></div>" : "");
+  }
+
+  function vista2() {
+    var cv = $("lienzo2"), estrecho = cv.parentNode.clientWidth < 560;
+    var d = preparar(cv, estrecho ? 0.85 : 0.46), g = d.g, w = d.w, h = d.h;
+    var N = datos.N, mag = esp.mag, Kmax = Math.min(esp.K, Math.floor(est.fmax * N / FS));
+    var izq = estrecho ? 46 : 62, der = w - 14, arr = 52, abj = h - 40;
+    var ymax = 1;
+    for (var k = 1; k <= Kmax; k++) ymax = Math.max(ymax, mag[k]);
+    ymax *= 1.15;
+    function X(kk) { return izq + kk / Kmax * (der - izq); }
+    function Y(v) { return abj - v / ymax * (abj - arr); }
+    g.clearRect(0, 0, w, h);
+    // eje vertical
+    var pv = pasoBonito(ymax / 4);
+    for (var v = 0; v <= ymax; v += pv) {
+      if (v) linea(g, izq, Y(v), der, Y(v), "#EEF0F4", 1);
+      texto(g, num(v, 0), izq - 6, Y(v), C.gris, 15, "right");
+    }
+    texto(g, "|X[k]|", izq - 4, arr - 16, C.gris, 15, "right");
+    // eje de frecuencia (mHz, abajo) y de bins (k, arriba)
+    linea(g, izq, abj, der, abj, C.gris, 1.2);
+    var fmaxMHz = Kmax * FS / N * 1000, pf = pasoBonito(fmaxMHz / (estrecho ? 4 : 8));
+    for (var f = 0; f <= fmaxMHz + 1e-9; f += pf) {
+      var xf = X(f / 1000 * N / FS);
+      linea(g, xf, abj, xf, abj + 5, C.gris, 1);
+      texto(g, num(f, pf < 1 ? 1 : 0), xf, abj + 16, C.gris, 15, "center");
+    }
+    texto(g, "f (mHz)", der, h - 8, C.gris, 15, "right");
+    var pk = pasoBonito(Kmax / (estrecho ? 4 : 8));
+    linea(g, izq, arr - 6, der, arr - 6, C.borde, 1);
+    for (k = pk; k <= Kmax; k += pk) {
+      linea(g, X(k), arr - 10, X(k), arr - 6, C.gris, 1);
+      if (X(k) < der - 12) texto(g, num(k, 0), X(k), arr - 20, C.gris, 15, "center");
+    }
+    texto(g, "bin k", der, arr - 38, C.gris, 15, "right");
+    // bins esperados: k = n·N/P
+    var k0 = N / est.P;
+    if (est.marcar) {
+      var ultimoX = -1e9;
+      for (var nA = 1; nA * k0 <= Kmax; nA++) {
+        var xa = X(nA * k0);
+        linea(g, xa, arr, xa, abj, C.oro, 1.6, [6, 5]);
+        if (xa - ultimoX > 46 && nA <= 12 && xa < der - 40 && (!estrecho || nA === 1)) {
+          texto(g, (nA === 1 ? "k = " : "") + num(nA * k0, Math.abs(k0 - Math.round(k0)) < 1e-9 ? 0 : 1), xa + 4, arr + 12, C.oroTexto, 15, "left", true);
+          ultimoX = xa;
+        }
+        if (nA > 400) break;
+      }
+    }
+    // |X[k]|
+    var cols = Math.round(der - izq), porCol = Kmax / cols;
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = porCol < 0.25 ? 2 : 1.4; g.lineJoin = "round"; g.beginPath();
+    if (porCol <= 1) {
+      for (k = 0; k <= Kmax; k++) { if (k === 0) g.moveTo(X(k), Y(mag[k])); else g.lineTo(X(k), Y(mag[k])); }
+    } else {
+      for (var cI = 0; cI < cols; cI++) {
+        var a0 = Math.floor(cI * porCol), a1 = Math.min(Kmax + 1, Math.floor((cI + 1) * porCol) + 1), mn = Infinity, mx = -Infinity;
+        for (k = a0; k < a1; k++) { if (mag[k] < mn) mn = mag[k]; if (mag[k] > mx) mx = mag[k]; }
+        g.moveTo(izq + cI + 0.5, Y(mn)); g.lineTo(izq + cI + 0.5, Y(mx));
+      }
+    }
+    g.stroke(); g.restore();
+    if (porCol < 0.12) for (k = 1; k <= Kmax; k++) punto(g, X(k), Y(mag[k]), 2.2, C.azulOscuro);
+    // pico más alto
+    var kp = esp.kPico;
+    if (kp <= Kmax) {
+      punto(g, X(kp), Y(mag[kp]), 6, C.guinda);
+      var alin = X(kp) > (izq + der) / 2 ? "right" : "left";
+      texto(g, "pico: k = " + kp, X(kp) + (alin === "left" ? 10 : -10), Math.max(Y(mag[kp]) - 2, arr + 34), C.guinda, 16, alin, true);
+    } else {
+      texto(g, (estrecho ? "pico más alto: k = " + kp : "El pico más alto (k = " + kp + ") está fuera de la ventana") + " →", der - 4, arr + 34, C.guinda, 15, "right", true);
+    }
+    // lecturas
+    var df = FS / N, fb = 1 / est.P, kEnt = Math.abs(k0 - Math.round(k0)) < 1e-9;
+    var kVec = kEnt ? Math.round(k0) : (mag[Math.floor(k0)] >= mag[Math.ceil(k0)] ? Math.floor(k0) : Math.ceil(k0));
+    var harm = [];
+    for (nA = 2; nA <= 4; nA++) harm.push(num(nA * k0, kEnt ? 0 : 1));
+    // ¿El pico más alto es el bin del beacon, uno de sus armónicos o ruido?
+    var nArm = Math.round(kp / k0), quien;
+    if (nArm >= 1 && Math.abs(kp - nArm * k0) <= 1) {
+      quien = nArm === 1 ? "<div class='ok'>Es el bin del beacon (la frecuencia fundamental).</div>"
+        : "<div>" + kp + " ≈ " + nArm + " × " + num(k0, kEnt ? 0 : 2) + ": es el <b>armónico " + nArm + "</b> del beacon; el periodo es " +
+          nArm + " × " + num(N / kp, N % kp ? 1 : 0) + " ≈ <b>" + num(nArm * N / kp, 0) + " s</b>. Busca el primer pico del peine.</div>";
+    } else {
+      quien = "<div class='mal'>No coincide con el beacon ni con sus armónicos: es un pico del ruido, más alto que el del beacon.</div>";
+    }
+    $("lectura2").innerHTML =
+      "<div class='formula'>Δf = f<sub>s</sub>/N = 1/" + num(N, 0) + " = <b>" + sci(df) + " Hz</b> = " + num(df * 1000, 3) + " mHz</div>" +
+      "<div class='formula'>f = 1/P = 1/" + est.P + " = <b>" + num(fb * 1000, 2) + " mHz</b></div>" +
+      "<div class='formula'>k = f·N/f<sub>s</sub> = (1/" + est.P + ")(" + num(N, 0) + ")/1 = <b>" + num(k0, kEnt ? 0 : 2) + "</b>" +
+      (kEnt ? "" : " <small>(no es entero: cae entre los bins " + Math.floor(k0) + " y " + Math.ceil(k0) + ")</small>") + "</div>" +
+      "<div>Armónicos: k = " + harm.join(", ") + "…</div>" +
+      "<div style='margin-top:6px'><b>Pico más alto medido:</b> k = <span class='mal'>" + kp + "</span></div>" +
+      "<div class='formula'>f<sub>k</sub> = k·f<sub>s</sub>/N = " + kp + "/" + num(N, 0) + " = <b>" + num(kp / N * 1000, 2) + " mHz</b> → cada N/k = <b>" + num(N / kp, N % kp ? 1 : 0) + " s</b></div>" + quien +
+      "<div>|X[" + kVec + "]| = " + num(mag[kVec], 0) + " · fondo típico (mediana de |X[k]|) = " + num(esp.mediana, 1) +
+      " → el bin del beacon destaca <b>" + num(mag[kVec] / esp.mediana, 1) + " veces</b> sobre el fondo</div>";
+  }
+
+  function dibujarTodo() {
+    $("perTxt").textContent = est.P + " s";
+    $("sesTxt").textContent = est.D + " s";
+    $("jitTxt").textContent = est.J ? "0 a " + est.J + " s" : "sin jitter";
+    $("durTxt").textContent = num(est.N, 0) + " (" + duracion(est.N) + ")";
+    $("humTxt").textContent = num(est.lh, 2);
+    $("beaTxt").textContent = num(est.lb, 2);
+    if (vistaActiva === "v1") vista1(); else vista2();
+  }
+  function rehacer() { generar(); dibujarTodo(); }
+
+  // ---------------------------------------------------------------- controles
+  function poner(id, valor) { $(id).value = valor; }
+  $("per").addEventListener("input", function () { est.P = Number(this.value); if (est.D >= est.P) { est.D = Math.max(1, est.P - 1); poner("ses", est.D); } rehacer(); });
+  $("ses").addEventListener("input", function () { est.D = Math.min(Number(this.value), est.P - 1); poner("ses", est.D); rehacer(); });
+  $("jit").addEventListener("input", function () { est.J = Number(this.value); rehacer(); });
+  $("dur").addEventListener("input", function () { est.N = Number(this.value); rehacer(); });
+  $("hum").addEventListener("input", function () { est.lh = Number(this.value); rehacer(); });
+  $("bea").addEventListener("input", function () { est.lb = Number(this.value); rehacer(); });
+  $("otra").addEventListener("click", function () { est.semilla = (Math.random() * 4294967296) >>> 0; sortear(); rehacer(); });
+  $("ventana").addEventListener("change", function () { est.ventana = Number(this.value); dibujarTodo(); });
+  $("revelar").addEventListener("change", function () { est.revelar = this.checked; dibujarTodo(); });
+  $("fmax").addEventListener("change", function () { est.fmax = Number(this.value); dibujarTodo(); });
+  $("marcar").addEventListener("change", function () { est.marcar = this.checked; dibujarTodo(); });
+  function ejemplo(P, D, fmax, lb) {
+    est.P = P; est.D = D; est.J = 0; est.N = 3600; est.lh = 0.3; est.lb = lb;
+    poner("per", P); poner("ses", D); poner("jit", 0); poner("dur", 3600); poner("hum", 0.3); poner("bea", lb);
+    est.fmax = fmax; poner("fmax", String(fmax));
+    rehacer();
+  }
+  $("ejLibro").addEventListener("click", function () { ejemplo(300, 20, 0.02, 0.6); });
+  $("ejSSH").addEventListener("click", function () { ejemplo(12, 1, 0.5, 2); });   // 2 conexiones por intento: valor ilustrativo
+  window.addEventListener("resize", dibujarTodo);
+
+  // Para verificar desde la consola
+  window.simBeacon = { est: est, datos: function () { return datos; }, esp: function () { return esp; }, fft: fft };
+
+  sortear(); generar();
+  activar("v1");
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-10-caza-beacon-dft.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM13 2h6v1h-6zM20 2h3v1h-3zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM13 3h1v1h-1zM15 3h1v1h-1zM17 3h2v1h-2zM22 3h2v1h-2zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM13 4h1v1h-1zM15 4h1v1h-1zM22 4h2v1h-2zM25 4h2v1h-2zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h2v1h-2zM13 5h2v1h-2zM17 5h1v1h-1zM19 5h1v1h-1zM21 5h2v1h-2zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h3v1h-3zM17 6h2v1h-2zM20 6h6v1h-6zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM16 7h1v1h-1zM23 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM12 9h1v1h-1zM18 9h1v1h-1zM20 9h2v1h-2zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM12 10h1v1h-1zM14 10h3v1h-3zM19 10h1v1h-1zM27 10h2v1h-2zM32 10h5v1h-5zM4 11h1v1h-1zM6 11h2v1h-2zM9 11h2v1h-2zM12 11h1v1h-1zM17 11h1v1h-1zM20 11h2v1h-2zM23 11h1v1h-1zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM5 12h1v1h-1zM8 12h6v1h-6zM17 12h1v1h-1zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h3v1h-3zM9 13h4v1h-4zM14 13h1v1h-1zM17 13h2v1h-2zM21 13h4v1h-4zM26 13h1v1h-1zM29 13h6v1h-6zM38 13h1v1h-1zM4 14h1v1h-1zM7 14h2v1h-2zM10 14h7v1h-7zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM7 15h1v1h-1zM14 15h3v1h-3zM18 15h1v1h-1zM20 15h3v1h-3zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM3 16h2v1h-2zM6 16h1v1h-1zM8 16h3v1h-3zM12 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM19 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM5 17h3v1h-3zM10 17h1v1h-1zM14 17h3v1h-3zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h1v1h-1zM8 18h2v1h-2zM13 18h3v1h-3zM17 18h1v1h-1zM19 18h1v1h-1zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM2 19h1v1h-1zM5 19h1v1h-1zM10 19h1v1h-1zM12 19h3v1h-3zM18 19h1v1h-1zM21 19h3v1h-3zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h1v1h-1zM8 20h1v1h-1zM11 20h4v1h-4zM17 20h4v1h-4zM22 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM2 21h4v1h-4zM9 21h4v1h-4zM17 21h2v1h-2zM20 21h4v1h-4zM25 21h2v1h-2zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h3v1h-3zM6 22h6v1h-6zM14 22h1v1h-1zM16 22h1v1h-1zM18 22h2v1h-2zM21 22h2v1h-2zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h2v1h-2zM5 23h3v1h-3zM9 23h3v1h-3zM14 23h3v1h-3zM18 23h1v1h-1zM20 23h4v1h-4zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM3 24h1v1h-1zM5 24h1v1h-1zM7 24h3v1h-3zM11 24h1v1h-1zM16 24h2v1h-2zM22 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM4 25h2v1h-2zM7 25h1v1h-1zM9 25h1v1h-1zM11 25h3v1h-3zM16 25h2v1h-2zM20 25h4v1h-4zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h2v1h-2zM7 26h2v1h-2zM12 26h1v1h-1zM15 26h1v1h-1zM17 26h1v1h-1zM19 26h3v1h-3zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h2v1h-2zM6 27h1v1h-1zM9 27h4v1h-4zM14 27h1v1h-1zM16 27h1v1h-1zM18 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM6 28h5v1h-5zM12 28h1v1h-1zM14 28h1v1h-1zM17 28h1v1h-1zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM5 29h3v1h-3zM11 29h8v1h-8zM21 29h1v1h-1zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM8 30h1v1h-1zM11 30h1v1h-1zM14 30h1v1h-1zM16 30h4v1h-4zM24 30h15v1h-15zM10 31h3v1h-3zM15 31h2v1h-2zM18 31h2v1h-2zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM12 32h2v1h-2zM15 32h5v1h-5zM22 32h3v1h-3zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h2v1h-2zM14 33h1v1h-1zM16 33h3v1h-3zM20 33h6v1h-6zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM14 34h3v1h-3zM18 34h2v1h-2zM21 34h1v1h-1zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h1v1h-1zM15 35h1v1h-1zM18 35h1v1h-1zM20 35h3v1h-3zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h5v1h-5zM17 36h1v1h-1zM19 36h2v1h-2zM22 36h2v1h-2zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h1v1h-1zM13 37h2v1h-2zM16 37h2v1h-2zM23 37h2v1h-2zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM12 38h1v1h-1zM15 38h2v1h-2zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-10-caza-beacon-dft.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

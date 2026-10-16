@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aliasing con la cámara</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .fila > * { min-width:0; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  nav.pestanas button small { font-weight:normal; font-size:.94em; color:var(--gris); }
+  .botonera { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .botonera button.accion { margin:0; }
+  .rotulo { color:var(--gris); margin:10px 0 0; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; flex:none; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:4px 10px 10px; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  select { width:100%; margin-top:4px; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .pred { margin-top:8px; padding-top:8px; border-top:1px solid var(--borde); }
+  .lectura .nota { margin-top:6px; }
+  .aviso { border:1px solid var(--guinda); border-radius:8px; padding:8px 12px; margin-top:12px; }
+  .aviso b { color:var(--guinda); }
+  #mensaje { color:var(--guinda); min-height:0; }
+  #lienzo { touch-action:manipulation; }
+  #escenario:fullscreen { background:#fff; }
+  #escenario:fullscreen #lienzo { border:none; border-radius:0; }
+  #escenario:-webkit-full-screen { background:#fff; width:100%; height:100%; }
+  #escenario:-webkit-full-screen #lienzo { border:none; border-radius:0; }
+  @media (max-width: 820px) { .escena { order:-1; } }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 11 · Muestreo y aliasing</div>
+  <h1>Aliasing con la cámara de tu celular</h1>
+  <p class="sub">Proyecta una rueda de 12 rayos que gira y mírala a simple vista y con la cámara de tu teléfono en modo video: la cámara la ve más lenta, detenida o al revés.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist" aria-label="Modo de la pantalla">
+    <button type="button" class="activo" data-modo="inicio" role="tab">Instrucciones <small>(I)</small></button>
+    <button type="button" data-modo="rueda" role="tab">Rueda <small>(R)</small></button>
+    <button type="button" data-modo="barrido" role="tab">Barrido <small>(B)</small></button>
+    <button type="button" data-modo="estrella" role="tab">Estrella <small>(E)</small></button>
+  </nav>
+
+  <div class="fila">
+    <div class="panel">
+      <h2>Controles</h2>
+      <label for="frec">Frecuencia de los rayos f: <span class="valor" id="frecVal"></span></label>
+      <input id="frec" type="range" min="0" max="28.2" step="0.1" value="20">
+      <p class="rotulo">Ejemplos (teclas 1 a 6):</p>
+      <div class="botonera" id="ejemplos"></div>
+      <p class="rotulo">Ajuste fino (flechas ← → y ↓ ↑):</p>
+      <div class="botonera">
+        <button type="button" class="accion" data-paso="-1">−1 Hz</button>
+        <button type="button" class="accion" data-paso="-0.1">−0.1 Hz</button>
+        <button type="button" class="accion" data-paso="0.1">+0.1 Hz</button>
+        <button type="button" class="accion" data-paso="1">+1 Hz</button>
+      </div>
+      <div class="botonera" style="margin-top:10px">
+        <button type="button" class="accion" id="pausa">Pausa (Espacio)</button>
+        <button type="button" class="accion" id="completa">Pantalla completa (F)</button>
+      </div>
+      <p class="nota" id="mensaje" aria-live="polite"></p>
+      <fieldset>
+        <legend>Predicción</legend>
+        <label class="casilla"><input type="checkbox" id="pred"> Mostrar la predicción (P)</label>
+        <label for="cam">Cámara supuesta (C)</label>
+        <select id="cam">
+          <option value="0">30 cuadros/s</option>
+          <option value="1">24 cuadros/s</option>
+          <option value="2">60 cuadros/s</option>
+        </select>
+      </fieldset>
+      <label class="casilla"><input type="checkbox" id="marca" checked> Punto guinda sobre un rayo (M)</label>
+      <label class="casilla"><input type="checkbox" id="ayuda"> Ayuda de teclas en la pantalla (H)</label>
+      <div class="lectura" id="lectura"></div>
+    </div>
+
+    <div class="panel escena">
+      <div id="escenario">
+        <canvas id="lienzo" aria-label="Pantalla para proyectar: instrucciones, una rueda de 12 rayos con un punto guinda que gira o una estrella de 72 rayos"></canvas>
+      </div>
+      <p class="nota">Para la clase usa la pantalla completa (botón, tecla F o doble clic sobre la rueda) y haz la rueda grande en el proyector. En pantalla completa funcionan las mismas teclas; Esc sale.</p>
+      <div class="aviso"><b>Aviso:</b> hay imágenes que giran rápido. Si te molestan, mira solo a través del teléfono o voltea a otro lado. La página no tiene destellos de pantalla completa.</div>
+      <div class="seguridad"><b>Seguridad.</b> En un peritaje, un video de vigilancia puede mostrar una frecuencia que no existe: un movimiento de 20 Hz grabado a 30 cuadros por segundo aparece a 10 Hz (ejemplo del libro). Medir en la grabación la velocidad de giro de una rueda o el parpadeo de una luz sin conocer la tasa de muestreo lleva a una conclusión falsa sobre la escena, y una vez grabado el alias ya no se puede deshacer.</div>
+      <div class="preguntas">
+        <h3>Para explorar</h3>
+        <ol>
+          <li>Con la rueda a 20 Hz (el ejemplo del libro), ¿hacia dónde gira en el visor de tu teléfono? ¿Coincide la rapidez que ves con la que da el libro? ¿Y cómo se ve a simple vista?</li>
+          <li>Sigue el punto guinda en tu teléfono. ¿Gira en el mismo sentido que los rayos? ¿Cómo puede una misma rueda verse ir hacia adelante y hacia atrás a la vez?</li>
+          <li>Durante el barrido, ¿en qué frecuencia "se voltea" la rueda en tu teléfono? ¿Qué tiene de especial ese valor para tu cámara?</li>
+          <li>En la estrella, ¿aparecen en tu teléfono anillos o curvas que no están en la pantalla? Si aquí nada se mueve, ¿qué es lo que se está muestreando?</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  Fórmulas: fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:frecuencia-nyquist y eq:alias; ejemplo de la videovigilancia y Figura fig:aliasing). Versión web del programa aliasing_camara.py del curso; valores ilustrativos del programa, no del libro: 12 rayos, ejemplos de 5 a 28 Hz, cámaras de 24 y 60 cuadros/s, límite de 0.47 veces el refresco, barrido de 60 s y estrella de 72 rayos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+// Lógica del muestreo, sin dependencias de la página: se puede probar por separado.
+var Aliasing = (function () {
+  "use strict";
+  var RAYOS = 12;                                                // rayos de la rueda
+  var REFRESCOS = [50, 60, 72, 75, 90, 100, 120, 144, 165, 240]; // frecuencias de pantalla comunes (Hz)
+  var EJEMPLOS = [5, 12, 18, 20, 24, 28];                        // teclas 1 a 6 (Hz)
+  var CAMARAS = [30, 24, 60];                                    // cámaras supuestas (cuadros/s), tecla C
+  var BARRIDO_S = 60;                                            // barrido completo, subida y bajada (s)
+
+  // Redondea a una frecuencia de pantalla común si queda a menos de 4 %; si no, al entero más cercano
+  function ajustarRefresco(hz) {
+    var cercano = REFRESCOS[0];
+    REFRESCOS.forEach(function (r) { if (Math.abs(r - hz) < Math.abs(cercano - hz)) cercano = r; });
+    return Math.abs(cercano - hz) <= 0.04 * cercano ? cercano : Math.round(hz);
+  }
+
+  // Frecuencia máxima de los rayos (por debajo de la mitad del refresco), con un decimal. Igual que
+  // round(0.47 * hz, 1) de Python: un empate exacto (como 35.25) se redondea al par.
+  function frecMax(hz) {
+    var x = 0.47 * hz;
+    if (/\.\d50*$/.test(x.toFixed(20))) { var abajo = Math.floor(x * 10); return (abajo % 2 === 0 ? abajo : abajo + 1) / 10; }
+    return Number(x.toFixed(1));
+  }
+
+  // Frecuencia redondeada a 0.1 Hz y limitada a [0, frecMax]
+  function limitar(f, hz) { return Math.min(Math.max(Math.round(f * 10) / 10, 0), frecMax(hz)); }
+
+  // Alias con signo: f − k·fs, con k el entero que deja k·fs más cerca de f; queda en (−fs/2, fs/2]
+  function alias(f, fs) {
+    var k = Math.round(f / fs), fa = f - k * fs;
+    if (fa <= -fs / 2 + 1e-9) { k -= 1; fa += fs; }
+    return { k: k, fa: fa };
+  }
+
+  // Cómo ve la rueda una cámara de fs cuadros/s
+  function describir(f, fs) {
+    var fa = alias(f, fs).fa, a = Math.abs(fa), tipo;
+    if (a < 0.05) tipo = "detenida";
+    else if (a > fs / 2 - 0.05) tipo = "limite";
+    else tipo = fa > 0 ? "adelante" : "atras";
+    return { tipo: tipo, hz: a, vueltas: a / RAYOS };
+  }
+
+  // Refrescos de pantalla transcurridos entre dos llamadas de requestAnimationFrame
+  function refrescos(dtMs, hz) { return Math.max(0, Math.round(dtMs * hz / 1000)); }
+
+  // Fase de la rueda en rayos (0 a 12, una vuelta): avanza f/hz de rayo por cada refresco
+  function avanzar(fase, f, hz, n) {
+    var nueva = (fase + n * f / hz) % RAYOS;
+    return nueva < 0 ? nueva + RAYOS : nueva;
+  }
+
+  // Refresco a partir de marcas de tiempo (ms): promedio de los intervalos; un intervalo de k
+  // veces la mediana cuenta como k refrescos (cuadros perdidos) y los saltos grandes se descartan
+  function estimarRefresco(marcas) {
+    if (!marcas || marcas.length < 10) return null;
+    var dts = [], i;
+    for (i = 1; i < marcas.length; i++) dts.push(marcas[i] - marcas[i - 1]);
+    var orden = dts.slice().sort(function (a, b) { return a - b; });
+    var mediana = orden[Math.floor(orden.length / 2)];
+    if (!(mediana > 0)) return null;
+    var cuenta = 0, tiempo = 0;
+    dts.forEach(function (d) {
+      var k = Math.round(d / mediana);
+      if (k >= 1 && k <= 4) { cuenta += k; tiempo += d; }
+    });
+    if (!(tiempo > 0)) return null;
+    var hz = 1000 * cuenta / tiempo;
+    return hz >= 20 && hz <= 360 ? ajustarRefresco(hz) : null;
+  }
+
+  // Frecuencia del barrido: sube de 0 a fmax en 30 s y baja en otros 30 s
+  function frecBarrido(cuadros, hz, fmax) {
+    var t = (cuadros / hz) % BARRIDO_S, mitad = BARRIDO_S / 2;
+    return fmax * (t < mitad ? t / mitad : 2 - t / mitad);
+  }
+
+  return { RAYOS: RAYOS, REFRESCOS: REFRESCOS, EJEMPLOS: EJEMPLOS, CAMARAS: CAMARAS, BARRIDO_S: BARRIDO_S,
+           ajustarRefresco: ajustarRefresco, frecMax: frecMax, limitar: limitar, alias: alias,
+           describir: describir, refrescos: refrescos, avanzar: avanzar, estimarRefresco: estimarRefresco,
+           frecBarrido: frecBarrido };
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  var AZUL_RAYO = "#345696";   // azul de los rayos del programa: contraste moderado, cansa menos la vista
+  var SERIF = "Cambria, Georgia, serif", SANS = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  var L = Aliasing, RAYOS = L.RAYOS, CAMARAS = L.CAMARAS, EJEMPLOS = L.EJEMPLOS;
+  function $(id) { return document.getElementById(id); }
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function conSigno(x, dec) { var s = num(x, dec); return Number(x.toFixed(dec)) > 0 ? "+" + s : (s === "−0.0" ? "0.0" : s); }
+
+  // ================================================================ Estado
+  var est = { modo: "inicio", frec: 20, fase: 0, hz: 60, medido: false, pausa: false, prediccion: false,
+              camara: 0, marca: true, ayuda: false, cuadroBarrido: 0 };
+  L.estado = est;   // acceso al estado para depurar desde la consola
+
+  function frecuenciaActual() {
+    return est.modo === "barrido" ? L.frecBarrido(est.cuadroBarrido, est.hz, L.frecMax(est.hz)) : est.frec;
+  }
+
+  // ================================================================ Texto en el lienzo
+  function fuente(tam, negrita, familia) { return (negrita ? "bold " : "") + Math.round(tam) + "px " + (familia || SANS); }
+  function escribir(g, t, x, y, tam, color, op) {
+    op = op || {};
+    g.font = fuente(tam, op.negrita, op.familia); g.fillStyle = color;
+    g.textAlign = op.alin || "left"; g.textBaseline = op.base || "top";
+    g.fillText(t, x, y);
+  }
+  // Parte un texto en renglones que caben en maxW (con la fuente ya puesta)
+  function envolver(g, t, maxW) {
+    var palabras = t.split(" "), lineas = [], actual = "";
+    palabras.forEach(function (p) {
+      var prueba = actual ? actual + " " + p : p;
+      if (actual && g.measureText(prueba).width > maxW) { lineas.push(actual); actual = p; }
+      else actual = prueba;
+    });
+    if (actual) lineas.push(actual);
+    return lineas;
+  }
+  // Párrafo con renglones; devuelve la y de abajo
+  function parrafo(g, t, x, y, maxW, tam, color, op) {
+    op = op || {};
+    g.font = fuente(tam, op.negrita, op.familia);
+    var ls = envolver(g, t, maxW), alto = tam * (op.interlinea || 1.25);
+    g.fillStyle = color; g.textAlign = "left"; g.textBaseline = "top";
+    ls.forEach(function (l, i) { g.fillText(l, x, y + i * alto); });
+    return y + ls.length * alto;
+  }
+  function rectRedondo(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function circulo(g, x, y, r, color) { g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); }
+
+  // Tamaños de letra como los del programa (proporcionales al alto en horizontal), nunca menores de 15 px
+  function letras(w, h) {
+    var apaisado = w / h >= 1.2, u = apaisado ? h / 1080 : w / 700;
+    return { apaisado: apaisado, titulo: Math.max(20, 52 * u), grande: Math.max(20, 46 * u),
+             texto: Math.max(16, 34 * u), chica: Math.max(15, 24 * u) };
+  }
+
+  // ================================================================ Figuras
+  // Rueda de RAYOS rayos; cada rayo ocupa el 45 % de su sector. El ángulo positivo gira en sentido
+  // antihorario, como en el programa (en el lienzo la y crece hacia abajo, por eso el signo menos).
+  function rueda(g, cx, cy, r, ang, marca) {
+    circulo(g, cx, cy, r * 1.04, C.azulOscuro);
+    circulo(g, cx, cy, r, C.grisClaro);
+    var paso = 2 * Math.PI / RAYOS, medio = 0.45 * paso / 2;
+    g.fillStyle = AZUL_RAYO; g.beginPath();
+    for (var k = 0; k < RAYOS; k++) {
+      var a = ang + k * paso;
+      g.moveTo(cx, cy); g.arc(cx, cy, r, -(a + medio), -(a - medio)); g.closePath();
+    }
+    g.fill();
+    circulo(g, cx, cy, r * 0.13, C.azulOscuro);
+    if (marca) circulo(g, cx + 0.8 * r * Math.cos(ang), cy - 0.8 * r * Math.sin(ang), r * 0.075, C.guinda);
+  }
+  // Estrella de Siemens de 72 rayos (aliasing espacial)
+  function estrella(g, cx, cy, r) {
+    var n = 72; g.fillStyle = C.azulOscuro; g.beginPath();
+    for (var k = 0; k < n; k++) {
+      var a0 = 2 * Math.PI * k / n, a1 = 2 * Math.PI * (k + 0.5) / n;
+      g.moveTo(cx, cy); g.arc(cx, cy, r, -a1, -a0); g.closePath();
+    }
+    g.fill();
+  }
+
+  // ================================================================ Pantallas
+  var PASOS = [
+    "1. Abre la cámara de tu teléfono en modo Video (no Cámara lenta).",
+    "2. Apunta a la pantalla; no hace falta grabar: basta con mirar el visor.",
+    "3. Mira la rueda a simple vista y en tu teléfono. ¿Giran igual?",
+    "4. Compara con tus compañeros: ¿todos los teléfonos muestran lo mismo?",
+    "5. Busca en los ajustes de tu cámara a cuántos cuadros por segundo graba."
+  ];
+  var AVISO = "Aviso: hay imágenes que giran rápido. Si te molestan, mira solo a través del teléfono o voltea a otro lado.";
+  var AYUDA = [
+    "R rueda · B barrido 0 → máx → 0 · E estrella · I instrucciones",
+    "1-6: 5, 12, 18, 20 (libro), 24 y 28 Hz · ← → ±1 Hz · ↓ ↑ ±0.1 Hz",
+    "P predicción · C cámara supuesta (30/24/60) · M marca · Espacio pausa",
+    "F pantalla completa · Esc salir de la pantalla completa"
+  ];
+
+  function pantallaInicio(g, w, h, T) {
+    var x = T.apaisado ? w * 0.08 : w * 0.06, ancho = w - 2 * x, y = T.apaisado ? h * 0.12 : w * 0.06 + 4;
+    y = parrafo(g, "Aliasing con la cámara de tu celular", x, y, ancho, T.titulo, C.azulOscuro, { negrita: true, familia: SERIF });
+    g.fillStyle = C.oro; g.fillRect(x, y + 6, Math.max(60, w * 0.12), 5);
+    y += 11 + T.texto * 0.9;
+    PASOS.forEach(function (p) { y = parrafo(g, p, x, y, ancho, T.texto, C.tinta) + T.texto * 0.45; });
+    y = parrafo(g, AVISO, x, y + T.texto * 0.3, ancho, T.chica, C.gris);
+    var pie = geo.completa ? "Tecla R para empezar  ·  H ayuda  ·  Esc salir de la pantalla completa"
+            : (T.apaisado ? "Tecla R o pestaña Rueda para empezar  ·  H ayuda  ·  F pantalla completa" : "Pestaña Rueda (o tecla R) para empezar");
+    parrafo(g, pie, x, Math.max(y + T.chica * 0.8, h * (T.apaisado ? 0.88 : 0.9) - T.chica * 1.25), ancho, T.chica, C.azul);
+  }
+
+  function descripcionCorta(f, fs) {
+    var d = L.describir(f, fs);
+    if (d.tipo === "detenida") return "se ve detenida";
+    if (d.tipo === "limite") return "en el límite fs/2: sin sentido de giro definido";
+    return "gira " + (d.tipo === "adelante" ? "hacia adelante" : "hacia atrás") + ": " + num(d.hz, 1) + " Hz (" + num(d.vueltas, 2) + " vueltas/s)";
+  }
+
+  function pantallaRueda(g, w, h, T, f) {
+    var titulo = est.modo === "barrido" ? "Barrido: la frecuencia sube y baja" : "La rueda";
+    var ang = 2 * Math.PI * est.fase / RAYOS, cx, cy, R, x, y, ancho;
+    if (T.apaisado) {
+      R = Math.min(0.36 * h, 0.25 * w);
+      cx = Math.max(0.36 * w, 0.04 * w + 1.08 * R); cy = 0.55 * h;
+      parrafo(g, titulo, 0.05 * w, 0.06 * h, 0.9 * w, T.titulo, C.azulOscuro, { negrita: true, familia: SERIF });
+      x = Math.max(0.64 * w, cx + 1.04 * R + 0.04 * w); ancho = w - x - 0.03 * w; y = 0.26 * h;
+    } else {
+      var m = 0.05 * w;
+      var yT = parrafo(g, titulo, m, m, w - 2 * m, T.titulo, C.azulOscuro, { negrita: true, familia: SERIF });
+      R = Math.min(0.4 * w, 0.22 * h); cx = w / 2; cy = yT + 0.04 * w + 1.04 * R;
+      x = m; ancho = w - 2 * m; y = cy + 1.04 * R + 0.05 * w;
+    }
+    rueda(g, cx, cy, R, ang, est.marca);
+    zonaTexto = T.apaisado ? null : y;
+    if (est.pausa) {
+      g.font = fuente(T.grande, true); var tw = g.measureText("PAUSA").width;
+      g.fillStyle = "rgba(255,255,255,0.92)"; rectRedondo(g, cx - tw / 2 - 12, cy + 0.42 * R - 6, tw + 24, T.grande * 1.25 + 10, 8); g.fill();
+      escribir(g, "PAUSA", cx, cy + 0.42 * R, T.grande, C.guinda, { negrita: true, alin: "center" });
+    }
+    y = parrafo(g, T.apaisado ? "FRECUENCIA DE LOS RAYOS EN LA PANTALLA" : "FRECUENCIA DE LOS RAYOS", x, y, ancho, T.chica, C.guinda, { negrita: true }) + 4;
+    y = parrafo(g, "f = " + num(f, 1) + " Hz", x, y, ancho, T.grande, C.azulOscuro, { negrita: true }) + 2;
+    y = parrafo(g, RAYOS + " rayos × " + num(f / RAYOS, 2) + " vueltas/s", x, y, ancho, T.texto, C.tinta);
+    y += T.texto * (T.apaisado ? 0.8 : 0.35);
+    if (est.prediccion) {
+      var fs = CAMARAS[est.camara], r = L.alias(f, fs);
+      y = parrafo(g, "PREDICCIÓN PARA UNA CÁMARA DE " + fs + " CUADROS/S", x, y, ancho, T.chica, C.guinda, { negrita: true }) + 4;
+      y = parrafo(g, "Nyquist de la cámara: " + corto(fs / 2, 1) + " Hz", x, y, ancho, T.texto, C.tinta) + 2;
+      y = parrafo(g, descripcionCorta(f, fs), x, y, ancho, T.texto, C.azulOscuro, { negrita: true }) + 2;
+      parrafo(g, "f − k·fs = " + num(f, 1) + " − " + r.k + "·" + fs + " = " + conSigno(r.fa, 1) + " Hz" +
+              (T.apaisado ? "  (si es negativo, hacia atrás)" : ""), x, y, ancho, T.chica, C.gris);
+    } else {
+      parrafo(g, "¿Cómo se ve en tu teléfono?", x, y, ancho, T.texto, C.azulOscuro, { negrita: true });
+    }
+  }
+
+  function pantallaEstrella(g, w, h, T) {
+    var titulo = "Aliasing en el espacio", lineas = ["Acerca y aleja tu teléfono o usa el zoom.", "¿Aparecen anillos o curvas que no están en la pantalla?"];
+    var R, cx, cy, x, y, ancho;
+    if (T.apaisado) {
+      R = 0.38 * h; cx = Math.min(0.66 * w, 0.97 * w - R); cy = 0.55 * h;
+      x = 0.05 * w; ancho = Math.max(120, cx - R - 0.04 * w - x);
+      y = parrafo(g, titulo, x, 0.06 * h, ancho, T.titulo, C.azulOscuro, { negrita: true, familia: SERIF }) + T.texto;
+      lineas.forEach(function (l) { y = parrafo(g, l, x, y, ancho, T.texto, C.tinta) + T.texto * 0.6; });
+    } else {
+      x = 0.05 * w; ancho = w - 2 * x;
+      y = parrafo(g, titulo, x, x, ancho, T.titulo, C.azulOscuro, { negrita: true, familia: SERIF }) + 6;
+      lineas.forEach(function (l) { y = parrafo(g, l, x, y, ancho, T.texto, C.tinta) + 4; });
+      R = Math.min(0.45 * w, (h - y - 40) / 2); cx = w / 2; cy = y + (h - y - 26) / 2;   // centrada en lo que queda
+    }
+    estrella(g, cx, cy, R);
+  }
+
+  function pantallaAyuda(g, w, h, T) {
+    var x = 0.05 * w, ancho = 0.9 * w, pad = 12, tam = T.chica, todas = [];
+    g.font = fuente(tam);
+    AYUDA.forEach(function (l) { todas = todas.concat(envolver(g, l, ancho - 2 * pad)); });
+    var alto = tam * 1.35, cajaH = alto * todas.length + 2 * pad, y0 = h - cajaH - Math.max(34, 0.06 * h);
+    if (zonaTexto !== null && (est.modo === "rueda" || est.modo === "barrido")) {   // en vertical la ayuda reemplaza al texto
+      y0 = Math.min(y0, zonaTexto - 6);
+      g.fillStyle = "#fff"; g.fillRect(0, y0, w, Math.max(0, h - 30 - y0));
+    }
+    g.fillStyle = "#fff"; rectRedondo(g, x, y0, ancho, cajaH, 10); g.fill();
+    g.strokeStyle = C.oro; g.lineWidth = 2; rectRedondo(g, x, y0, ancho, cajaH, 10); g.stroke();
+    todas.forEach(function (l, i) { escribir(g, l, x + pad, y0 + pad + i * alto, tam, C.tinta); });
+  }
+
+  // ================================================================ Lienzo
+  var cv = $("lienzo"), esc = $("escenario"), geo = null, sucio = true, zonaTexto = null;
+  function pantallaCompletaActiva() { return (document.fullscreenElement || document.webkitFullscreenElement || null) === esc; }
+  function prepararLienzo() {
+    if (pantallaCompletaActiva()) {
+      var dpr = window.devicePixelRatio || 1, w = window.innerWidth, h = window.innerHeight;
+      cv.style.height = h + "px";
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      var gc = cv.getContext("2d"); gc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      geo = { g: gc, w: w, h: h, completa: true };
+    } else {
+      var ancho = cv.clientWidth || 600;   // vertical en el celular; más alto en tabletas para que quepa el texto
+      var d = preparar(cv, ancho < 560 ? 1.85 : (ancho < 800 ? 0.66 : 0.5625));
+      geo = { g: d.g, w: d.w, h: d.h, completa: false };
+    }
+    sucio = true;
+  }
+
+  function dibujar(f) {
+    if (!geo) prepararLienzo();
+    var g = geo.g, w = geo.w, h = geo.h, T = letras(w, h);
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+    if (geo.completa) {   // franja azul y oro, como en el programa
+      g.fillStyle = C.azul; g.fillRect(0, 0, w, Math.max(6, h / 120));
+      g.fillStyle = C.oro; g.fillRect(0, Math.max(6, h / 120), w, Math.max(2, h / 360));
+    }
+    if (est.modo === "inicio") pantallaInicio(g, w, h, T);
+    else if (est.modo === "estrella") pantallaEstrella(g, w, h, T);
+    else pantallaRueda(g, w, h, T, f);
+    if (est.ayuda) pantallaAyuda(g, w, h, T);
+    escribir(g, est.medido ? "Pantalla: " + est.hz + " Hz" : "Pantalla: midiendo…", w - 0.015 * w, h - 0.012 * h, T.chica, C.gris, { alin: "right", base: "bottom" });
+    if (geo.completa) escribir(g, "H ayuda · Esc salir", 0.015 * w, h - 0.012 * h, T.chica, C.gris, { base: "bottom" });
+  }
+
+  // ================================================================ Lectura
+  function textoDescripcion(d) {
+    if (d.tipo === "detenida") return "La cámara la ve detenida.";
+    if (d.tipo === "limite") return "En el límite f<sub>s</sub>/2: entre un cuadro y el siguiente la rueda salta medio rayo y no se ve un sentido de giro definido.";
+    return "La cámara la ve girar " + (d.tipo === "adelante" ? "hacia adelante" : "hacia atrás") + " a " + num(d.hz, 1) + " Hz (" + num(d.vueltas, 2) + " vueltas/s).";
+  }
+  function actualizarLectura() {
+    var f = frecuenciaActual(), h = "";
+    if (est.modo === "inicio") {
+      h = "La rueda todavía no gira. Elige <b>Rueda</b> (tecla R) cuando todos tengan la cámara lista. La predicción está oculta: actívala (P) después de comparar lo que ven.";
+    } else if (est.modo === "estrella") {
+      h = "<b>Estrella de 72 rayos</b>: no se mueve y sus rayos se juntan hacia el centro. Mírala con la cámara del teléfono; acerca, aleja o usa el zoom.";
+    } else {
+      var hz = est.hz;
+      if (est.modo === "barrido") h += "<b>Barrido:</b> f sube de 0 a " + num(L.frecMax(hz), 1) + " Hz en 30 s y baja en otros 30 s.<br>";
+      h += "<b>Rueda de " + RAYOS + " rayos:</b> <span class='formula'>f = " + num(f, 1) + " Hz</span> = " + RAYOS + " × " + num(f / RAYOS, 2) + " vueltas/s.<br>";
+      h += "<b>Pantalla de " + hz + " Hz:</b> en cada refresco la rueda avanza <span class='formula'>f/" + hz + " = " + num(f, 1) + "/" + hz + " = " + num(f / hz, 3) + "</span> de rayo.";
+      if (est.prediccion) {
+        var fs = CAMARAS[est.camara], r = L.alias(f, fs), d = L.describir(f, fs);
+        h += "<div class='pred'><b>Predicción para una cámara de " + fs + " cuadros/s</b><br>" +
+             "Frecuencia de Nyquist de la cámara: <span class='formula'>f<sub>N</sub> = f<sub>s</sub>/2 = " + fs + "/2 = " + corto(fs / 2, 1) + " Hz</span><br>" +
+             "k es el entero más cercano a f/f<sub>s</sub> = " + num(f, 1) + "/" + fs + " = " + num(f / fs, 2) + ": <b>k = " + r.k + "</b><br>" +
+             "<span class='formula'>f − k·f<sub>s</sub> = " + num(f, 1) + " − " + r.k + "·" + fs + " = " + conSigno(r.fa, 1) + " Hz</span> → " +
+             "<span class='formula'>f<sub>alias</sub> = |f − k·f<sub>s</sub>| = " + num(Math.abs(r.fa), 1) + " Hz</span><br>" +
+             "<b>" + textoDescripcion(d) + "</b>" +
+             (d.tipo === "adelante" || d.tipo === "atras" ? " El signo de f − k·f<sub>s</sub> indica el sentido: negativo, hacia atrás." : "") +
+             (Math.abs(f - 20) < 0.05 && fs === 30 ? "<br>Es el ejemplo del libro: un movimiento de 20 Hz grabado a 30 cuadros/s aparece como 10 Hz." : "") +
+             "</div>";
+      } else {
+        h += "<p class='nota'>¿Cómo se ve en tu teléfono? Compara antes de activar la predicción (P).</p>";
+      }
+    }
+    $("lectura").innerHTML = h;
+  }
+
+  // ================================================================ Controles
+  function sincronizarControles() {
+    var fmax = L.frecMax(est.hz), barrido = est.modo === "barrido", rango = $("frec");
+    rango.max = String(fmax); rango.value = String(est.frec); rango.disabled = barrido;
+    $("frecVal").textContent = barrido ? "barrido (" + num(frecuenciaActual(), 1) + " Hz)" : num(est.frec, 1) + " Hz";
+    $("pred").checked = est.prediccion; $("marca").checked = est.marca; $("ayuda").checked = est.ayuda;
+    $("cam").value = String(est.camara);
+    $("pausa").textContent = est.pausa ? "Continuar (Espacio)" : "Pausa (Espacio)";
+    document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+      var activo = b.dataset.modo === est.modo;
+      b.classList.toggle("activo", activo); b.setAttribute("aria-selected", activo ? "true" : "false");
+    });
+  }
+  function actualizar() { sincronizarControles(); actualizarLectura(); sucio = true; }
+
+  function ponerModo(m) {
+    est.modo = m;
+    if (m === "barrido") est.cuadroBarrido = 0;
+    actualizar();
+  }
+  function ponerFrec(f) { est.frec = L.limitar(f, est.hz); actualizar(); }
+  function ejemplo(i) { est.modo = "rueda"; ponerFrec(EJEMPLOS[i]); }
+  function alternar(clave) { est[clave] = !est[clave]; actualizar(); }
+  function cambiarCamara() { est.camara = (est.camara + 1) % CAMARAS.length; actualizar(); }
+  function ponerRefresco(hz) {
+    var cambio = hz !== est.hz || !est.medido;
+    est.hz = hz; est.medido = true;
+    if (cambio) { est.frec = L.limitar(est.frec, hz); actualizar(); }
+  }
+
+  var temporizadorMensaje = null;
+  function mensaje(t) {
+    $("mensaje").textContent = t;
+    clearTimeout(temporizadorMensaje);
+    temporizadorMensaje = setTimeout(function () { $("mensaje").textContent = ""; }, 6000);
+  }
+  function alternarPantallaCompleta() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      var salir = document.exitFullscreen || document.webkitExitFullscreen;
+      if (salir) salir.call(document);
+      return;
+    }
+    var pedir = esc.requestFullscreen || esc.webkitRequestFullscreen;
+    if (!pedir) { mensaje("Este navegador no permite la pantalla completa desde la página: usa F11."); return; }
+    try {
+      var p = pedir.call(esc);
+      if (p && typeof p.catch === "function") p.catch(function () { mensaje("No se pudo activar la pantalla completa: usa F11."); });
+    } catch (e) { mensaje("No se pudo activar la pantalla completa: usa F11."); }
+  }
+  function alCambiarPantalla() {
+    prepararLienzo();
+    $("completa").textContent = pantallaCompletaActiva() ? "Salir de pantalla completa" : "Pantalla completa (F)";
+  }
+  document.addEventListener("fullscreenchange", alCambiarPantalla);
+  document.addEventListener("webkitfullscreenchange", alCambiarPantalla);
+
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { ponerModo(b.dataset.modo); });
+  });
+  EJEMPLOS.forEach(function (f, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "accion"; b.title = "Tecla " + (i + 1);
+    b.textContent = f + " Hz" + (f === 20 ? " (libro)" : "");
+    b.addEventListener("click", function () { ejemplo(i); });
+    $("ejemplos").appendChild(b);
+  });
+  document.querySelectorAll("button[data-paso]").forEach(function (b) {
+    b.addEventListener("click", function () { ponerFrec(est.frec + Number(b.dataset.paso)); });
+  });
+  $("frec").addEventListener("input", function () { ponerFrec(Number($("frec").value)); });
+  $("pausa").addEventListener("click", function () { alternar("pausa"); });
+  $("completa").addEventListener("click", alternarPantallaCompleta);
+  $("pred").addEventListener("change", function () { est.prediccion = $("pred").checked; actualizar(); });
+  $("marca").addEventListener("change", function () { est.marca = $("marca").checked; actualizar(); });
+  $("ayuda").addEventListener("change", function () { est.ayuda = $("ayuda").checked; actualizar(); });
+  $("cam").addEventListener("change", function () { est.camara = Number($("cam").value); actualizar(); });
+  esc.addEventListener("dblclick", alternarPantallaCompleta);
+
+  // Teclas del programa. Se ignoran con Ctrl, Alt o Cmd para no estorbar los atajos del navegador.
+  var TECLAS = {
+    "r": function () { ponerModo("rueda"); }, "b": function () { ponerModo("barrido"); },
+    "e": function () { ponerModo("estrella"); }, "i": function () { ponerModo("inicio"); },
+    "h": function () { alternar("ayuda"); }, "p": function () { alternar("prediccion"); },
+    "c": cambiarCamara, "m": function () { alternar("marca"); }, " ": function () { alternar("pausa"); },
+    "f": alternarPantallaCompleta,
+    "arrowright": function () { ponerFrec(est.frec + 1); }, "arrowleft": function () { ponerFrec(est.frec - 1); },
+    "arrowup": function () { ponerFrec(est.frec + 0.1); }, "arrowdown": function () { ponerFrec(est.frec - 0.1); }
+  };
+  document.addEventListener("keydown", function (ev) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || !ev.key) return;
+    var t = ev.target, tag = t && t.tagName, k = ev.key.toLowerCase();
+    if (tag === "TEXTAREA" || (tag === "INPUT" && t.type !== "range" && t.type !== "checkbox")) return;
+    if (tag === "SELECT" && k.indexOf("arrow") === 0) return;
+    var accion = TECLAS[k];
+    if (!accion && k >= "1" && k <= "6" && k.length === 1) accion = function () { ejemplo(Number(k) - 1); };
+    if (!accion) return;
+    ev.preventDefault();
+    if (!ev.repeat || k.indexOf("arrow") === 0) accion();
+  });
+  // Evita que la barra espaciadora active además el botón o la casilla que tiene el foco
+  document.addEventListener("keyup", function (ev) {
+    if (ev.key === " " && ev.target && (ev.target.tagName === "BUTTON" || ev.target.tagName === "INPUT")) ev.preventDefault();
+  });
+
+  // ================================================================ Animación
+  // Avanza una cantidad fija por cada refresco de pantalla. La marca de tiempo de rAF dice cuántos
+  // refrescos pasaron (si se perdió un cuadro, avanza por los dos) y cada 3 s se vuelve a medir el refresco.
+  var anterior = null, marcas = [], ventana = 1000, ultimaLectura = 0;
+  function medir(ts) {
+    marcas.push(ts);
+    if (ts - marcas[0] >= ventana) {
+      var hz = L.estimarRefresco(marcas);
+      if (hz) ponerRefresco(hz);
+      marcas = [ts]; ventana = 3000;
+    }
+  }
+  function cuadro(ts) {
+    requestAnimationFrame(cuadro);
+    var n = 1;
+    if (anterior !== null) {
+      var dt = ts - anterior;
+      if (dt > 250 || dt < 0) { marcas = []; n = 1; }    // la pestaña estuvo oculta: no se cuenta como refrescos
+      else n = L.refrescos(dt, est.hz);
+    }
+    anterior = ts;
+    medir(ts);
+    var f = frecuenciaActual();
+    if ((est.modo === "rueda" || est.modo === "barrido") && !est.pausa && n > 0) {
+      est.fase = L.avanzar(est.fase, f, est.hz, n);
+      if (est.modo === "barrido") est.cuadroBarrido += n;
+      f = frecuenciaActual();
+      sucio = true;
+    }
+    if (est.modo === "barrido" && ts - ultimaLectura > 100) {
+      ultimaLectura = ts;
+      $("frecVal").textContent = "barrido (" + num(f, 1) + " Hz)";
+      actualizarLectura();
+    }
+    if (sucio) { dibujar(f); sucio = false; }
+  }
+
+  window.addEventListener("resize", prepararLienzo);
+  prepararLienzo();
+  var inicial = location.hash.slice(1);
+  if (["inicio", "rueda", "barrido", "estrella"].indexOf(inicial) >= 0) est.modo = inicial;
+  actualizar();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-11-aliasing-camara.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM13 2h1v1h-1zM15 2h2v1h-2zM20 2h3v1h-3zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM13 3h3v1h-3zM17 3h2v1h-2zM22 3h2v1h-2zM27 3h1v1h-1zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM14 4h2v1h-2zM18 4h1v1h-1zM22 4h2v1h-2zM26 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h2v1h-2zM13 5h2v1h-2zM17 5h1v1h-1zM19 5h1v1h-1zM21 5h2v1h-2zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h3v1h-3zM15 6h1v1h-1zM17 6h2v1h-2zM20 6h6v1h-6zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM15 7h1v1h-1zM20 7h1v1h-1zM23 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM12 9h1v1h-1zM18 9h1v1h-1zM21 9h1v1h-1zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM15 10h2v1h-2zM19 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM4 11h1v1h-1zM6 11h2v1h-2zM9 11h2v1h-2zM12 11h2v1h-2zM16 11h2v1h-2zM21 11h5v1h-5zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM4 12h2v1h-2zM8 12h1v1h-1zM11 12h3v1h-3zM17 12h1v1h-1zM22 12h3v1h-3zM26 12h1v1h-1zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h3v1h-3zM11 13h3v1h-3zM17 13h2v1h-2zM23 13h2v1h-2zM29 13h6v1h-6zM38 13h1v1h-1zM4 14h1v1h-1zM7 14h2v1h-2zM10 14h3v1h-3zM14 14h3v1h-3zM19 14h1v1h-1zM22 14h1v1h-1zM24 14h2v1h-2zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM6 15h2v1h-2zM14 15h3v1h-3zM18 15h1v1h-1zM20 15h4v1h-4zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM3 16h2v1h-2zM6 16h5v1h-5zM12 16h1v1h-1zM14 16h4v1h-4zM19 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h2v1h-2zM5 17h2v1h-2zM10 17h1v1h-1zM14 17h1v1h-1zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h2v1h-2zM5 18h2v1h-2zM8 18h2v1h-2zM13 18h1v1h-1zM16 18h2v1h-2zM19 18h1v1h-1zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM2 19h4v1h-4zM7 19h1v1h-1zM9 19h1v1h-1zM12 19h1v1h-1zM18 19h1v1h-1zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h1v1h-1zM8 20h1v1h-1zM10 20h3v1h-3zM17 20h4v1h-4zM22 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM2 21h2v1h-2zM5 21h1v1h-1zM9 21h1v1h-1zM11 21h3v1h-3zM17 21h2v1h-2zM20 21h2v1h-2zM23 21h1v1h-1zM26 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h3v1h-3zM6 22h3v1h-3zM10 22h2v1h-2zM13 22h2v1h-2zM16 22h1v1h-1zM18 22h2v1h-2zM22 22h1v1h-1zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h2v1h-2zM5 23h3v1h-3zM9 23h2v1h-2zM14 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM20 23h3v1h-3zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h2v1h-2zM5 24h5v1h-5zM11 24h1v1h-1zM15 24h1v1h-1zM17 24h1v1h-1zM20 24h1v1h-1zM22 24h2v1h-2zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM3 25h4v1h-4zM9 25h1v1h-1zM11 25h3v1h-3zM17 25h1v1h-1zM21 25h5v1h-5zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h1v1h-1zM5 26h4v1h-4zM10 26h1v1h-1zM15 26h3v1h-3zM19 26h3v1h-3zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM6 27h2v1h-2zM9 27h1v1h-1zM11 27h3v1h-3zM18 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM6 28h4v1h-4zM12 28h3v1h-3zM17 28h1v1h-1zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM6 29h2v1h-2zM11 29h8v1h-8zM22 29h2v1h-2zM31 29h2v1h-2zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM8 30h1v1h-1zM11 30h1v1h-1zM14 30h1v1h-1zM16 30h4v1h-4zM21 30h1v1h-1zM24 30h15v1h-15zM10 31h1v1h-1zM12 31h1v1h-1zM15 31h2v1h-2zM18 31h2v1h-2zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h1v1h-1zM17 32h3v1h-3zM22 32h1v1h-1zM24 32h1v1h-1zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h2v1h-2zM14 33h1v1h-1zM16 33h3v1h-3zM20 33h4v1h-4zM25 33h1v1h-1zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM14 34h1v1h-1zM18 34h2v1h-2zM21 34h1v1h-1zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM13 35h3v1h-3zM18 35h1v1h-1zM20 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h4v1h-4zM17 36h1v1h-1zM19 36h2v1h-2zM22 36h2v1h-2zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h1v1h-1zM16 37h2v1h-2zM21 37h4v1h-4zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM12 38h2v1h-2zM15 38h2v1h-2zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-11-aliasing-camara.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

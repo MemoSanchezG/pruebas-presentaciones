@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proceso de comunicación</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+  /* Propios de este simulador */
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0, 1fr); } }
+  select { max-width:100%; }
+  label output { float:right; color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  .casilla { font-weight:normal; color:var(--tinta); }
+  .casilla input { margin-right:6px; }
+  #msg { width:100%; font-size:1.1rem; }
+  .lectura .formula { display:block; margin:2px 0; }
+  .lectura hr { border:none; border-top:1px solid #E3D6BD; margin:8px 0; }
+  button.accion:disabled { opacity:.45; cursor:default; background:#fff; color:var(--azul); }
+  .destino { margin-top:12px; padding:10px 12px; border:1px solid var(--borde); border-radius:10px; }
+  .destino .etq { color:var(--gris); font-size:.95rem; }
+  .destino .texto { font-family:Consolas,"Courier New",monospace; font-size:1.7rem; letter-spacing:.06em;
+                    color:var(--azul-oscuro); word-break:break-all; min-height:1.3em; }
+  .destino .texto span.malo { background:var(--guinda); color:#fff; border-radius:3px; }
+  .destino .texto span.nodet { background:var(--guinda); color:#fff; border-radius:3px; outline:3px dashed var(--oro); }
+  .tarjetas { display:grid; grid-template-columns:repeat(auto-fill, minmax(212px, 1fr)); gap:8px; margin-top:10px; }
+  .tarjeta { border:1px solid var(--borde); border-radius:8px; padding:6px 8px; font-size:15px; line-height:1.35; }
+  .tarjeta.malo { border-color:var(--guinda); background:var(--guinda-claro); }
+  .tarjeta .cab { display:flex; justify-content:space-between; align-items:baseline; }
+  .tarjeta .letra { font-family:Consolas,"Courier New",monospace; font-size:1.35rem; font-weight:bold; color:var(--azul-oscuro); }
+  .tarjeta .bits { font-family:Consolas,"Courier New",monospace; font-size:15px; white-space:nowrap; }
+  .tarjeta .bits b { display:inline-block; width:4.2em; font-family:Calibri,"Segoe UI",sans-serif; font-weight:normal; color:var(--gris); }
+  .tarjeta .bits i { font-style:normal; }
+  .tarjeta .bits i.inv { background:var(--guinda); color:#fff; border-radius:2px; }
+  .tarjeta .bits i.par { color:var(--oro-texto); font-weight:bold; }
+  .tarjeta .bits i.par.inv { color:#fff; }
+  .tarjeta .pie { color:var(--gris); }
+  .tarjeta .aviso { color:var(--guinda); font-weight:bold; }
+  /* Pestaña 2: diagrama que se llena al hacer clic */
+  .diagrama { display:grid; grid-template-columns:1fr 26px 1fr 26px 1fr 26px 1fr; gap:8px 4px; align-items:stretch; margin-top:10px; }
+  .flecha { display:flex; align-items:center; justify-content:center; color:var(--azul-oscuro); font-size:1.5rem; font-weight:bold; }
+  .elemento { font:inherit; text-align:left; border:2px solid var(--azul-oscuro); border-radius:10px; background:#fff;
+              padding:8px 10px; cursor:pointer; color:var(--tinta); min-height:120px; display:flex; flex-direction:column; }
+  .elemento:hover, .elemento:focus-visible { background:var(--azul-claro); outline:none; }
+  .elemento .nombre { font-weight:bold; color:var(--azul-oscuro); font-size:1.05rem; }
+  .elemento .def { color:var(--gris); font-size:.95rem; }
+  .elemento .caso { margin-top:6px; font-size:1rem; }
+  .elemento .caso .control { display:block; margin-top:4px; color:var(--guinda); }
+  .elemento .oculto { color:var(--gris); font-size:1.6rem; font-weight:bold; text-align:center; margin-top:auto; }
+  .elemento.abierto { background:var(--oro-claro); border-color:var(--oro); }
+  .elemento.ruido { border-color:var(--guinda); }
+  .elemento.retro { border-style:dashed; border-color:var(--gris); min-height:90px; }
+  .e-mensaje { grid-column:1 / 4; grid-row:1; }
+  .e-ruido { grid-column:5; grid-row:1; }
+  .baja { grid-column:5; grid-row:2; align-self:center; text-align:center; color:var(--guinda); font-size:1.5rem; font-weight:bold; }
+  .e-emisor { grid-column:1; grid-row:3; } .f1 { grid-column:2; grid-row:3; }
+  .e-codigo { grid-column:3; grid-row:3; } .f2 { grid-column:4; grid-row:3; }
+  .e-canal { grid-column:5; grid-row:3; } .f3 { grid-column:6; grid-row:3; }
+  .e-receptor { grid-column:7; grid-row:3; }
+  .e-retro { grid-column:1 / 8; grid-row:4; }
+  .leccion { margin-top:12px; }
+  @media (max-width: 820px) {
+    .diagrama { grid-template-columns:1fr; }
+    .diagrama > * { grid-column:1 !important; grid-row:auto !important; }
+    .flecha, .baja { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 1 · Día 1 · Introducción a la transmisión de señales</div>
+  <h1>El proceso de comunicación: un mensaje cruza un canal con ruido</h1>
+  <p class="sub">Escribe un mensaje, súbele el ruido al canal y decide si el receptor puede pedir que se repita lo que llegó dañado.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Canal con ruido</button>
+    <button type="button" data-vista="v2" role="tab">2. Un caso de seguridad</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="msg">Mensaje <small>(hasta 16 caracteres)</small></label>
+        <input id="msg" type="text" maxlength="16" value="Hola FCFM" autocomplete="off" spellcheck="false">
+        <p class="nota" id="notaAscii">Código: ASCII de 8 bits por carácter.</p>
+        <label for="ruido">Ruido: probabilidad de invertir cada bit <output id="ruidoV"></output></label>
+        <input id="ruido" type="range" min="0" max="20" step="0.5" value="3">
+        <label class="casilla"><input type="checkbox" id="retro">Retroalimentación: el receptor revisa un bit de paridad y pide repetir el carácter si detecta un error</label>
+        <label for="vel">Velocidad de la animación</label>
+        <select id="vel">
+          <option value="2">lenta</option>
+          <option value="1" selected>normal</option>
+          <option value="0.45">rápida</option>
+          <option value="0">sin animación</option>
+        </select>
+        <div>
+          <button type="button" class="accion" id="enviar">Enviar</button>
+          <button type="button" class="accion" id="saltar" disabled>Terminar ya</button>
+          <button type="button" class="accion" id="mil">Enviar 1000 veces</button>
+        </div>
+        <div class="lectura" id="lec1">…</div>
+      </div>
+      <div class="panel">
+        <canvas id="diag" aria-label="Diagrama del proceso de comunicación: fuente, codificador, canal con ruido, decodificador y destino, con la retroalimentación como línea punteada"></canvas>
+        <div class="destino">
+          <div class="etq">Lo que recibe el destino <span id="resumen"></span></div>
+          <div class="texto" id="recibido">&nbsp;</div>
+        </div>
+        <div class="tarjetas" id="tarjetas"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Sin retroalimentación y con ruido de 3 %, ¿cuántas letras esperas que lleguen alteradas? Envía varias veces y compara con la predicción.</li>
+            <li>¿Por qué a veces una minúscula llega como mayúscula (o al revés)? Compara los bits de "a" y de "A".</li>
+            <li>Activa la retroalimentación. ¿Qué se gana y qué se paga? Observa los reenvíos y la eficiencia.</li>
+            <li>Con ruido de 5 % y retroalimentación, a veces llega una letra equivocada sin que el receptor pida reenvío. ¿Por qué el bit de paridad no la detectó? ¿Qué pasa con ruido de 15 %?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad.</b> El bit de paridad es la forma más simple de <b>codificación de canal</b>: agrega redundancia para que el receptor detecte un error y pida, por la retroalimentación, que se repita (así lo hacen TCP y Wi-Fi). La paridad, el código de Hamming y la corrección sin reenvío se estudian en la <b>Semana 9</b>. Ojo: paridad, CRC y Hamming protegen contra errores <b>aleatorios</b>, no contra un adversario: sus reglas son públicas y quien modifica el mensaje puede recalcular el bit de paridad. Y el ruido que un atacante inyecta a propósito (<i>jamming</i>) es un ataque a la <b>disponibilidad</b>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="panel">
+      <h2>Los 7 elementos aplicados a un caso del libro</h2>
+      <label for="caso">Caso</label>
+      <select id="caso">
+        <option value="led" selected>LED-it-GO: un canal encubierto óptico (capítulo de Electricidad)</option>
+        <option value="phishing">Un correo de phishing (capítulo de Evolución de la comunicación)</option>
+      </select>
+      <p class="nota" id="casoDesc"></p>
+      <div>
+        <button type="button" class="accion" id="todo">Mostrar todo</button>
+        <button type="button" class="accion" id="nada">Ocultar todo</button>
+      </div>
+      <p class="nota">Antes de abrir cada tarjeta, predice qué va en ella. Haz clic en una tarjeta para revelarla.</p>
+      <div class="diagrama" id="diagrama"></div>
+      <div class="lectura leccion" id="leccion" hidden></div>
+      <button type="button" class="accion" id="verLeccion">Ver la lección del caso</button>
+      <div class="preguntas">
+        <h3>Para explorar</h3>
+        <ol>
+          <li>Antes de abrir las tarjetas de LED-it-GO, predice: ¿cuál de los 7 elementos no existe en este ataque? ¿Por qué el atacante no lo necesita?</li>
+          <li>En el caso del phishing, ¿el filtro antispam es ruido? ¿Cuándo se comporta como ruido?</li>
+          <li>Para cada caso, elige el elemento donde intervendrías primero y propón un control concreto.</li>
+        </ol>
+      </div>
+      <div class="seguridad">
+        <b>Seguridad.</b> Un <b>canal encubierto</b> es un canal que no fue diseñado para transferir información y que un proceso aprovecha para filtrarla, en contra de la política de seguridad del sistema. Por eso un sistema <i>air-gapped</i> no es tan seguro como parece: la investigación ha construido canales encubiertos con emisiones acústicas, electromagnéticas, ópticas o térmicas del propio hardware. Usar el esquema de los 7 elementos como lista de verificación ayuda a encontrar dónde intervenir.
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fuentes: fase1/cap01_electricidad.tex (Introducción a la transmisión de señales, def:canal-encubierto, ejemplo LED-it-GO) y fase2/cap01_evolucion_comunicacion.tex (fig:proceso-comunicacion, ejemplo del phishing, def:codificacion-canal). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+
+  // Pestañas (también se abre una pestaña directa con #2 al final de la dirección)
+  function activarVista(id) {
+    var b = document.querySelector('nav.pestanas button[data-vista="' + id + '"]');
+    if (!b) return;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+    b.classList.add("activo");
+    document.getElementById(id).classList.add("activo");
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activarVista(b.dataset.vista); dibujarTodo(); });
+  });
+  if (/^#\d$/.test(location.hash)) activarVista("v" + location.hash.slice(1));
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+  // ---------------------------------------------------------------- dibujo básico
+  function letra(w) { return Math.max(13, Math.min(17, w / 50)); }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1;
+    if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function flecha(g, x0, y0, x1, y1, color, ancho, guiones) {
+    var ang = Math.atan2(y1 - y0, x1 - x0), largo = Math.hypot(x1 - x0, y1 - y0);
+    if (largo < 0.5) return;
+    var p = Math.min(12 + (ancho || 2), largo * 0.55);
+    linea(g, x0, y0, x1 - p * 0.7 * Math.cos(ang), y1 - p * 0.7 * Math.sin(ang), color, ancho, guiones);
+    g.save(); g.fillStyle = color; g.beginPath(); g.moveTo(x1, y1);
+    g.lineTo(x1 - p * Math.cos(ang - 0.4), y1 - p * Math.sin(ang - 0.4));
+    g.lineTo(x1 - p * Math.cos(ang + 0.4), y1 - p * Math.sin(ang + 0.4));
+    g.closePath(); g.fill(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita, fuente) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + tam + "px " + (fuente || "Calibri, 'Segoe UI', sans-serif");
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function caja(g, x, y, w, h, relleno, borde, ancho, guiones) {
+    g.save(); g.beginPath();
+    var r = Math.min(10, h / 4);
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+    if (relleno) { g.fillStyle = relleno; g.fill(); }
+    if (borde) { g.strokeStyle = borde; g.lineWidth = ancho || 2; if (guiones) g.setLineDash(guiones); g.stroke(); }
+    g.restore();
+  }
+
+  // =================================================================== VISTA 1: modelo
+  var MAX_INTENTOS = 25;
+  function bits8(code) { return ("00000000" + code.toString(2)).slice(-8); }
+  function paridad(b) { var n = 0; for (var k = 0; k < b.length; k++) if (b.charAt(k) === "1") n++; return n % 2 ? "1" : "0"; }
+  function verChar(code) {
+    if (code === 32) return "␣";
+    if (code > 32 && code < 127) return String.fromCharCode(code);
+    return "□";
+  }
+  function charTexto(code) { return code >= 32 && code < 127 ? String.fromCharCode(code) : "□"; }
+  // Solo ASCII imprimible (32 a 126): se quitan acentos; lo demás se cambia por "?"
+  function aAscii(t) {
+    var s = t.normalize ? t.normalize("NFD").replace(/[̀-ͯ]/g, "") : t, out = "";
+    for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); out += (c >= 32 && c <= 126) ? s.charAt(i) : "?"; }
+    return out.slice(0, 16);
+  }
+
+  // Una transmisión completa: cada bit se invierte con probabilidad p
+  function transmitir(msg, p, retro) {
+    var r = { chars: [], bitsTx: 0, inv: 0, reenvios: 0, alteradas: 0, noDetectados: 0, sinResolver: 0 };
+    for (var i = 0; i < msg.length; i++) {
+      var code = msg.charCodeAt(i), b = bits8(code), env = retro ? b + paridad(b) : b, intentos = [], ult;
+      do {
+        var rx = "", flips = [];
+        for (var k = 0; k < env.length; k++) {
+          var bit = env.charAt(k);
+          if (Math.random() < p) { bit = bit === "1" ? "0" : "1"; flips.push(k); }
+          rx += bit;
+        }
+        r.bitsTx += env.length; r.inv += flips.length;
+        ult = { rx: rx, flips: flips, detectado: retro && paridad(rx.slice(0, 8)) !== rx.charAt(8) };
+        intentos.push(ult);
+      } while (retro && ult.detectado && intentos.length < MAX_INTENTOS);
+      var datos = ult.rx.slice(0, 8), ok = datos === b, noDet = retro && !ok && !ult.detectado;
+      if (!ok) r.alteradas++;
+      if (noDet) r.noDetectados++;
+      if (ult.detectado) r.sinResolver++;
+      r.reenvios += intentos.length - 1;
+      r.chars.push({ ch: msg.charAt(i), code: code, b: b, env: env, intentos: intentos, codeRx: parseInt(datos, 2), ok: ok, noDet: noDet });
+    }
+    return r;
+  }
+
+  // =================================================================== VISTA 1: estado y controles
+  var cv = document.getElementById("diag");
+  var inp = { msg: document.getElementById("msg"), ruido: document.getElementById("ruido"), retro: document.getElementById("retro"),
+              vel: document.getElementById("vel") };
+  var st = { msg: aAscii(inp.msg.value), p: 0.03, retro: false };
+  var tx = null;              // resultado de la última transmisión
+  var anim = null;            // { pasos, k, t0, T }
+  var entregados = 0;         // caracteres ya entregados al destino
+  var estad = null;           // resultado de "Enviar 1000 veces"
+
+  function leerControles() {
+    var limpio = aAscii(inp.msg.value);
+    st.msg = limpio; st.p = Number(inp.ruido.value) / 100; st.retro = inp.retro.checked;
+    document.getElementById("ruidoV").textContent = num(Number(inp.ruido.value), 1) + " %";
+    var nota = "Código: ASCII de 8 bits por carácter" + (st.retro ? " + 1 bit de paridad." : ".");
+    if (limpio !== inp.msg.value) nota += " Se enviará \"" + limpio + "\" (solo ASCII: sin acentos ni ñ).";
+    document.getElementById("notaAscii").textContent = nota;
+  }
+  function cambioControles() {
+    leerControles();
+    detener(); tx = null; estad = null; entregados = 0;
+    pintarTarjetas(); pintarDestino(); lectura(); dibujarDiagrama();
+  }
+  inp.msg.addEventListener("input", cambioControles);
+  inp.ruido.addEventListener("input", cambioControles);
+  inp.retro.addEventListener("change", cambioControles);
+  inp.vel.addEventListener("change", function () { if (anim && Number(inp.vel.value) === 0) terminarYa(); });
+  document.getElementById("enviar").addEventListener("click", enviar);
+  document.getElementById("saltar").addEventListener("click", terminarYa);
+  document.getElementById("mil").addEventListener("click", mil);
+
+  function enviar() {
+    leerControles(); detener(); estad = null;
+    if (!st.msg.length) { lectura(); return; }
+    tx = transmitir(st.msg, st.p, st.retro);
+    entregados = 0;
+    var T = Number(inp.vel.value);
+    if (T === 0) { entregados = tx.chars.length; finAnim(); return; }
+    var pasos = [];
+    tx.chars.forEach(function (c, i) {
+      c.intentos.forEach(function (it, j) {
+        pasos.push({ tipo: "viaje", i: i, j: j, dur: T });
+        if (it.detectado) pasos.push({ tipo: "nak", i: i, j: j, dur: 0.7 * T });
+      });
+      pasos.push({ tipo: "entrega", i: i, dur: 0.3 * T });
+    });
+    anim = { pasos: pasos, k: 0, t0: null };
+    document.getElementById("saltar").disabled = false;
+    pintarTarjetas(); pintarDestino(); lectura();
+    requestAnimationFrame(cuadro);
+  }
+  function detener() { anim = null; document.getElementById("saltar").disabled = true; }
+  function terminarYa() { if (!tx) return; detener(); entregados = tx.chars.length; finAnim(); }
+  function finAnim() {
+    detener(); pintarTarjetas(); pintarDestino(); lectura(); dibujarDiagrama();
+  }
+  function cuadro(ahora) {
+    if (!anim) return;
+    if (anim.t0 === null) anim.t0 = ahora;
+    var paso = anim.pasos[anim.k], u = (ahora - anim.t0) / (paso.dur * 1000);
+    if (u >= 1) {
+      if (paso.tipo === "entrega") { entregados = paso.i + 1; pintarTarjetas(); pintarDestino(); }
+      anim.k++; anim.t0 = ahora;
+      if (anim.k >= anim.pasos.length) { finAnim(); return; }
+      paso = anim.pasos[anim.k]; u = 0;
+    }
+    dibujarDiagrama(paso, u);
+    requestAnimationFrame(cuadro);
+  }
+
+  function mil() {
+    leerControles(); detener();
+    if (!st.msg.length) return;
+    var N = 1000, a = { alt: 0, perfectos: 0, reenv: 0, noDet: 0, bitsTx: 0, inv: 0 };
+    for (var n = 0; n < N; n++) {
+      var r = transmitir(st.msg, st.p, st.retro);
+      a.alt += r.alteradas; if (r.alteradas === 0) a.perfectos++;
+      a.reenv += r.reenvios; a.noDet += r.noDetectados; a.bitsTx += r.bitsTx; a.inv += r.inv;
+    }
+    a.N = N; estad = a; tx = null; entregados = 0;
+    pintarTarjetas(); pintarDestino(); lectura(); dibujarDiagrama();
+  }
+
+  // =================================================================== VISTA 1: lecturas y tarjetas
+  function lectura() {
+    var n = st.msg.length, p = st.p, q8 = Math.pow(1 - p, 8);
+    var h = "<b>Predicción</b> (antes de enviar)" +
+      "<span class='formula'>Una letra cruza intacta: (1 − p)⁸ = (" + num(1 - p, 3) + ")⁸ = " + num(q8, 3) + "</span>" +
+      "Sin retroalimentación se esperan ≈ " + n + " × " + num(1 - q8, 3) + " = <b>" + num(n * (1 - q8), 1) + "</b> letras alteradas de " + n + ".";
+    if (estad) {
+      var a = estad, bitsMsg = 8 * n * a.N;
+      h += "<hr><b>Resultado de 1000 envíos</b>" +
+        "<br>Letras alteradas por mensaje (promedio): <b>" + num(a.alt / a.N, 2) + "</b>" +
+        "<br>Mensajes que llegaron perfectos: <b>" + num(100 * a.perfectos / a.N, 1) + " %</b>" +
+        (st.retro ? "<br>Reenvíos por mensaje (promedio): <b>" + num(a.reenv / a.N, 2) + "</b>" +
+          "<br>Letras equivocadas que la paridad no detectó: <b>" + a.noDet + "</b> en " + num(n * a.N, 0) + " letras" : "") +
+        "<br>Eficiencia: " + num(bitsMsg, 0) + " / " + num(a.bitsTx, 0) + " = <b>" + num(100 * bitsMsg / a.bitsTx, 1) + " %</b>";
+    } else if (tx && !anim) {
+      var bitsMsg1 = 8 * n, porChar = st.retro ? 9 : 8;
+      h += "<hr><b>Resultado del envío</b>" +
+        "<br>Bits por carácter: " + (st.retro ? "8 (ASCII) + 1 de paridad = 9" : "8 (ASCII)") +
+        "<br>Bits transmitidos: " + n + " × " + porChar + (tx.reenvios ? " + " + tx.reenvios + " × " + porChar + " de reenvíos" : "") + " = <b>" + tx.bitsTx + "</b>" +
+        "<br>Bits invertidos por el ruido: <b>" + tx.inv + "</b> (se esperaban ≈ p·N = " + num(p, 3) + " × " + tx.bitsTx + " = " + num(p * tx.bitsTx, 1) + ")" +
+        (st.retro ? "<br>Reenvíos pedidos por el receptor: <b>" + tx.reenvios + "</b>" : "") +
+        "<br>Letras alteradas en el destino: <b class='" + (tx.alteradas ? "mal" : "ok") + "'>" + tx.alteradas + " de " + n + "</b>" +
+        (tx.noDetectados ? "<br><span class='mal'>Errores que la paridad no detectó: " + tx.noDetectados + "</span>" : "") +
+        "<br>Eficiencia: bits del mensaje / bits transmitidos = " + bitsMsg1 + " / " + tx.bitsTx + " = <b>" + num(100 * bitsMsg1 / tx.bitsTx, 1) + " %</b>";
+    } else if (anim) {
+      h += "<hr><i>Transmitiendo…</i>";
+    }
+    document.getElementById("lec1").innerHTML = h;
+  }
+
+  function bitsHtml(bits, flips, conParidad) {
+    var s = "";
+    for (var k = 0; k < bits.length; k++) {
+      var cls = (flips.indexOf(k) >= 0 ? "inv" : "") + (k === 8 ? " par" : "");
+      if (k === 4) s += " ";
+      if (k === 8) s += "|";
+      s += "<i class='" + cls.trim() + "'>" + bits.charAt(k) + "</i>";
+    }
+    return s;
+  }
+  function pintarTarjetas() {
+    var cont = document.getElementById("tarjetas"), h = "";
+    if (tx) {
+      for (var i = 0; i < entregados; i++) {
+        var c = tx.chars[i], ult = c.intentos[c.intentos.length - 1], reenv = c.intentos.length - 1;
+        h += "<div class='tarjeta" + (c.ok ? "" : " malo") + "'>" +
+          "<div class='cab'><span class='letra'>" + esc(verChar(c.code)) + "</span><span class='pie'>ASCII " + c.code + "</span></div>" +
+          "<div class='bits'><b>envió</b>" + bitsHtml(c.env, [], st.retro) + "</div>" +
+          "<div class='bits'><b>llegó</b>" + bitsHtml(ult.rx, ult.flips, st.retro) + "</div>" +
+          "<div class='cab'><span>→ <span class='letra'>" + esc(verChar(c.codeRx)) + "</span></span><span class='pie'>" +
+          (st.retro ? (reenv ? reenv + (reenv === 1 ? " reenvío" : " reenvíos") : "sin reenvíos") : "ASCII " + c.codeRx) + "</span></div>" +
+          (c.noDet ? "<div class='aviso'>Error no detectado</div>" : "") +
+          (ult.detectado ? "<div class='aviso'>Sigue con error tras " + MAX_INTENTOS + " intentos</div>" : "") +
+          (c.codeRx > 127 ? "<div class='pie'>" + c.codeRx + " no es un código ASCII</div>" : "") +
+          "</div>";
+      }
+    }
+    cont.innerHTML = h;
+  }
+  function pintarDestino() {
+    var el = document.getElementById("recibido"), res = document.getElementById("resumen"), h = "";
+    if (tx) {
+      for (var i = 0; i < entregados; i++) {
+        var c = tx.chars[i], t = esc(charTexto(c.codeRx));
+        if (t === " ") t = "&nbsp;";
+        h += c.ok ? t : "<span class='" + (c.noDet ? "nodet" : "malo") + "'>" + t + "</span>";
+      }
+      res.textContent = entregados === tx.chars.length ? "(envió: \"" + st.msg + "\")" : "";
+    } else {
+      res.textContent = estad ? "(se hicieron 1000 envíos: mira el resumen)" : "(presiona Enviar)";
+    }
+    el.innerHTML = h || "&nbsp;";
+  }
+
+  // =================================================================== VISTA 1: diagrama
+  // Disposición horizontal (como la figura del libro) o vertical en pantallas angostas
+  function disposicion(w, h, angosto, fs) {
+    var L = { vertical: angosto, cajas: [] }, k;
+    if (!angosto) {
+      var m = 10, hueco = 26, pesos = [1, 1.15, 1.7, 1.15, 1], unidad = (w - 2 * m - 4 * hueco) / 7, x = m;
+      var bt = h * 0.30, bh = h * 0.34;
+      pesos.forEach(function (pw) { L.cajas.push({ x: x, y: bt, w: pw * unidad, h: bh }); x += pw * unidad + hueco; });
+      var c0 = L.cajas[0], c4 = L.cajas[4], yFb = bt + bh + h * 0.17;
+      L.fb = [[c4.x + c4.w / 2, bt + bh], [c4.x + c4.w / 2, yFb], [c0.x + c0.w / 2, yFb], [c0.x + c0.w / 2, bt + bh + 2]];
+      L.fbTexto = { x: (c0.x + c4.x + c4.w) / 2, y: yFb + fs + 6, rot: false };
+    } else {
+      var bx = w * 0.2, bw = w * 0.58, top = 10, gap = Math.max(18, h * 0.045), alto = (h - top - 12 - 4 * gap) / 5;
+      for (k = 0; k < 5; k++) L.cajas.push({ x: bx, y: top + k * (alto + gap), w: bw, h: alto });
+      var a = L.cajas[0], z = L.cajas[4], xL = w * 0.07;
+      L.fb = [[z.x, z.y + z.h / 2], [xL, z.y + z.h / 2], [xL, a.y + a.h / 2], [a.x - 2, a.y + a.h / 2]];
+      L.fbTexto = { x: xL + fs * 0.9, y: (a.y + z.y + z.h) / 2, rot: true };
+    }
+    L.cajas.forEach(function (c) { c.cx = c.x + c.w / 2; c.cy = c.y + c.h / 2; });
+    return L;
+  }
+  function puntoEnRuta(ruta, u) {
+    var total = 0, i;
+    for (i = 1; i < ruta.length; i++) total += Math.hypot(ruta[i][0] - ruta[i - 1][0], ruta[i][1] - ruta[i - 1][1]);
+    var rec = u * total;
+    for (i = 1; i < ruta.length; i++) {
+      var l = Math.hypot(ruta[i][0] - ruta[i - 1][0], ruta[i][1] - ruta[i - 1][1]);
+      if (rec <= l) { var f = l ? rec / l : 0; return [ruta[i - 1][0] + (ruta[i][0] - ruta[i - 1][0]) * f, ruta[i - 1][1] + (ruta[i][1] - ruta[i - 1][1]) * f]; }
+      rec -= l;
+    }
+    return ruta[ruta.length - 1];
+  }
+
+  function dibujarDiagrama(paso, u) {
+    var angosto = cv.clientWidth < 600;
+    var d = preparar(cv, angosto ? 1.45 : 0.4), g = d.g, w = d.w, h = d.h, fs = letra(w);
+    var L = disposicion(w, h, angosto, fs), cajas = L.cajas, cc = cajas[2];
+    var nombres = ["Fuente", "Codificador", "Canal", "Decodificador", "Destino"];
+    var mono = "Consolas, 'Courier New', monospace", grande = Math.round(fs * 1.7);
+    var actual = null, intento = null;
+    if (paso && tx) { actual = tx.chars[paso.i]; intento = paso.j !== undefined ? actual.intentos[paso.j] : actual.intentos[actual.intentos.length - 1]; }
+    else if (tx && entregados) { actual = tx.chars[entregados - 1]; intento = actual.intentos[actual.intentos.length - 1]; }
+    var ruidoCol = st.p > 0 ? C.guinda : "#A8AFBA", ruidoTxt = "Ruido: p = " + num(100 * st.p, 1) + " %";
+
+    // grupos EMISOR y RECEPTOR
+    function grupo(c0, c1, etiqueta) {
+      if (!L.vertical) {
+        var y = c0.y - h * 0.07;
+        linea(g, c0.x, y, c1.x + c1.w, y, C.azulOscuro, 1.5);
+        linea(g, c0.x, y, c0.x, y + 6, C.azulOscuro, 1.5); linea(g, c1.x + c1.w, y, c1.x + c1.w, y + 6, C.azulOscuro, 1.5);
+        texto(g, etiqueta, (c0.x + c1.x + c1.w) / 2, y - 6, C.azulOscuro, fs, "center", "alphabetic", true);
+      } else {
+        var x = c0.x + c0.w + 10;
+        linea(g, x, c0.y, x, c1.y + c1.h, C.azulOscuro, 1.5);
+        linea(g, x - 6, c0.y, x, c0.y, C.azulOscuro, 1.5); linea(g, x - 6, c1.y + c1.h, x, c1.y + c1.h, C.azulOscuro, 1.5);
+        g.save(); g.translate(x + fs * 0.9, (c0.y + c1.y + c1.h) / 2); g.rotate(Math.PI / 2);
+        texto(g, etiqueta, 0, 0, C.azulOscuro, fs, "center", "alphabetic", true); g.restore();
+      }
+    }
+    grupo(cajas[0], cajas[1], "EMISOR");
+    grupo(cajas[3], cajas[4], "RECEPTOR");
+    // ruido
+    if (!L.vertical) {
+      texto(g, ruidoTxt, cc.cx, fs + 4, ruidoCol, fs, "center", "alphabetic", true);
+      flecha(g, cc.cx, fs + 10, cc.cx, cc.y - 2, ruidoCol, 3);
+    } else {
+      flecha(g, w - 4, cc.cy, cc.x + cc.w + 2, cc.cy, ruidoCol, 3);
+    }
+    // cajas y flechas del flujo
+    cajas.forEach(function (c, i) {
+      caja(g, c.x, c.y, c.w, c.h, i === 2 ? C.oroClaro : C.azulClaro, C.azulOscuro, 2.2);
+      if (!L.vertical) texto(g, nombres[i], c.cx, c.y + fs + 6, C.azulOscuro, fs, "center", "alphabetic", true);
+      else texto(g, nombres[i], c.x + 8, c.y + fs + 3, C.azulOscuro, fs, "left", "alphabetic", true);
+      if (i < 4) {
+        var s2 = cajas[i + 1];
+        if (!L.vertical) flecha(g, c.x + c.w + 2, c.cy, s2.x - 2, s2.cy, C.azulOscuro, 2.5);
+        else flecha(g, c.cx, c.y + c.h + 2, s2.cx, s2.y - 2, C.azulOscuro, 2.5);
+      }
+    });
+    if (L.vertical) texto(g, ruidoTxt, cc.x + cc.w - 6, cc.y + fs + 3, ruidoCol, fs - 1, "right", "alphabetic", true);
+    // ruido como puntitos dentro del canal (más densos con más ruido)
+    if (st.p > 0) {
+      var nPuntos = Math.round(400 * st.p), sem = 7;
+      g.save(); g.fillStyle = "rgba(140,29,53,0.35)";
+      for (var k = 0; k < nPuntos; k++) {
+        sem = (sem * 9301 + 49297) % 233280; var rx = sem / 233280;
+        sem = (sem * 9301 + 49297) % 233280; var ry = sem / 233280;
+        g.fillRect(cc.x + 4 + rx * (cc.w - 8), cc.y + fs + 10 + ry * (cc.h - fs - 14), 2, 2);
+      }
+      g.restore();
+    }
+    // contenido de las cajas: horizontal, al centro; vertical, a la derecha
+    function contenido(c, t, fila, color, tam, negrita, fuente) {
+      if (!L.vertical) texto(g, t, c.cx, c.y + c.h * (fila === 2 ? 0.78 : 0.5) + (fila === 1 ? fs * 1.25 : 0), color, tam, "center", "alphabetic", negrita, fuente);
+      else texto(g, t, c.x + c.w - 8, c.y + (fila === 2 ? c.h * 0.82 : c.h * 0.6 + (fila === 1 ? fs * 1.15 : 0)), color, tam, "right", "alphabetic", negrita, fuente);
+    }
+    if (actual) {
+      contenido(cajas[0], verChar(actual.code), 2, C.azulOscuro, grande, true, mono);
+      contenido(cajas[1], "ASCII " + actual.code, 0, C.tinta, fs - 1);
+      contenido(cajas[1], actual.b, 1, C.azulOscuro, fs - 1, true, mono);
+    } else {
+      contenido(cajas[0], "mensaje", L.vertical ? 0 : 2, C.gris, fs - 1);
+      contenido(cajas[1], "texto → bits", L.vertical ? 0 : 2, C.gris, fs - 1);
+      contenido(cajas[3], "bits → texto", L.vertical ? 0 : 2, C.gris, fs - 1);
+    }
+    // estado del decodificador y del destino
+    var enDec = paso && paso.tipo === "viaje" && u > 0.92, decTexto = "";
+    if (intento && (enDec || (paso && paso.tipo !== "viaje") || (!paso && tx))) {
+      if (st.retro) decTexto = intento.detectado ? "✗ paridad" : "✓ paridad";
+      else decTexto = "sin revisión";
+    }
+    if (decTexto) contenido(cajas[3], decTexto, 0, decTexto.charAt(0) === "✗" ? C.guinda : C.azul, fs - 1, true);
+    if (actual && (!paso || paso.tipo === "entrega")) contenido(cajas[4], verChar(actual.codeRx), 2, actual.ok ? C.azul : C.guinda, grande, true, mono);
+    // retroalimentación (línea punteada del receptor al emisor, como en el libro)
+    var colFb = st.retro ? C.gris : "#C9CED6", fb = L.fb;
+    for (var t = 1; t < fb.length; t++) {
+      if (t < fb.length - 1) linea(g, fb[t - 1][0], fb[t - 1][1], fb[t][0], fb[t][1], colFb, 2, [6, 5]);
+      else flecha(g, fb[t - 1][0], fb[t - 1][1], fb[t][0], fb[t][1], colFb, 2, [6, 5]);
+    }
+    var fbT = st.retro ? (L.vertical ? "Retroalimentación" : "Retroalimentación: \"¡repite el carácter!\"") :
+      (L.vertical ? "Sin retroalimentación" : "Sin retroalimentación (canal de un solo sentido)");
+    if (!L.fbTexto.rot) texto(g, fbT, L.fbTexto.x, L.fbTexto.y, st.retro ? C.tinta : "#8A93A3", fs - 1, "center", "alphabetic", !!st.retro);
+    else {
+      g.save(); g.translate(L.fbTexto.x, L.fbTexto.y); g.rotate(-Math.PI / 2);
+      texto(g, fbT, 0, 0, st.retro ? C.tinta : "#8A93A3", fs - 1, "center", "alphabetic", !!st.retro); g.restore();
+    }
+    // el tren de bits cruza el canal; un bit invertido cambia al pasar por la mitad del canal
+    if (paso && paso.tipo === "viaje" && intento) {
+      var nb = actual.env.length, x0, x1, yb, s;
+      if (!L.vertical) {
+        s = Math.min(22, Math.max(9, (cc.w + 52) / (nb + 1.5)));
+        var largo = nb * (s + 2) + (nb > 8 ? 6 : 0);
+        x0 = cajas[1].x + cajas[1].w - largo * 0.6; x1 = cajas[3].x + largo * 0.6 - largo; yb = cc.y + cc.h * 0.62;
+      } else {
+        s = Math.min(22, Math.max(9, cc.w / (nb + 2.5)));
+        var largo2 = nb * (s + 2) + (nb > 8 ? 6 : 0);
+        x0 = cc.x - largo2 * 0.5; x1 = cc.x + cc.w - largo2 * 0.5; yb = cc.y + cc.h - s * 1.25 - 5;
+      }
+      var xi = x0 + (x1 - x0) * u;
+      for (var k2 = 0; k2 < nb; k2++) {
+        var xk = xi + k2 * (s + 2) + (k2 === 8 ? 6 : 0), centro = xk + s / 2;
+        var invertido = intento.flips.indexOf(k2) >= 0 && centro > cc.cx;
+        var valor = invertido ? intento.rx.charAt(k2) : actual.env.charAt(k2);
+        caja(g, xk, yb, s, s * 1.25, invertido ? C.guinda : (k2 === 8 ? C.oro : C.azul), "#fff", 1);
+        if (s >= 12) texto(g, valor, xk + s / 2, yb + s * 0.66, "#fff", Math.round(s * 0.8), "center", "middle", true, mono);
+      }
+    }
+    // la petición de reenvío viaja de regreso por la retroalimentación
+    if (paso && paso.tipo === "nak") {
+      var pt = puntoEnRuta(fb, u);
+      caja(g, pt[0] - fs * 2.6, pt[1] - fs * 0.8, fs * 5.2, fs * 1.6, C.guinda, "#fff", 1.5);
+      texto(g, "¡repite!", pt[0], pt[1] + 1, "#fff", fs - 1, "center", "middle", true);
+    }
+    // contador del carácter
+    if (paso && tx) {
+      var info = "Carácter " + (paso.i + 1) + " de " + tx.chars.length + (paso.j ? " · reenvío " + paso.j : "");
+      if (!L.vertical) texto(g, info, w - 10, h - 8, C.gris, fs - 1, "right");
+      else texto(g, info, cajas[0].x + cajas[0].w - 6, cajas[0].y + fs + 3, C.gris, fs - 2, "right");
+    }
+  }
+
+  // =================================================================== VISTA 2: casos
+  var ELEMENTOS = [
+    { id: "emisor", nombre: "Emisor", def: "Quien origina el mensaje (fuente + codificador)." },
+    { id: "mensaje", nombre: "Mensaje", def: "La información que se transmite." },
+    { id: "codigo", nombre: "Código", def: "El sistema de símbolos que comparten emisor y receptor." },
+    { id: "canal", nombre: "Canal", def: "El medio físico por el que viaja la señal." },
+    { id: "ruido", nombre: "Ruido", def: "Cualquier perturbación que distorsiona la señal en el canal." },
+    { id: "receptor", nombre: "Receptor", def: "Quien recibe el mensaje (decodificador + destino)." },
+    { id: "retro", nombre: "Retroalimentación", def: "La respuesta del receptor al emisor; no está en el modelo de Shannon." }
+  ];
+  var CASOS = {
+    led: {
+      desc: "Un malware hace parpadear el LED de actividad del disco duro de un equipo aislado (air-gapped) y una cámara o un sensor óptico registra el parpadeo.",
+      el: {
+        emisor: { t: "El malware instalado en el equipo aislado." },
+        mensaje: { t: "Los datos robados." },
+        codigo: { t: "LED encendido = 1, apagado = 0." },
+        canal: { t: "La luz del LED.", c: "Control: tapar el LED." },
+        ruido: { t: "La luz ambiental y los parpadeos legítimos del disco.", c: "Control: generar parpadeos aleatorios." },
+        receptor: { t: "La cámara o el sensor del atacante: hasta unos 4000 bit/s con un sensor de luz y del orden de 120 bit/s con una videocámara.", c: "Control: vigilar quién apunta un sensor al equipo." },
+        retro: { t: "No hay: el canal es de un solo sentido." }
+      },
+      leccion: "Cada elemento sugiere un control: tapar el LED (canal), vigilar quién apunta un sensor al equipo (receptor) o generar parpadeos aleatorios (ruido). El canal no es el que previó el diseñador del sistema, sino uno improvisado a partir de una propiedad física del equipo: es un <b>canal encubierto</b>."
+    },
+    phishing: {
+      desc: "Un profesional de seguridad de la información investiga un correo de phishing y lo describe con el esquema de comunicación.",
+      el: {
+        emisor: { t: "El atacante (la fuente)." },
+        mensaje: { t: "El correo fraudulento." },
+        codigo: { t: "El formato y el lenguaje compartidos: HTML, MIME, el idioma y la marca que se imita." },
+        canal: { t: "SMTP y los servidores de correo.", c: "El filtro antispam es un control colocado en el canal." },
+        ruido: { t: "Ojo: el filtro antispam no es ruido, porque el ruido es una perturbación no intencional. Solo se comporta como ruido cuando se equivoca y descarta un correo legítimo." },
+        receptor: { t: "El empleado (el destino).", c: "Control: capacitar al destino." },
+        retro: { t: "El libro no la asigna en este ejemplo. Discútanlo en equipo: ¿qué le regresa al atacante?" }
+      },
+      leccion: "Pensar el incidente con este esquema ayuda a identificar en qué punto de la cadena conviene intervenir: <b>filtrar el canal, capacitar al destino, o ambas cosas</b>."
+    }
+  };
+  var abiertos = {};
+  function pintarCaso() {
+    var caso = CASOS[document.getElementById("caso").value];
+    document.getElementById("casoDesc").textContent = caso.desc;
+    var porId = {}; ELEMENTOS.forEach(function (e) { porId[e.id] = e; });
+    function tarjeta(id) {
+      var e = porId[id], a = !!abiertos[id], dato = caso.el[id];
+      return "<button type='button' class='elemento e-" + id + (a ? " abierto" : "") + (id === "ruido" ? " ruido" : "") + (id === "retro" ? " retro" : "") +
+        "' data-id='" + id + "' aria-expanded='" + a + "'><span class='nombre'>" + e.nombre + "</span><span class='def'>" + e.def + "</span>" +
+        (a ? "<span class='caso'>" + dato.t + (dato.c ? "<span class='control'>" + dato.c + "</span>" : "") + "</span>" : "<span class='oculto'>?</span>") +
+        "</button>";
+    }
+    var h = tarjeta("mensaje") + tarjeta("ruido") + "<div class='baja'>↓</div>" +
+      tarjeta("emisor") + "<div class='flecha f1'>→</div>" + tarjeta("codigo") + "<div class='flecha f2'>→</div>" +
+      tarjeta("canal") + "<div class='flecha f3'>→</div>" + tarjeta("receptor") + tarjeta("retro");
+    var dg = document.getElementById("diagrama");
+    dg.innerHTML = h;
+    dg.querySelectorAll(".elemento").forEach(function (b) {
+      b.addEventListener("click", function () { abiertos[b.dataset.id] = !abiertos[b.dataset.id]; pintarCaso(); });
+    });
+    var lec = document.getElementById("leccion");
+    lec.innerHTML = "<b>Lección del caso.</b> " + caso.leccion;
+  }
+  document.getElementById("caso").addEventListener("change", function () {
+    abiertos = {}; document.getElementById("leccion").hidden = true; pintarCaso();
+  });
+  document.getElementById("todo").addEventListener("click", function () { ELEMENTOS.forEach(function (e) { abiertos[e.id] = true; }); pintarCaso(); });
+  document.getElementById("nada").addEventListener("click", function () { abiertos = {}; document.getElementById("leccion").hidden = true; pintarCaso(); });
+  document.getElementById("verLeccion").addEventListener("click", function () {
+    var l = document.getElementById("leccion"); l.hidden = !l.hidden;
+  });
+
+  // ---------------------------------------------------------------- todo
+  function dibujarTodo() { if (!anim) dibujarDiagrama(); }
+  var temporizador = null;
+  window.addEventListener("resize", function () { clearTimeout(temporizador); temporizador = setTimeout(dibujarTodo, 80); });
+  leerControles(); pintarTarjetas(); pintarDestino(); lectura(); pintarCaso(); dibujarTodo();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-01-proceso-comunicacion.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM15 2h1v1h-1zM19 2h5v1h-5zM25 2h1v1h-1zM27 2h1v1h-1zM30 2h2v1h-2zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h8v1h-8zM20 3h1v1h-1zM22 3h1v1h-1zM25 3h3v1h-3zM30 3h3v1h-3zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM17 4h1v1h-1zM19 4h1v1h-1zM22 4h1v1h-1zM26 4h1v1h-1zM29 4h1v1h-1zM33 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h6v1h-6zM21 5h1v1h-1zM23 5h1v1h-1zM25 5h1v1h-1zM28 5h1v1h-1zM30 5h1v1h-1zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM17 6h3v1h-3zM21 6h1v1h-1zM23 6h2v1h-2zM26 6h1v1h-1zM28 6h3v1h-3zM33 6h1v1h-1zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM12 7h5v1h-5zM20 7h5v1h-5zM27 7h1v1h-1zM30 7h1v1h-1zM32 7h3v1h-3zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h2v1h-2zM14 9h6v1h-6zM21 9h1v1h-1zM26 9h1v1h-1zM31 9h2v1h-2zM2 10h1v1h-1zM4 10h2v1h-2zM7 10h3v1h-3zM11 10h4v1h-4zM16 10h1v1h-1zM19 10h2v1h-2zM22 10h2v1h-2zM25 10h2v1h-2zM28 10h1v1h-1zM30 10h4v1h-4zM36 10h1v1h-1zM39 10h1v1h-1zM41 10h2v1h-2zM3 11h1v1h-1zM5 11h3v1h-3zM9 11h2v1h-2zM14 11h1v1h-1zM16 11h1v1h-1zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h3v1h-3zM3 12h4v1h-4zM8 12h2v1h-2zM11 12h1v1h-1zM14 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM24 12h5v1h-5zM30 12h1v1h-1zM35 12h2v1h-2zM40 12h2v1h-2zM2 13h1v1h-1zM6 13h1v1h-1zM9 13h2v1h-2zM13 13h3v1h-3zM17 13h1v1h-1zM21 13h1v1h-1zM24 13h1v1h-1zM26 13h2v1h-2zM29 13h2v1h-2zM34 13h1v1h-1zM41 13h1v1h-1zM5 14h1v1h-1zM7 14h2v1h-2zM10 14h3v1h-3zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM26 14h6v1h-6zM33 14h1v1h-1zM37 14h1v1h-1zM39 14h3v1h-3zM3 15h1v1h-1zM6 15h2v1h-2zM10 15h2v1h-2zM14 15h1v1h-1zM16 15h1v1h-1zM22 15h1v1h-1zM25 15h2v1h-2zM28 15h1v1h-1zM31 15h1v1h-1zM33 15h1v1h-1zM36 15h1v1h-1zM39 15h1v1h-1zM41 15h2v1h-2zM3 16h2v1h-2zM6 16h1v1h-1zM8 16h2v1h-2zM11 16h1v1h-1zM14 16h2v1h-2zM21 16h5v1h-5zM33 16h2v1h-2zM36 16h7v1h-7zM2 17h1v1h-1zM4 17h1v1h-1zM9 17h1v1h-1zM13 17h1v1h-1zM15 17h4v1h-4zM23 17h3v1h-3zM28 17h2v1h-2zM34 17h1v1h-1zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM3 18h1v1h-1zM7 18h5v1h-5zM13 18h3v1h-3zM18 18h1v1h-1zM20 18h1v1h-1zM22 18h3v1h-3zM27 18h1v1h-1zM33 18h1v1h-1zM38 18h1v1h-1zM41 18h2v1h-2zM2 19h2v1h-2zM5 19h2v1h-2zM11 19h2v1h-2zM18 19h1v1h-1zM22 19h4v1h-4zM27 19h1v1h-1zM29 19h1v1h-1zM31 19h1v1h-1zM35 19h1v1h-1zM37 19h1v1h-1zM39 19h1v1h-1zM5 20h2v1h-2zM8 20h2v1h-2zM11 20h1v1h-1zM13 20h1v1h-1zM16 20h1v1h-1zM20 20h1v1h-1zM22 20h1v1h-1zM24 20h1v1h-1zM29 20h1v1h-1zM31 20h1v1h-1zM34 20h2v1h-2zM38 20h4v1h-4zM2 21h1v1h-1zM4 21h2v1h-2zM10 21h1v1h-1zM12 21h3v1h-3zM16 21h1v1h-1zM18 21h3v1h-3zM23 21h1v1h-1zM26 21h1v1h-1zM29 21h1v1h-1zM37 21h1v1h-1zM39 21h2v1h-2zM42 21h1v1h-1zM5 22h4v1h-4zM11 22h2v1h-2zM14 22h4v1h-4zM21 22h1v1h-1zM25 22h1v1h-1zM27 22h1v1h-1zM32 22h1v1h-1zM35 22h2v1h-2zM38 22h3v1h-3zM42 22h1v1h-1zM7 23h1v1h-1zM10 23h7v1h-7zM19 23h1v1h-1zM21 23h3v1h-3zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h1v1h-1zM38 23h1v1h-1zM40 23h3v1h-3zM5 24h1v1h-1zM7 24h6v1h-6zM19 24h1v1h-1zM23 24h5v1h-5zM30 24h3v1h-3zM35 24h7v1h-7zM4 25h2v1h-2zM11 25h1v1h-1zM13 25h6v1h-6zM21 25h1v1h-1zM26 25h2v1h-2zM32 25h3v1h-3zM37 25h2v1h-2zM41 25h2v1h-2zM2 26h2v1h-2zM7 26h2v1h-2zM11 26h1v1h-1zM13 26h1v1h-1zM15 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM40 26h3v1h-3zM7 27h1v1h-1zM9 27h2v1h-2zM12 27h1v1h-1zM15 27h1v1h-1zM17 27h1v1h-1zM19 27h3v1h-3zM26 27h1v1h-1zM28 27h4v1h-4zM33 27h2v1h-2zM36 27h1v1h-1zM39 27h2v1h-2zM42 27h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM8 28h2v1h-2zM15 28h2v1h-2zM20 28h3v1h-3zM24 28h1v1h-1zM27 28h2v1h-2zM33 28h2v1h-2zM37 28h1v1h-1zM39 28h1v1h-1zM41 28h2v1h-2zM4 29h1v1h-1zM7 29h1v1h-1zM9 29h1v1h-1zM11 29h1v1h-1zM16 29h2v1h-2zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h3v1h-3zM37 29h1v1h-1zM39 29h1v1h-1zM2 30h3v1h-3zM6 30h4v1h-4zM14 30h1v1h-1zM17 30h2v1h-2zM20 30h1v1h-1zM22 30h3v1h-3zM26 30h2v1h-2zM29 30h1v1h-1zM32 30h4v1h-4zM37 30h3v1h-3zM3 31h4v1h-4zM10 31h5v1h-5zM16 31h2v1h-2zM20 31h5v1h-5zM27 31h2v1h-2zM31 31h2v1h-2zM34 31h2v1h-2zM39 31h2v1h-2zM2 32h1v1h-1zM5 32h6v1h-6zM12 32h1v1h-1zM15 32h1v1h-1zM17 32h5v1h-5zM24 32h1v1h-1zM28 32h1v1h-1zM35 32h3v1h-3zM39 32h1v1h-1zM41 32h1v1h-1zM4 33h1v1h-1zM6 33h1v1h-1zM10 33h2v1h-2zM13 33h2v1h-2zM18 33h4v1h-4zM24 33h2v1h-2zM29 33h4v1h-4zM36 33h1v1h-1zM38 33h5v1h-5zM3 34h1v1h-1zM8 34h5v1h-5zM15 34h2v1h-2zM18 34h3v1h-3zM22 34h2v1h-2zM28 34h2v1h-2zM31 34h10v1h-10zM42 34h1v1h-1zM10 35h1v1h-1zM13 35h1v1h-1zM15 35h1v1h-1zM19 35h5v1h-5zM25 35h1v1h-1zM27 35h2v1h-2zM30 35h1v1h-1zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM10 36h1v1h-1zM12 36h2v1h-2zM17 36h2v1h-2zM20 36h1v1h-1zM25 36h3v1h-3zM31 36h1v1h-1zM33 36h2v1h-2zM36 36h1v1h-1zM38 36h4v1h-4zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h3v1h-3zM14 37h2v1h-2zM17 37h3v1h-3zM21 37h2v1h-2zM25 37h1v1h-1zM30 37h1v1h-1zM32 37h3v1h-3zM38 37h1v1h-1zM41 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h3v1h-3zM15 38h2v1h-2zM21 38h1v1h-1zM23 38h1v1h-1zM26 38h1v1h-1zM28 38h2v1h-2zM32 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h1v1h-1zM12 39h1v1h-1zM15 39h1v1h-1zM17 39h1v1h-1zM21 39h1v1h-1zM23 39h2v1h-2zM26 39h1v1h-1zM28 39h2v1h-2zM32 39h3v1h-3zM38 39h2v1h-2zM41 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM12 40h5v1h-5zM18 40h1v1h-1zM21 40h3v1h-3zM26 40h1v1h-1zM32 40h2v1h-2zM37 40h1v1h-1zM40 40h3v1h-3zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM15 41h1v1h-1zM17 41h1v1h-1zM20 41h2v1h-2zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h1v1h-1zM13 42h1v1h-1zM17 42h4v1h-4zM22 42h4v1h-4zM27 42h1v1h-1zM32 42h3v1h-3zM36 42h1v1h-1zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-01-proceso-comunicacion.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

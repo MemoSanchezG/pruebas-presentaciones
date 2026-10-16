@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuerza de Lorentz</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .semana, footer { font-size:.94rem; }
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .renglon { margin:0 0 8px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  .lectura .formula { display:block; margin:2px 0 2px; }
+  .lectura .aparte { color:var(--gris); font-size:.95rem; border-top:1px dashed var(--oro); padding-top:6px; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  .opciones label, label.casilla { display:flex; gap:8px; align-items:flex-start; font-weight:normal;
+                                   color:var(--tinta); margin-top:6px; cursor:pointer; }
+  .opciones input, label.casilla input { margin:3px 0 0; width:18px; height:18px; flex:none; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:4px 10px 10px; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  .botonera { display:flex; flex-wrap:wrap; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .mano { margin-top:12px; padding:8px 10px; border:1px dashed var(--oro); border-radius:8px; }
+  .vistas { align-items:center; }
+  .vistas .rotulo { font-weight:bold; color:var(--azul-oscuro); margin:8px 8px 0 0; }
+  canvas + canvas { margin-top:10px; }
+  #cv3d { touch-action:pan-y; cursor:grab; }
+  #cvHdd { cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 3 · Cargas en movimiento y fuerza magnética</div>
+  <h1>Fuerza de Lorentz: el campo magnético empuja a las cargas que se mueven</h1>
+  <p class="sub">Mueve un protón o un electrón dentro de un campo uniforme, predice la fuerza con la regla de la mano derecha y mira cómo la misma fuerza mueve el brazo de un disco duro.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Carga en un campo</button>
+    <button type="button" data-vista="v2" role="tab">2. Actuador del disco duro</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La carga y el campo</h2>
+        <div class="opciones" role="radiogroup" aria-label="Partícula">
+          <label><input type="radio" name="part" value="p" checked> <span>Protón, q = +1.602×10⁻¹⁹ C</span></label>
+          <label><input type="radio" name="part" value="e"> <span>Electrón, q = −1.602×10⁻¹⁹ C</span></label>
+        </div>
+        <label for="vel">Rapidez v: <span class="valor" id="velV"></span></label>
+        <input id="vel" type="range" min="0" max="10" step="0.1" value="5">
+        <label for="campo">Campo B: <span class="valor" id="campoV"></span></label>
+        <input id="campo" type="range" min="0.01" max="1" step="0.01" value="0.05">
+        <label for="ang">Ángulo θ entre v y B: <span class="valor" id="angV"></span></label>
+        <input id="ang" type="range" min="0" max="180" step="1" value="90">
+        <label class="casilla"><input type="checkbox" id="invB"> <span>Invertir el sentido de B (que apunte hacia abajo)</span></label>
+        <div class="botonera">
+          <button type="button" class="accion" id="pausa1">Pausa</button>
+          <button type="button" class="accion" id="reinicio1">Reiniciar</button>
+        </div>
+        <div class="lectura" id="lect1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cv3d" aria-label="Vista en tres dimensiones de una región de campo magnético uniforme vertical con una carga que gira; flechas de la velocidad, del campo y de la fuerza, y la trayectoria"></canvas>
+        <div class="botonera vistas">
+          <span class="rotulo">Vista:</span>
+          <button type="button" class="accion" id="vista3d">3D</button>
+          <button type="button" class="accion" id="vistaArriba">Desde arriba</button>
+          <button type="button" class="accion" id="vistaLado">De lado</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="fijar"> <span>Fijar la escala del dibujo (para comparar partículas)</span></label>
+        <p class="nota">Arrastra el dibujo hacia los lados para girarlo. Las flechas no están a escala: v y B tienen largo fijo y el largo de F es proporcional a sen θ. La animación va en cámara lenta: una vuelta cada 4 s.</p>
+        <div class="mano"><b>Regla de la mano derecha.</b> Apunta los dedos en el sentido de v y dóblalos hacia B: el pulgar indica v × B. Si la carga es positiva, F apunta como el pulgar; si es negativa, al revés.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mirar la flecha F: ¿hacia dónde empujará el campo al protón? Usa la regla de la mano derecha y compruébalo con la vista "Desde arriba". ¿Qué cambia si eliges un electrón?</li>
+            <li>Baja el ángulo θ de 90° a 0° poco a poco. ¿Cómo cambian la fuerza y la forma de la trayectoria? ¿Qué pasa exactamente en θ = 0°?</li>
+            <li>Observa la rapidez durante el recorrido. Si el campo empuja a la carga, ¿por qué no la acelera ni la frena?</li>
+            <li>Con los mismos v y B, el protón y el electrón sienten fuerzas de la misma magnitud. ¿Por qué entonces sus trayectorias son tan distintas? (Usa "Fijar la escala".)</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad: el sensor de tu teléfono.</b> La fuerza de Lorentz desvía hacia un lado a los electrones que circulan por una placa conductora y aparece una tensión medible: es el efecto Hall, principio de los sensores Hall y de muchos magnetómetros de los teléfonos. Ese sensor, pensado como brújula, detecta el campo de las corrientes de un equipo cercano; en eso se basan canales encubiertos como ODINI y MAGNETO, que sacan bits de una computadora aislada (confidencialidad).</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>La bobina del actuador</h2>
+        <label for="imax">Corriente máxima I: <span class="valor" id="imaxV"></span></label>
+        <input id="imax" type="range" min="0.05" max="0.8" step="0.05" value="0.4">
+        <label for="largo">Alambre dentro del campo L: <span class="valor" id="largoV"></span> <small>(sumando todas las vueltas)</small></label>
+        <input id="largo" type="range" min="0.2" max="1.2" step="0.05" value="0.8">
+        <label for="campoI">Campo de los imanes B: <span class="valor" id="campoIV"></span></label>
+        <input id="campoI" type="range" min="0.1" max="1" step="0.05" value="0.5">
+        <label for="destino">Destino del cabezal: <span class="valor" id="destinoV"></span> <small>(o toca una pista del plato)</small></label>
+        <input id="destino" type="range" min="0" max="100" step="1" value="70">
+        <div class="botonera">
+          <button type="button" class="accion" id="buscar">Buscar la pista</button>
+          <button type="button" class="accion" id="pausa2">Pausa</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="verF" checked> <span>Mostrar las fuerzas sobre la bobina</span></label>
+        <fieldset>
+          <legend>Bocina del atacante</legend>
+          <label class="casilla"><input type="checkbox" id="bocina"> <span>Encendida, junto al disco</span></label>
+          <label for="frec">Frecuencia del sonido: <span class="valor" id="frecV"></span></label>
+          <input id="frec" type="range" min="0.5" max="10" step="0.1" value="1">
+          <label for="inten">Intensidad: <span class="valor" id="intenV"></span></label>
+          <input id="inten" type="range" min="0" max="100" step="5" value="80">
+        </fieldset>
+        <div class="lectura" id="lect2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvHdd" aria-label="Vista superior de un disco duro: plato con pistas, brazo con el cabezal, pivote y bobina entre dos imanes; flechas de la corriente y de la fuerza en los dos lados de la bobina"></canvas>
+        <canvas id="cvServo" aria-label="Acercamiento del cabezal sobre tres pistas y gráficas de la posición del cabezal y de la corriente de la bobina contra el tiempo"></canvas>
+        <p class="nota">Dibujo esquemático. Valores ilustrativos (no vienen en el libro): brazo de palanca de la bobina de 1.8 cm, momento de inercia de 1.0×10⁻⁶ kg·m², recorrido de 24°, control del firmware, resonancia y tolerancia de ±15 % del modelo. Cámara lenta: 1 s de pantalla = 10 ms reales.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de buscar, predice hacia dónde empuja el campo a cada lado de la bobina. ¿Por qué los dos lados empujan hacia el mismo lado si la corriente va en sentidos opuestos?</li>
+            <li>Pausa a media búsqueda. ¿Cuándo cambia de signo la corriente y para qué lo hace el firmware?</li>
+            <li>¿Qué pasa con el tiempo de búsqueda si reduces la corriente máxima a la mitad? ¿Y si los imanes fueran más débiles?</li>
+            <li>Enciende la bocina del atacante y barre la frecuencia. ¿En qué zona aparecen errores? ¿Qué propiedades de la tríada CIA se atacan?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad: disponibilidad e integridad.</b> El firmware controla esta fuerza con precisión para colocar el cabezal sobre pistas separadas por decenas de nanómetros; por eso un disco duro es sensible a las vibraciones. Se ha demostrado que un sonido intenso a la frecuencia adecuada hace vibrar cabezales y platos hasta provocar errores de lectura y escritura, e incluso la caída del sistema operativo (Bolton et al., 2018). La bocina del atacante mueve su cono con la misma fuerza de Lorentz.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap02_campos_magneticos.tex (Ecuaciones eq:lorentz y eq:fuerza-alambre; ejemplo del actuador de un disco duro). Fuera del libro: masas del protón y del electrón (datos de tablas) y el radio y el periodo de la trayectoria. Valores ilustrativos: los de inicio de la pestaña 1 y el modelo del brazo, del firmware y de la vibración. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  var RAD = Math.PI / 180;
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  var vistaActiva = "v1";
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  // Redondeo "como a mano": 4.005 → 4.01 (evita que el binario lo deje en 4.004999…)
+  function red(x, dec) { var f = Math.pow(10, dec); return Math.sign(x) * Math.round(Math.abs(x) * f * (1 + 1e-12)) / f; }
+  // Notación científica con dec decimales: 4.01×10⁻¹⁵
+  function sci(x, dec) {
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = red(x / Math.pow(10, e), dec);
+    if (Math.abs(m) >= 10) { m = red(m / 10, dec); e += 1; }
+    return num(m, dec) + "×10" + sup(e);
+  }
+  // Longitud y tiempo con prefijo SI
+  function longitud(x, cifras) {
+    var u = [[1, "m"], [1e-2, "cm"], [1e-3, "mm"], [1e-6, "μm"], [1e-9, "nm"]], k;
+    for (k = 0; k < u.length - 1; k++) if (x >= u[k][0] * 0.9999) break;
+    return redondo(x / u[k][0], cifras) + " " + u[k][1];
+  }
+  function tiempo(x, cifras) {
+    var u = [[1, "s"], [1e-3, "ms"], [1e-6, "μs"], [1e-9, "ns"], [1e-12, "ps"]], k;
+    for (k = 0; k < u.length - 1; k++) if (x >= u[k][0] * 0.9999) break;
+    return redondo(x / u[k][0], cifras) + " " + u[k][1];
+  }
+  function redondo(y, cifras) {      // cifras significativas, sin ceros de sobra
+    var c = cifras || 3, d = Math.max(0, c - 1 - Math.floor(Math.log10(Math.abs(y) || 1)));
+    return num(y, Math.min(d, 6)).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  }
+
+  // Ayudantes de dibujo
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones, alfa) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    if (alfa !== undefined) g.globalAlpha = alfa;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function flecha(g, x0, y0, x1, y1, color, ancho, punta, guiones, alfa) {
+    var a = Math.atan2(y1 - y0, x1 - x0), p = punta || 12, L = Math.hypot(x1 - x0, y1 - y0);
+    if (L < 1) return;
+    p = Math.min(p, L * 0.6);
+    var xb = x1 - p * 0.8 * Math.cos(a), yb = y1 - p * 0.8 * Math.sin(a);
+    g.save(); if (alfa !== undefined) g.globalAlpha = alfa;
+    g.strokeStyle = color; g.lineWidth = ancho || 2; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(xb, yb); g.stroke(); g.setLineDash([]);
+    g.fillStyle = color; g.beginPath(); g.moveTo(x1, y1);
+    g.lineTo(x1 - p * Math.cos(a) + p * 0.45 * Math.sin(a), y1 - p * Math.sin(a) - p * 0.45 * Math.cos(a));
+    g.lineTo(x1 - p * Math.cos(a) - p * 0.45 * Math.sin(a), y1 - p * Math.sin(a) + p * 0.45 * Math.cos(a));
+    g.closePath(); g.fill(); g.restore();
+  }
+  // Símbolo de un vector perpendicular a la pantalla: ⊙ (hacia el observador) o ⊗ (hacia adentro)
+  function simboloPerp(g, x, y, r, color, haciaFuera, ancho) {
+    g.save(); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = ancho || 2;
+    g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.stroke();
+    if (haciaFuera) { g.beginPath(); g.arc(x, y, Math.max(1.8, r * 0.28), 0, 2 * Math.PI); g.fill(); }
+    else {
+      var k = r * 0.62;
+      g.beginPath(); g.moveTo(x - k, y - k); g.lineTo(x + k, y + k); g.moveTo(x + k, y - k); g.lineTo(x - k, y + k); g.stroke();
+    }
+    g.restore();
+  }
+
+  // ==================================================================
+  // VISTA 1 · Carga en un campo uniforme
+  // ==================================================================
+  var E_CARGA = 1.602e-19;                       // C (libro)
+  var PARTICULAS = {
+    p: { nombre: "protón", q: E_CARGA, m: 1.673e-27, signo: "+" },     // masas: datos de tablas
+    e: { nombre: "electrón", q: -E_CARGA, m: 9.109e-31, signo: "−" }
+  };
+  var VISTAS = { v3d: { az: -30, el: 22 }, arriba: { az: 90, el: 90 }, lado: { az: 0, el: 0 } };
+  var cam = { az: VISTAS.v3d.az, el: VISTAS.v3d.el };
+  var mov = { fase: 0, corriendo: true, escalaFija: null, firma: "" };
+  var PERIODO_PANTALLA = 4;                      // s de pantalla por vuelta
+  var ZH = 0.8;                                  // medio alto de la caja (el medio ancho vale 1)
+
+  function limpio(x) { return Math.abs(x) < 1e-12 ? 0 : x; }
+  function escalaBonita(x) {                     // 1, 2 o 5 × 10ⁿ, el menor que sea ≥ x
+    var e = Math.floor(Math.log10(x)), b = Math.pow(10, e), pasos = [1, 2, 5, 10];
+    for (var i = 0; i < pasos.length; i++) if (pasos[i] * b >= x * 0.9999) return pasos[i] * b;
+    return 10 * b;
+  }
+  function escalaCaja(x) {                       // pasos más finos para el tamaño de la caja
+    var e = Math.floor(Math.log10(x)), b = Math.pow(10, e), pasos = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+    for (var i = 0; i < pasos.length; i++) if (pasos[i] * b >= x * 0.9999) return pasos[i] * b;
+    return 10 * b;
+  }
+  function escalaBonitaAbajo(x) {                // 1, 2 o 5 × 10ⁿ, el mayor que sea ≤ x
+    var e = Math.floor(Math.log10(x)), b = Math.pow(10, e), pasos = [5, 2, 1];
+    for (var i = 0; i < pasos.length; i++) if (pasos[i] * b <= x * 1.0001) return pasos[i] * b;
+    return b;
+  }
+
+  function params1() {
+    var par = PARTICULAS[document.querySelector('input[name="part"]:checked').value];
+    var v = Math.round(Number($("vel").value) * 10) / 10 * 1e5, B = Number($("campo").value), th = Number($("ang").value);
+    var sB = $("invB").checked ? -1 : 1, s = (par.q > 0 ? 1 : -1) * sB;
+    var sen = limpio(Math.sin(th * RAD)), cos = limpio(Math.cos(th * RAD));
+    var rref = par.m * v / (Math.abs(par.q) * B);                     // radio si θ = 90° (fuera del libro)
+    var rEsc = par.m * Math.max(v, 1e5) / (Math.abs(par.q) * B);
+    var W = mov.escalaFija || escalaCaja(1.15 * rEsc);                 // medio ancho de la caja (m)
+    return { par: par, v: v, B: B, th: th, sB: sB, s: s, sen: sen, cos: cos, rref: rref, W: W,
+             r: rref * sen, T: 2 * Math.PI * par.m / (Math.abs(par.q) * B),
+             F: Math.abs(par.q) * v * B * sen };
+  }
+  // Posición y velocidad (dirección) en la fase φ, en unidades de la caja (medio ancho = 1)
+  function estado(p, fase) {
+    var rd = p.r / p.W, zr = p.rref * p.cos / p.W;
+    var z0 = p.cos > 1e-9 ? -0.95 * ZH : (p.cos < -1e-9 ? 0.95 * ZH : 0);
+    return {
+      pos: [rd * Math.sin(fase), p.s * rd * Math.cos(fase), z0 + zr * fase],
+      vdir: [p.sen * Math.cos(fase), -p.s * p.sen * Math.sin(fase), p.cos],
+      fdir: [-Math.sin(fase), -p.s * Math.cos(fase), 0],
+      vxbdir: [-p.sB * p.s * Math.sin(fase), -p.sB * Math.cos(fase), 0]
+    };
+  }
+  function faseMaxima(p) {                       // fase en la que la carga sale de la caja
+    if (p.v === 0) return 0;
+    var zr = p.rref * p.cos / p.W;
+    if (Math.abs(zr) < 1e-9) return Infinity;
+    return 1.9 * ZH / Math.abs(zr);
+  }
+
+  function lectura1() {
+    var p = params1(), q = p.par.q, h = "";
+    $("velV").textContent = p.v === 0 ? "0 m/s" : sci(p.v, 1) + " m/s";
+    $("campoV").textContent = num(p.B, 2) + " T";
+    $("angV").textContent = p.th + "°";
+    var qTxt = "1.602×10⁻¹⁹ C", vTxt = p.v === 0 ? "0" : sci(p.v, 2);
+    h += '<div class="renglon"><b>Magnitud</b><span class="formula">|F| = |q|·v·B·sen θ</span>' +
+         "= (" + qTxt + ")(" + vTxt + " m/s)(" + num(p.B, 2) + " T)(sen " + p.th + "°) = <b>" + (p.F === 0 ? "0 N" : sci(p.F, 2) + " N") + "</b></div>";
+    // sen y cos ya vienen limpios, así que una componente nula da exactamente 0
+    var vx = p.v * p.sen, vz = p.v * p.cos, Bz = p.sB * p.B, cy = -vx * Bz, Fy = q * cy;
+    function comp(x) { return x === 0 ? "0" : sci(x, 2); }
+    h += '<div class="renglon"><b>Dirección: producto cruz al empezar</b><br>' +
+         "v = (v sen θ, 0, v cos θ) = (" + comp(vx) + ", 0, " + comp(vz) + ") m/s<br>" +
+         "B = (0, 0, " + num(Bz, 2) + ") T<br>" +
+         "v × B = (v<sub>y</sub>B<sub>z</sub> − v<sub>z</sub>B<sub>y</sub>, v<sub>z</sub>B<sub>x</sub> − v<sub>x</sub>B<sub>z</sub>, v<sub>x</sub>B<sub>y</sub> − v<sub>y</sub>B<sub>x</sub>) = (0, " + comp(cy) + ", 0) m·T/s<br>" +
+         "F = q(v × B) = <b>(0, " + comp(Fy) + ", 0) N</b>";
+    if (Fy !== 0) {
+      h += ": hacia " + (Fy > 0 ? "+y" : "−y") + (q < 0 ? ", al revés que v × B porque q &lt; 0." : ", como v × B.");
+    }
+    h += "</div>";
+    if (p.v === 0) {
+      h += '<div class="renglon"><span class="mal">La carga está en reposo: F = 0.</span> El campo magnético solo empuja a las cargas que se mueven.</div>';
+    } else if (p.sen === 0) {
+      h += '<div class="renglon"><span class="mal">v es paralela a B: sen θ = 0, así que F = 0.</span> La carga sigue en línea recta a lo largo del campo.</div>';
+    } else {
+      h += '<div class="renglon">F es perpendicular a v en todo momento: la rapidez se queda en <b>' + sci(p.v, 2) + " m/s</b>; solo cambia la dirección.</div>";
+    }
+    var masa = p.par.nombre === "protón" ? "protón, 1.673×10⁻²⁷ kg" : "electrón, 9.109×10⁻³¹ kg";
+    if (p.v > 0 && p.r > 0) {
+      h += '<div class="renglon aparte">Fuera del libro (segunda ley de Newton): r = m·v·sen θ/(|q|·B) = ' +
+           longitud(p.r, 3) + "; una vuelta tarda T = 2πm/(|q|·B) = " + tiempo(p.T, 3) +
+           ". Masa del " + masa + " (dato de tablas).</div>";
+    }
+    $("lect1").innerHTML = h;
+  }
+
+  var cv1 = $("cv3d");
+  function proyector(w, h) {
+    var esc = Math.min(w / 2.9, (h - 56) / 2.5) * 0.95, cx = w / 2, cy = h / 2 + 8;
+    var ca = Math.cos(cam.az * RAD), sa = Math.sin(cam.az * RAD), ce = Math.cos(cam.el * RAD), se = Math.sin(cam.el * RAD);
+    var f = function (x, y, z) {
+      var xp = x * ca - y * sa, yp = x * sa + y * ca;
+      return { x: cx + yp * esc, y: cy - (-xp * se + z * ce) * esc, d: xp * ce + z * se };
+    };
+    f.esc = esc;
+    return f;
+  }
+  // Flecha de un vector 3D desde el punto o, con largo en unidades de la caja
+  function flecha3D(g, P, o, dir, largo, color, ancho, guiones, rotulo, alfa) {
+    var a = P(o[0], o[1], o[2]), b = P(o[0] + dir[0] * largo, o[1] + dir[1] * largo, o[2] + dir[2] * largo);
+    var Lp = Math.hypot(b.x - a.x, b.y - a.y);
+    if (largo <= 1e-9) return null;
+    if (Lp < 9) {
+      simboloPerp(g, a.x, a.y, 10, color, b.d > a.d, ancho);
+      if (rotulo) etiqueta(g, rotulo, a.x + 14, a.y - 10, color, 16, "left", true);
+      return { x: a.x, y: a.y };
+    }
+    flecha(g, a.x, a.y, b.x, b.y, color, ancho, 14, guiones, alfa);
+    if (rotulo) {
+      var ux = (b.x - a.x) / Lp, uy = (b.y - a.y) / Lp;
+      etiqueta(g, rotulo, b.x + ux * 14, b.y + uy * 14 + 5, color, 16, "center", true);
+    }
+    return { x: b.x, y: b.y };
+  }
+
+  function dibujar1() {
+    var w0 = cv1.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv1, angosto ? 1.05 : 0.62), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var p = params1(), P = proyector(w, h), esc = P.esc;
+    var firma = [p.par.nombre, p.v, p.B, p.th, p.sB, p.W].join("|");
+    if (firma !== mov.firma) { mov.firma = firma; mov.fase = 0; }
+    var fmax = faseMaxima(p);
+    if (mov.fase > fmax) mov.fase = 0;
+    if (!isFinite(fmax) && mov.fase > 4 * Math.PI) mov.fase -= 2 * Math.PI;   // círculo: la fase no crece sin límite
+    var arriba = cam.el > 75;
+
+    // Caja de la región de campo
+    var esq = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    g.save(); g.strokeStyle = C.borde; g.lineWidth = 1.2;
+    [-ZH, ZH].forEach(function (z) {
+      g.beginPath();
+      esq.forEach(function (e, i) { var q = P(e[0], e[1], z); if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); });
+      g.closePath(); g.stroke();
+    });
+    esq.forEach(function (e) { var a = P(e[0], e[1], -ZH), b = P(e[0], e[1], ZH); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); });
+    g.restore();
+    // Líneas del campo B
+    [-0.8, 0, 0.8].forEach(function (x) {
+      [-0.8, 0, 0.8].forEach(function (y) {
+        var a = P(x, y, -ZH), b = P(x, y, ZH);
+        if (arriba) { simboloPerp(g, a.x, a.y, 8, C.oro, p.sB > 0, 1.6); return; }
+        if (p.sB > 0) flecha(g, a.x, a.y, b.x, b.y, C.oro, 1.6, 11, null, 0.7);
+        else flecha(g, b.x, b.y, a.x, a.y, C.oro, 1.6, 11, null, 0.7);
+      });
+    });
+
+    // Trayectoria prevista (punteada) y recorrida (sólida, se desvanece hacia atrás)
+    var paso = 0.06, k, ff, e1, q1;
+    if (p.v > 0) {
+      g.save(); g.strokeStyle = C.gris; g.lineWidth = 1.3; g.setLineDash([5, 5]); g.globalAlpha = 0.6; g.beginPath();
+      var hasta = isFinite(fmax) ? fmax : 2 * Math.PI;
+      for (ff = 0, k = 0; ff <= hasta + 1e-9; ff += paso, k++) {
+        e1 = estado(p, ff); q1 = P(e1.pos[0], e1.pos[1], e1.pos[2]);
+        if (k === 0) g.moveTo(q1.x, q1.y); else g.lineTo(q1.x, q1.y);
+      }
+      g.stroke(); g.restore();
+      var ini = Math.max(0, mov.fase - 2 * Math.PI), n = Math.max(2, Math.ceil((mov.fase - ini) / paso)), prev = null;
+      for (k = 0; k <= n; k++) {
+        ff = ini + (mov.fase - ini) * k / n;
+        e1 = estado(p, ff); q1 = P(e1.pos[0], e1.pos[1], e1.pos[2]);
+        if (prev) linea(g, prev.x, prev.y, q1.x, q1.y, C.azulOscuro, 2.6, null, 0.2 + 0.8 * k / n);
+        prev = q1;
+      }
+    }
+
+    // Carga y vectores en la fase actual
+    var est = estado(p, mov.fase), o = est.pos, po = P(o[0], o[1], o[2]);
+    var Lv = 0.5;
+    if (p.v > 0) flecha3D(g, P, o, est.vdir, Lv, C.azul, 3.2, null, "v");
+    flecha3D(g, P, o, [0, 0, p.sB], 0.42, C.oroTexto, 3, null, "B");
+    if (p.F > 0) {
+      if (p.par.q < 0) flecha3D(g, P, o, est.vxbdir, Lv * p.sen, C.gris, 2.2, [6, 5], "v × B");
+      flecha3D(g, P, o, est.fdir, Lv * p.sen, C.guinda, 3.6, null, "F");
+      // Arco de v hacia B (regla de la mano derecha); vista desde arriba se vería aplastado
+      if (p.th > 2 && p.th < 178 && !arriba) {
+        var vd = est.vdir, bd = [0, 0, p.sB], cth = vd[0] * bd[0] + vd[1] * bd[1] + vd[2] * bd[2];
+        var wv = [bd[0] - cth * vd[0], bd[1] - cth * vd[1], bd[2] - cth * vd[2]], nw = Math.hypot(wv[0], wv[1], wv[2]);
+        if (nw > 1e-6) {
+          wv = [wv[0] / nw, wv[1] / nw, wv[2] / nw];
+          var rho = 0.2, ang = p.th * RAD, pts = [];
+          for (k = 0; k <= 24; k++) {
+            var al = ang * k / 24, ca2 = Math.cos(al), sa2 = Math.sin(al);
+            pts.push(P(o[0] + rho * (ca2 * vd[0] + sa2 * wv[0]), o[1] + rho * (ca2 * vd[1] + sa2 * wv[1]), o[2] + rho * (ca2 * vd[2] + sa2 * wv[2])));
+          }
+          g.save(); g.strokeStyle = C.tinta; g.lineWidth = 1.6; g.beginPath();
+          pts.forEach(function (q, i) { if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y); });
+          g.stroke(); g.restore();
+          var u1 = pts[22], u2 = pts[24];
+          flecha(g, u1.x, u1.y, u2.x, u2.y, C.tinta, 1.6, 9);
+          var mid = P(o[0] + rho * 1.45 * (Math.cos(ang / 2) * vd[0] + Math.sin(ang / 2) * wv[0]),
+                      o[1] + rho * 1.45 * (Math.cos(ang / 2) * vd[1] + Math.sin(ang / 2) * wv[1]),
+                      o[2] + rho * 1.45 * (Math.cos(ang / 2) * vd[2] + Math.sin(ang / 2) * wv[2]));
+          etiqueta(g, "θ", mid.x, mid.y + 5, C.tinta, 16, "center", true);
+        }
+      }
+    }
+    g.save(); g.fillStyle = C.azulOscuro; g.strokeStyle = "#fff"; g.lineWidth = 2;
+    g.beginPath(); g.arc(po.x, po.y, 10, 0, 2 * Math.PI); g.fill(); g.stroke(); g.restore();
+    texto(g, p.par.signo, po.x, po.y + 1, "#fff", 17, "center", "middle", true);
+
+    // Rótulos fijos
+    texto(g, (p.par.nombre === "protón" ? "Protón" : "Electrón") + " en un campo uniforme", 12, 22, C.azulOscuro, 16, "left", "alphabetic", true);
+    texto(g, p.v > 0 ? "|v| = " + sci(p.v, 2) + " m/s (constante)" : "v = 0: no se mueve", 12, 42, C.gris, 15);
+    var bTxt = "B = " + num(p.B, 2) + " T " + (p.sB > 0 ? "hacia arriba" : "hacia abajo");
+    if (!angosto) {
+      var xl = w - 14, yl = 22;
+      [["v velocidad", C.azul], ["B campo uniforme", C.oroTexto], ["F fuerza", C.guinda]].concat(p.par.q < 0 ? [["v × B (punteada)", C.gris]] : []).forEach(function (r) {
+        texto(g, r[0], xl, yl, r[1], 15, "right", "alphabetic", true); yl += 20;
+      });
+      texto(g, bTxt, 12, 62, C.oroTexto, 15, "left", "alphabetic", true);
+    } else {
+      texto(g, bTxt, 12, 62, C.oroTexto, 15, "left", "alphabetic", true);
+    }
+    // Triada de ejes
+    var ox = 34, oy = h - 30, ejes = [["x", [1, 0, 0]], ["y", [0, 1, 0]], ["z", [0, 0, 1]]];
+    var P0 = P(0, 0, 0);
+    ejes.forEach(function (e) {
+      var q = P(e[1][0] * 0.3, e[1][1] * 0.3, e[1][2] * 0.3), dx = (q.x - P0.x) / esc * 90, dy = (q.y - P0.y) / esc * 90;
+      if (Math.hypot(dx, dy) < 5) { simboloPerp(g, ox, oy, 6, C.gris, q.d > P0.d, 1.4); texto(g, e[0], ox + 9, oy - 7, C.gris, 15, "left", "alphabetic", true); return; }
+      flecha(g, ox, oy, ox + dx, oy + dy, C.gris, 1.6, 8);
+      texto(g, e[0], ox + dx * 1.35, oy + dy * 1.35 + 5, C.gris, 15, "center", "alphabetic", true);
+    });
+    // Barra de escala (vale para longitudes paralelas a la pantalla)
+    var barra = escalaBonitaAbajo(p.W * 0.6);
+    var bpx = barra / p.W * esc, bx1 = w - 16, by = h - 18;
+    linea(g, bx1 - bpx, by, bx1, by, C.tinta, 2.5);
+    linea(g, bx1 - bpx, by - 6, bx1 - bpx, by + 4, C.tinta, 2); linea(g, bx1, by - 6, bx1, by + 4, C.tinta, 2);
+    texto(g, longitud(barra, 2) + (mov.escalaFija ? " (escala fija)" : ""), bx1, by - 10, C.tinta, 15, "right", "alphabetic", true);
+  }
+
+  function refrescar1() { lectura1(); dibujar1(); }
+  document.querySelectorAll('input[name="part"]').forEach(function (r) { r.addEventListener("change", refrescar1); });
+  ["vel", "campo", "ang"].forEach(function (id) { $(id).addEventListener("input", refrescar1); });
+  $("invB").addEventListener("change", refrescar1);
+  $("fijar").addEventListener("change", function () {
+    if ($("fijar").checked) { mov.escalaFija = null; mov.escalaFija = params1().W; } else mov.escalaFija = null;
+    refrescar1();
+  });
+  function pausar1(pausa) { mov.corriendo = !pausa; $("pausa1").textContent = pausa ? "Continuar" : "Pausa"; }
+  $("pausa1").addEventListener("click", function () { pausar1(mov.corriendo); });
+  $("reinicio1").addEventListener("click", function () { mov.fase = 0; pausar1(false); dibujar1(); });
+  function ponerVista(nombre) { cam.az = VISTAS[nombre].az; cam.el = VISTAS[nombre].el; dibujar1(); }
+  $("vista3d").addEventListener("click", function () { ponerVista("v3d"); });
+  $("vistaArriba").addEventListener("click", function () { ponerVista("arriba"); });
+  $("vistaLado").addEventListener("click", function () { ponerVista("lado"); });
+  // Arrastre para girar la vista: a los lados (dedo o mouse) y arriba-abajo (solo mouse o pluma)
+  var arrastre = null;
+  cv1.addEventListener("pointerdown", function (ev) {
+    arrastre = { x: ev.clientX, y: ev.clientY, az: cam.az, el: cam.el, tipo: ev.pointerType };
+    try { cv1.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+  });
+  cv1.addEventListener("pointermove", function (ev) {
+    if (!arrastre) return;
+    cam.az = arrastre.az - (ev.clientX - arrastre.x) * 0.5;
+    if (arrastre.tipo !== "touch") cam.el = Math.max(0, Math.min(90, arrastre.el + (ev.clientY - arrastre.y) * 0.4));
+    dibujar1();
+  });
+  ["pointerup", "pointercancel"].forEach(function (t) { cv1.addEventListener(t, function () { arrastre = null; }); });
+
+  // ==================================================================
+  // VISTA 2 · Actuador de bobina móvil de un disco duro
+  // ==================================================================
+  // Geometría del dibujo (unidades virtuales de un lienzo de 600 × 420); el brazo barre 24° entre
+  // la pista exterior (radio 155) y la interior (radio 55)
+  var VW = 600, VH = 420;
+  var CENTRO = [190, 210], RPLATO = 168, PIVOTE = [440, 245], LBRAZO = 240;
+  var DCP = Math.hypot(CENTRO[0] - PIVOTE[0], CENTRO[1] - PIVOTE[1]);
+  var FI_PC = Math.atan2(CENTRO[1] - PIVOTE[1], CENTRO[0] - PIVOTE[0]);   // ángulo pivote → centro (pantalla)
+  var R_EXT = 155, R_INT = 55;                                             // pistas extrema exterior e interior
+  function deltaParaRadio(r) { return Math.acos((DCP * DCP + LBRAZO * LBRAZO - r * r) / (2 * DCP * LBRAZO)); }
+  var DELTA_EXT = deltaParaRadio(R_EXT);
+  // Modelo ilustrativo del brazo (unidades SI)
+  var CARRERA = 24 * RAD;            // recorrido angular
+  var RC = 0.018;                    // brazo de palanca de la bobina (m)
+  var JM = 1.0e-6;                   // momento de inercia (kg·m²)
+  var WN = 2 * Math.PI * 150, KV = 2 * WN, KP = WN / 2, FRENO = 0.7;
+  var LENTO = 0.01;                  // 1 s de pantalla = 10 ms reales
+  var DT = 2e-5;                     // paso de integración (s reales)
+  var F_RES = 4.5, Z_RES = 0.1, TOL = 0.15, BASE_VIB = 0.05;   // resonancia (kHz), amortiguamiento, tolerancia
+  // dest es la pista que sigue el servo; cambia solo al pedir una búsqueda
+  var act = { x: 0.3 * CARRERA, w: 0, dest: 0.3 * CARRERA, I: 0, t: 0, corriendo: true, buscando: false,
+              t0: 0, desde: 0.3, tBusq: null, muestras: [], ventana: 0.03, tPant: 0 };
+
+  function datos2() {
+    return { Imax: Number($("imax").value), L: Number($("largo").value), B: Number($("campoI").value),
+             dest: Number($("destino").value) / 100, bocina: $("bocina").checked,
+             f: Number($("frec").value), inten: Number($("inten").value) / 100 };
+  }
+  function amplificacion(f) { var r = f / F_RES; return 1 / Math.sqrt(Math.pow(1 - r * r, 2) + Math.pow(2 * Z_RES * r, 2)); }
+  function vibracion(dd) { return dd.bocina ? BASE_VIB * dd.inten * amplificacion(dd.f) : 0; }
+  // Se decide con el porcentaje redondeado que se muestra, para que lectura y veredicto coincidan
+  function fueraDePista(A) { return Math.round(A * 100) > TOL * 100; }
+  function fraccionFuera(A) { return fueraDePista(A) ? 1 - 2 / Math.PI * Math.asin(TOL / A) : 0; }
+
+  function pasoServo(dd) {
+    var amax = dd.Imax * dd.L * dd.B * RC / JM, e = act.dest - act.x;
+    var wdes = (e >= 0 ? 1 : -1) * Math.min(Math.sqrt(2 * FRENO * amax * Math.abs(e)), KP * Math.abs(e));
+    var u = Math.max(-amax, Math.min(amax, KV * (wdes - act.w)));
+    act.I = amax > 0 ? u / amax * dd.Imax : 0;
+    act.w += act.I * dd.L * dd.B * RC / JM * DT;
+    act.x += act.w * DT;
+    if (act.x < -0.02 * CARRERA) { act.x = -0.02 * CARRERA; act.w = 0; }
+    if (act.x > 1.02 * CARRERA) { act.x = 1.02 * CARRERA; act.w = 0; }
+    act.t += DT;
+    if (act.buscando && Math.abs(act.dest - act.x) < 0.004 * CARRERA && Math.abs(act.w) < 5 * CARRERA) {
+      act.buscando = false; act.tBusq = act.t - act.t0;
+    }
+  }
+  function iniciarBusqueda() {
+    var dd = datos2();
+    act.dest = dd.dest * CARRERA; act.desde = act.x / CARRERA; act.buscando = true; act.t0 = act.t; act.tBusq = null;
+    var amax = dd.Imax * dd.L * dd.B * RC / JM, est = 2 * Math.sqrt(Math.abs(act.dest - act.x) / (FRENO * amax)) + 0.004;
+    var opciones = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.2];
+    act.ventana = opciones[opciones.length - 1];
+    for (var i = 0; i < opciones.length; i++) if (opciones[i] >= 1.25 * est) { act.ventana = opciones[i]; break; }
+    act.muestras = [{ t: 0, p: act.x / CARRERA, I: 0 }];
+    pausar2(false);
+  }
+  function avanzar2(dtPant) {
+    var dd = datos2(), n = Math.max(1, Math.round(dtPant * LENTO / DT));
+    for (var i = 0; i < n; i++) {
+      pasoServo(dd);
+      var tr = act.t - act.t0;
+      if (act.muestras.length && tr <= act.ventana && tr - act.muestras[act.muestras.length - 1].t >= 1e-4) {
+        act.muestras.push({ t: tr, p: act.x / CARRERA, I: act.I });
+      }
+    }
+  }
+
+  // Conversión de unidades virtuales a pixeles; v = ventana virtual visible [x0, y0, x1, y1]
+  function marco(w, h, v) {
+    var vw = v[2] - v[0], vh = v[3] - v[1], s = Math.min(w / vw, h / vh);
+    var ox = (w - vw * s) / 2 - v[0] * s, oy = (h - vh * s) / 2 - v[1] * s;
+    return { s: s, X: function (x) { return ox + x * s; }, Y: function (y) { return oy + y * s; } };
+  }
+  function anguloBrazo() { return FI_PC + (DELTA_EXT - act.x); }
+  function cabeza(fi) { return [PIVOTE[0] + LBRAZO * Math.cos(fi), PIVOTE[1] + LBRAZO * Math.sin(fi)]; }
+  function radioDeX(x) {
+    var c = cabeza(FI_PC + (DELTA_EXT - x));
+    return Math.hypot(c[0] - CENTRO[0], c[1] - CENTRO[1]);
+  }
+  var cvH = $("cvHdd"), mH = null;
+
+  function dibujarHdd() {
+    var w0 = cvH.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cvH, angosto ? 0.86 : 0.62), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    // En pantallas angostas se recorta la mitad izquierda del plato para agrandar el actuador
+    var m = marco(w, h, angosto ? [185, 40, 600, 410] : [0, 0, VW, VH]), s = m.s, X = m.X, Y = m.Y;
+    mH = m;
+    var dd = datos2(), fi = anguloBrazo(), atras = fi + Math.PI;
+    // Carcasa
+    g.save(); g.fillStyle = "#F8F9FB"; g.strokeStyle = C.borde; g.lineWidth = 1.5;
+    g.beginPath(); g.rect(X(8), Y(6), (VW - 16) * s, (VH - 12) * s); g.fill(); g.stroke(); g.restore();
+    // Plato y pistas
+    g.save(); g.fillStyle = "#E3E8F0"; g.beginPath(); g.arc(X(CENTRO[0]), Y(CENTRO[1]), RPLATO * s, 0, 2 * Math.PI); g.fill(); g.restore();
+    for (var k = 0; k <= 8; k++) {
+      var rr = R_INT + (R_EXT - R_INT) * k / 8;
+      g.save(); g.strokeStyle = "#C3CBD8"; g.lineWidth = 1; g.beginPath(); g.arc(X(CENTRO[0]), Y(CENTRO[1]), rr * s, 0, 2 * Math.PI); g.stroke(); g.restore();
+    }
+    g.save(); g.fillStyle = C.gris; g.beginPath(); g.arc(X(CENTRO[0]), Y(CENTRO[1]), 26 * s, 0, 2 * Math.PI); g.fill(); g.restore();
+    // Pista de destino (la que marca el deslizador)
+    var rDest = radioDeX(dd.dest * CARRERA);
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 2.2; g.setLineDash([7, 5]);
+    g.beginPath(); g.arc(X(CENTRO[0]), Y(CENTRO[1]), rDest * s, 0, 2 * Math.PI); g.stroke(); g.restore();
+    // Imanes: dos mitades de polaridad opuesta
+    var aMin = DELTA_EXT - CARRERA, b0 = FI_PC + aMin + Math.PI, b1 = FI_PC + DELTA_EXT + Math.PI;   // intervalo de "atrás"
+    var div = (b0 + b1) / 2, ext0 = b0 - 24 * RAD - 7 * RAD, ext1 = b1 + 24 * RAD + 7 * RAD;
+    var rM0 = 40, rM1 = 134;
+    function sector(a0, a1, r0, r1, relleno, borde) {
+      g.save(); g.beginPath();
+      g.arc(X(PIVOTE[0]), Y(PIVOTE[1]), r1 * s, a0, a1); g.arc(X(PIVOTE[0]), Y(PIVOTE[1]), r0 * s, a1, a0, true); g.closePath();
+      if (relleno) { g.fillStyle = relleno; g.fill(); }
+      if (borde) { g.strokeStyle = borde; g.lineWidth = 1.2; g.stroke(); }
+      g.restore();
+    }
+    sector(ext0, div, rM0, rM1, "rgba(140,29,53,0.10)", C.guinda);
+    sector(div, ext1, rM0, rM1, "rgba(0,64,143,0.10)", C.azul);
+    [0.2, 0.62].forEach(function (fr) {
+      [62, 110].forEach(function (rr2) {
+        var a1 = ext0 + (div - ext0) * fr, a2 = div + (ext1 - div) * (1 - fr);
+        simboloPerp(g, X(PIVOTE[0] + rr2 * Math.cos(a1)), Y(PIVOTE[1] + rr2 * Math.sin(a1)), Math.max(5, 7 * s), C.guinda, false, 1.5);
+        simboloPerp(g, X(PIVOTE[0] + rr2 * Math.cos(a2)), Y(PIVOTE[1] + rr2 * Math.sin(a2)), Math.max(5, 7 * s), C.azul, true, 1.5);
+      });
+    });
+    // Brazo y cabezal
+    var c = cabeza(fi), nx = -Math.sin(fi), ny = Math.cos(fi);
+    g.save(); g.fillStyle = "#8C95A3"; g.beginPath();
+    g.moveTo(X(PIVOTE[0] + 16 * nx), Y(PIVOTE[1] + 16 * ny));
+    g.lineTo(X(c[0] + 4 * nx), Y(c[1] + 4 * ny)); g.lineTo(X(c[0] - 4 * nx), Y(c[1] - 4 * ny));
+    g.lineTo(X(PIVOTE[0] - 16 * nx), Y(PIVOTE[1] - 16 * ny)); g.closePath(); g.fill(); g.restore();
+    g.save(); g.fillStyle = C.azulOscuro; g.translate(X(c[0]), Y(c[1])); g.rotate(fi);
+    g.fillRect(-9 * s, -6 * s, 18 * s, 12 * s); g.restore();
+    // Bobina (dos lados radiales y dos arcos)
+    var aA = atras - 24 * RAD, aB = atras + 24 * RAD, rB0 = 50, rB1 = 124;
+    g.save(); g.strokeStyle = C.oroTexto; g.lineWidth = Math.max(3, 7 * s); g.lineJoin = "round"; g.beginPath();
+    g.moveTo(X(PIVOTE[0] + rB0 * Math.cos(aA)), Y(PIVOTE[1] + rB0 * Math.sin(aA)));
+    g.lineTo(X(PIVOTE[0] + rB1 * Math.cos(aA)), Y(PIVOTE[1] + rB1 * Math.sin(aA)));
+    g.arc(X(PIVOTE[0]), Y(PIVOTE[1]), rB1 * s, aA, aB);
+    g.lineTo(X(PIVOTE[0] + rB0 * Math.cos(aB)), Y(PIVOTE[1] + rB0 * Math.sin(aB)));
+    g.arc(X(PIVOTE[0]), Y(PIVOTE[1]), rB0 * s, aB, aA, true);
+    g.stroke(); g.restore();
+    // Unión de la bobina con el brazo y pivote
+    linea(g, X(PIVOTE[0]), Y(PIVOTE[1]), X(PIVOTE[0] + rB0 * Math.cos(atras)), Y(PIVOTE[1] + rB0 * Math.sin(atras)), "#8C95A3", Math.max(4, 10 * s));
+    g.save(); g.fillStyle = C.tinta; g.beginPath(); g.arc(X(PIVOTE[0]), Y(PIVOTE[1]), 9 * s + 2, 0, 2 * Math.PI); g.fill(); g.restore();
+    // Corriente: flechas sobre los lados (sale del pivote por A y regresa por B si I > 0)
+    var I = act.I, umbral = 0.004;
+    if (Math.abs(I) > umbral) {
+      var sg = I > 0 ? 1 : -1;
+      [[aA, sg], [aB, -sg]].forEach(function (lado) {
+        var a = lado[0], dir = lado[1], r1 = 70 - 13 * dir, r2 = 70 + 13 * dir;
+        var x1 = X(PIVOTE[0] + r1 * Math.cos(a)), y1 = Y(PIVOTE[1] + r1 * Math.sin(a));
+        var x2 = X(PIVOTE[0] + r2 * Math.cos(a)), y2 = Y(PIVOTE[1] + r2 * Math.sin(a));
+        flecha(g, x1, y1, x2, y2, "#fff", 6, 15);
+        flecha(g, x1, y1, x2, y2, C.tinta, 3, 13);
+      });
+      etiqueta(g, "I", X(PIVOTE[0] + 70 * Math.cos(aA)) + 10, Y(PIVOTE[1] + 70 * Math.sin(aA)) - 8, C.tinta, 16, "left", true);
+      // Fuerzas: tangentes al giro (hacia el centro del plato si I > 0)
+      if ($("verF").checked) {
+        var largoF = (50 * Math.min(1, Math.abs(I * dd.L * dd.B) / 0.32) + 16) * s;
+        [aA, aB].forEach(function (a) {
+          var xm = PIVOTE[0] + 106 * Math.cos(a), ym = PIVOTE[1] + 106 * Math.sin(a);
+          var tx = Math.sin(a) * sg, ty = -Math.cos(a) * sg;
+          flecha(g, X(xm), Y(ym), X(xm) + tx * largoF, Y(ym) + ty * largoF, C.guinda, 4.5, 15);
+          etiqueta(g, "F", X(xm) + tx * (largoF + 12 * s) - 5, Y(ym) + ty * (largoF + 12 * s) + 6, C.guinda, 16, "left", true);
+        });
+      }
+    }
+    // Rótulos
+    var T = angosto ? 15 : 16;
+    etiqueta(g, "plato", X(CENTRO[0] + (angosto ? 40 : -110)), Y(CENTRO[1] + (angosto ? 150 : 140)), C.gris, T, "center", true);
+    etiqueta(g, "cabezal", angosto ? X(c[0]) + 12 : X(c[0]) - 10, Y(c[1]) - 12, C.azulOscuro, T, angosto ? "left" : "right", true);
+    if (!angosto) etiqueta(g, "destino", X(CENTRO[0] - rDest * 0.71), Y(CENTRO[1] - rDest * 0.71) - 6, C.guinda, T, "center", true);
+    if (!angosto) {
+      etiqueta(g, "pivote", X(PIVOTE[0]) - 16, Y(PIVOTE[1]) - 14, C.tinta, T, "right", true);
+      etiqueta(g, "bobina", X(PIVOTE[0] + 128 * Math.cos(aB + 9 * RAD)) - 6, Y(PIVOTE[1] + 128 * Math.sin(aB + 9 * RAD)) + 16, C.oroTexto, T, "center", true);
+      etiqueta(g, "imán, B ⊗ (entra)", X(PIVOTE[0] + rM1 * Math.cos(ext0)) - 4, Y(PIVOTE[1] + rM1 * Math.sin(ext0)) - 8, C.guinda, T, "center", true);
+      etiqueta(g, "imán, B ⊙ (sale)", X(PIVOTE[0] + rM0 * Math.cos(ext1)) - 46, Y(PIVOTE[1] + rM1 * Math.sin(ext1)) - 2, C.azul, T, "center", true);
+    }
+    var haciaCentro = act.dest > act.x, estado2;
+    if (!act.buscando) estado2 = "sobre la pista (I ≈ 0)";
+    else if (Math.abs(I) <= umbral) estado2 = "ajusta";
+    else if ((I > 0) === haciaCentro) estado2 = "acelera hacia " + (haciaCentro ? "el centro" : "el borde") + " (I " + (I > 0 ? ">" : "<") + " 0)";
+    else estado2 = "frena (I " + (I > 0 ? ">" : "<") + " 0)";
+    etiqueta(g, "Brazo: " + estado2, angosto ? 8 : X(16), angosto ? 20 : Y(26), C.azulOscuro, T, "left", true);
+    if (!angosto) {
+      var lx = X(VW - 18), ly = Y(30);
+      texto(g, "I  corriente en la bobina", lx, ly, C.tinta, 15, "right", "alphabetic", true);
+      texto(g, "F = I·L·B  fuerza", lx, ly + 20, C.guinda, 15, "right", "alphabetic", true);
+      texto(g, "⊗ B entra · ⊙ B sale de la pantalla", lx, ly + 40, C.gris, 15, "right", "alphabetic", true);
+    }
+  }
+
+  var cvS = $("cvServo");
+  function dibujarServo() {
+    var w0 = cvS.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cvS, angosto ? 1.15 : 0.36), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var dd = datos2(), A = vibracion(dd);
+    // Acercamiento del cabezal sobre tres pistas
+    var ix0, iy0, iw, ih;
+    if (angosto) { ix0 = 10; iy0 = 10; iw = w - 20; ih = h * 0.30; }
+    else { ix0 = 10; iy0 = 10; iw = w * 0.30; ih = h - 20; }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(ix0, iy0, iw, ih); g.strokeStyle = C.borde; g.strokeRect(ix0, iy0, iw, ih); g.restore();
+    texto(g, "Acercamiento al cabezal", ix0 + 8, iy0 + 20, C.azulOscuro, 15, "left", "alphabetic", true);
+    var top = iy0 + 30, bot = iy0 + ih - 26, paso = (bot - top) / 3, yc = top + paso * 1.5;
+    // Durante la búsqueda las pistas desfilan bajo el cabezal según su posición
+    var desliz = act.buscando ? (((act.x / CARRERA) * 3000) % paso + paso) % paso : 0;
+    for (var k = -1; k <= 4; k++) {
+      var yk = top + paso * k - desliz;
+      if (yk + paso * 0.82 < top || yk > bot) continue;
+      var y0 = Math.max(top, yk + paso * 0.09), y1 = Math.min(bot, yk + paso * 0.91);
+      g.save(); g.fillStyle = (!act.buscando && k === 1) ? "rgba(0,64,143,0.18)" : "rgba(91,100,114,0.12)";
+      g.fillRect(ix0 + 8, y0, iw - 16, Math.max(0, y1 - y0)); g.restore();
+    }
+    var off = 0;
+    if (!act.buscando) {
+      off = A * Math.sin(2 * Math.PI * 1.5 * act.tPant);
+      linea(g, ix0 + 8, yc - TOL * paso, ix0 + iw - 8, yc - TOL * paso, C.guinda, 1.3, [5, 4]);
+      linea(g, ix0 + 8, yc + TOL * paso, ix0 + iw - 8, yc + TOL * paso, C.guinda, 1.3, [5, 4]);
+    }
+    var hy = yc + off * paso, hx = ix0 + iw / 2;
+    g.save(); g.fillStyle = C.azulOscuro; g.fillRect(hx - 16, hy - 7, 32, 14); g.restore();
+    linea(g, hx, iy0 + 26, hx, hy - 7, "#8C95A3", 3);
+    var msg, col;
+    if (act.buscando) { msg = "buscando la pista…"; col = C.gris; }
+    else if (fueraDePista(A)) { msg = "¡fuera de pista!"; col = C.guinda; }
+    else { msg = "siguiendo la pista"; col = C.azul; }
+    texto(g, msg, ix0 + 8, iy0 + ih - 8, col, 15, "left", "alphabetic", true);
+    if (!act.buscando && !angosto) texto(g, "±15 %", ix0 + iw - 10, yc - TOL * paso - 4, C.guinda, 15, "right");
+
+    // Gráficas de posición y corriente
+    var gx0, gx1, gy0, gy1;
+    if (angosto) { gx0 = 52; gx1 = w - 44; gy0 = iy0 + ih + 26; gy1 = h - 34; }
+    else { gx0 = ix0 + iw + 62; gx1 = w - 50; gy0 = 22; gy1 = h - 34; }
+    var gap = 26, hA = (gy1 - gy0 - gap) / 2, ya0 = gy0, ya1 = gy0 + hA, yb0 = ya1 + gap, yb1 = gy1;
+    var T = act.ventana, Xt = function (t) { return gx0 + t / T * (gx1 - gx0); };
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(gx0, ya0, gx1 - gx0, hA); g.fillRect(gx0, yb0, gx1 - gx0, hA); g.restore();
+    texto(g, "posición del cabezal (% del recorrido)", gx0 + 4, ya0 - 6, C.azulOscuro, 15, "left", "alphabetic", true);
+    texto(g, "corriente I (A) · fuerza F = I·L·B (N)", gx0 + 4, yb0 - 6, C.azulOscuro, 15, "left", "alphabetic", true);
+    var Yp = function (pp) { return ya1 - pp * hA; };
+    var Imx = dd.Imax, Yi = function (ii) { return (yb0 + yb1) / 2 - ii / (Imx * 1.15) * hA / 2; };
+    [0, 50, 100].forEach(function (pp) {
+      linea(g, gx0, Yp(pp / 100), gx1, Yp(pp / 100), C.grisClaro, 1);
+      texto(g, pp + " %", gx0 - 6, Yp(pp / 100) + 5, C.gris, 15, "right");
+    });
+    [-1, 0, 1].forEach(function (kk) {
+      linea(g, gx0, Yi(kk * Imx), gx1, Yi(kk * Imx), kk === 0 ? C.gris : C.grisClaro, 1);
+      texto(g, num(kk * Imx, 2), gx0 - 6, Yi(kk * Imx) + 5, C.gris, 15, "right");
+      texto(g, num(kk * Imx * dd.L * dd.B, 2), gx1 + 6, Yi(kk * Imx) + 5, C.guinda, 15, "left");
+    });
+    var nT = T <= 0.02 ? 5 : (T <= 0.05 ? 10 : (T <= 0.1 ? 20 : 50));
+    for (var tt = 0; tt <= T * 1000 + 1e-6; tt += nT) {
+      linea(g, Xt(tt / 1000), yb1, Xt(tt / 1000), yb1 + 4, C.gris, 1);
+      texto(g, String(tt), Xt(tt / 1000), yb1 + 18, C.gris, 15, "center");
+    }
+    texto(g, "t (ms reales)", gx1, yb1 + 32, C.tinta, 15, "right");
+    if (act.muestras.length > 1) {
+      linea(g, gx0, Yp(act.dest / CARRERA), gx1, Yp(act.dest / CARRERA), C.guinda, 1.5, [6, 4]);
+      g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2.4; g.beginPath();
+      act.muestras.forEach(function (mm, i) { var xx = Xt(mm.t), yy = Yp(mm.p); if (i === 0) g.moveTo(xx, yy); else g.lineTo(xx, yy); });
+      g.stroke(); g.restore();
+      g.save(); g.strokeStyle = C.guinda; g.lineWidth = 2.4; g.beginPath();
+      act.muestras.forEach(function (mm, i) { var xx = Xt(mm.t), yy = Yi(Math.max(-1.12 * Imx, Math.min(1.12 * Imx, mm.I))); if (i === 0) g.moveTo(xx, yy); else g.lineTo(xx, yy); });
+      g.stroke(); g.restore();
+    } else {
+      texto(g, "Presiona \"Buscar la pista\"", (gx0 + gx1) / 2, (ya0 + ya1) / 2 + 5, C.gris, 15, "center");
+    }
+  }
+
+  var ultimaLect2 = -1;
+  function lectura2(forzar) {
+    var ahora = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (!forzar && ahora - ultimaLect2 < 120) return;
+    ultimaLect2 = ahora;
+    var dd = datos2(), Fmax = dd.Imax * dd.L * dd.B, h = "";
+    $("imaxV").textContent = num(dd.Imax, 2) + " A";
+    $("largoV").textContent = num(dd.L, 2) + " m";
+    $("campoIV").textContent = num(dd.B, 2) + " T";
+    $("destinoV").textContent = Math.round(dd.dest * 100) + " %";
+    $("frecV").textContent = num(dd.f, 1) + " kHz";
+    $("intenV").textContent = Math.round(dd.inten * 100) + " %";
+    h += '<div class="renglon"><b>Fuerza sobre la bobina</b><span class="formula">F = I·L·B·sen θ</span>' +
+         "= (" + num(dd.Imax, 2) + " A)(" + num(dd.L, 2) + " m)(" + num(dd.B, 2) + " T)(sen 90°) = <b>" + num(Fmax, 3) + " N</b> con la corriente máxima.</div>";
+    var I = act.I, F = I * dd.L * dd.B, txt, cero = Math.abs(I) < 0.005;
+    if (act.buscando && I > 0.004) txt = "el brazo acelera hacia el centro del plato.";
+    else if (act.buscando && I < -0.004) txt = "frena: la fuerza apunta hacia el borde mientras el brazo sigue hacia el centro.";
+    else if (!cero) txt = "ajuste fino: el firmware corrige para quedarse sobre la pista.";
+    else txt = "el brazo se queda sobre la pista.";
+    if (act.buscando && act.dest < act.x) {
+      if (I < -0.004) txt = "el brazo acelera hacia el borde del plato.";
+      else if (I > 0.004) txt = "frena: la fuerza apunta hacia el centro mientras el brazo sigue hacia el borde.";
+    }
+    h += '<div class="renglon">Ahora: ' + (cero ? "I ≈ 0 A → F ≈ 0 N" :
+         "I = " + (I > 0 ? "+" : "") + num(I, 2) + " A → F = " + (F > 0 ? "+" : "") + num(F, 3) + " N") + ": " + txt + "</div>";
+    if (act.tBusq !== null) {
+      h += '<div class="renglon">Última búsqueda: del ' + Math.round(act.desde * 100) + " % al " + Math.round(act.dest / CARRERA * 100) +
+           " % del recorrido en <b>" + num(act.tBusq * 1000, 1) + " ms</b> (modelo ilustrativo).</div>";
+    }
+    var A = vibracion(dd);
+    if (dd.bocina) {
+      var fr = fraccionFuera(A);
+      h += '<div class="renglon">Bocina a ' + num(dd.f, 1) + " kHz: desviación máxima del cabezal = <b>" + Math.round(A * 100) +
+           " %</b> de la separación entre pistas (tolerancia ±15 %): " +
+           (fr > 0 ? '<span class="mal">se sale de la pista el ' + Math.round(fr * 100) + " % del tiempo; errores de lectura y escritura.</span>"
+                   : '<span class="ok">sigue en su pista.</span>') + "</div>";
+    } else {
+      h += '<div class="renglon">Bocina apagada: el cabezal sigue su pista.</div>';
+    }
+    $("lect2").innerHTML = h;
+  }
+
+  function refrescar2() { lectura2(true); dibujarHdd(); dibujarServo(); }
+  ["imax", "largo", "campoI", "frec", "inten"].forEach(function (id) { $(id).addEventListener("input", refrescar2); });
+  $("destino").addEventListener("input", refrescar2);
+  ["verF", "bocina"].forEach(function (id) { $(id).addEventListener("change", refrescar2); });
+  function pausar2(pausa) { act.corriendo = !pausa; $("pausa2").textContent = pausa ? "Continuar" : "Pausa"; }
+  $("pausa2").addEventListener("click", function () { pausar2(act.corriendo); refrescar2(); });
+  $("buscar").addEventListener("click", function () { iniciarBusqueda(); refrescar2(); });
+  // Tocar el plato elige el destino
+  cvH.addEventListener("click", function (ev) {
+    if (!mH) return;
+    var r = cvH.getBoundingClientRect(), vx = (ev.clientX - r.left - mH.X(0)) / mH.s, vy = (ev.clientY - r.top - mH.Y(0)) / mH.s;
+    var rc = Math.hypot(vx - CENTRO[0], vy - CENTRO[1]);
+    if (rc > RPLATO || rc < 40) return;
+    rc = Math.max(R_INT, Math.min(R_EXT, rc));
+    var x = DELTA_EXT - deltaParaRadio(rc), pc = Math.round(Math.max(0, Math.min(1, x / CARRERA)) * 100);
+    $("destino").value = pc;
+    iniciarBusqueda(); refrescar2();
+  });
+
+  // ==================================================================
+  // Animación y redibujo
+  // ==================================================================
+  var ultimo = null;
+  function cuadro(ts) {
+    if (ultimo === null) ultimo = ts;
+    var dt = Math.min(0.1, (ts - ultimo) / 1000); ultimo = ts;
+    if (vistaActiva === "v1") {
+      if (mov.corriendo) mov.fase += 2 * Math.PI / PERIODO_PANTALLA * dt;
+      dibujar1();
+    } else {
+      if (act.corriendo) { avanzar2(dt); act.tPant += dt; }
+      dibujarHdd(); dibujarServo(); lectura2(false);
+    }
+    requestAnimationFrame(cuadro);
+  }
+  function dibujarTodo() { if (vistaActiva === "v1") refrescar1(); else refrescar2(); }
+  window.addEventListener("resize", dibujarTodo);
+  lectura1(); lectura2(true);
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) { inicial.click(); window.addEventListener("load", function () { window.scrollTo(0, 0); }); }
+  else dibujarTodo();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-03-fuerza-de-lorentz.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM12 2h1v1h-1zM15 2h4v1h-4zM20 2h1v1h-1zM23 2h1v1h-1zM25 2h1v1h-1zM27 2h1v1h-1zM29 2h3v1h-3zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h2v1h-2zM15 3h1v1h-1zM18 3h1v1h-1zM20 3h5v1h-5zM26 3h3v1h-3zM30 3h2v1h-2zM33 3h2v1h-2zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM14 4h1v1h-1zM16 4h6v1h-6zM24 4h3v1h-3zM28 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM15 5h5v1h-5zM23 5h1v1h-1zM25 5h2v1h-2zM29 5h1v1h-1zM31 5h2v1h-2zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h4v1h-4zM15 6h4v1h-4zM23 6h1v1h-1zM25 6h1v1h-1zM27 6h1v1h-1zM29 6h4v1h-4zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h2v1h-2zM18 7h1v1h-1zM21 7h1v1h-1zM23 7h1v1h-1zM26 7h3v1h-3zM33 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h1v1h-1zM14 9h3v1h-3zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM6 10h1v1h-1zM8 10h9v1h-9zM18 10h2v1h-2zM23 10h3v1h-3zM31 10h1v1h-1zM33 10h7v1h-7zM42 10h1v1h-1zM3 11h1v1h-1zM5 11h2v1h-2zM11 11h1v1h-1zM14 11h2v1h-2zM17 11h1v1h-1zM19 11h2v1h-2zM25 11h1v1h-1zM27 11h4v1h-4zM32 11h1v1h-1zM36 11h4v1h-4zM42 11h1v1h-1zM2 12h2v1h-2zM5 12h2v1h-2zM8 12h1v1h-1zM12 12h2v1h-2zM16 12h1v1h-1zM20 12h1v1h-1zM22 12h2v1h-2zM25 12h3v1h-3zM29 12h1v1h-1zM34 12h1v1h-1zM41 12h2v1h-2zM2 13h1v1h-1zM4 13h2v1h-2zM7 13h1v1h-1zM11 13h1v1h-1zM13 13h2v1h-2zM19 13h1v1h-1zM23 13h4v1h-4zM30 13h2v1h-2zM33 13h2v1h-2zM36 13h2v1h-2zM39 13h1v1h-1zM41 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM8 14h1v1h-1zM12 14h1v1h-1zM15 14h2v1h-2zM18 14h2v1h-2zM22 14h3v1h-3zM31 14h1v1h-1zM35 14h1v1h-1zM37 14h1v1h-1zM42 14h1v1h-1zM3 15h1v1h-1zM9 15h3v1h-3zM13 15h2v1h-2zM16 15h1v1h-1zM20 15h2v1h-2zM26 15h3v1h-3zM30 15h1v1h-1zM32 15h3v1h-3zM36 15h3v1h-3zM41 15h2v1h-2zM4 16h2v1h-2zM7 16h2v1h-2zM11 16h1v1h-1zM13 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h3v1h-3zM23 16h1v1h-1zM25 16h3v1h-3zM30 16h1v1h-1zM34 16h3v1h-3zM38 16h1v1h-1zM40 16h1v1h-1zM42 16h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM6 17h2v1h-2zM9 17h1v1h-1zM11 17h4v1h-4zM19 17h5v1h-5zM25 17h1v1h-1zM31 17h2v1h-2zM38 17h2v1h-2zM2 18h1v1h-1zM8 18h1v1h-1zM11 18h3v1h-3zM16 18h4v1h-4zM23 18h1v1h-1zM26 18h1v1h-1zM29 18h1v1h-1zM31 18h3v1h-3zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM4 19h1v1h-1zM7 19h1v1h-1zM9 19h2v1h-2zM12 19h1v1h-1zM15 19h6v1h-6zM25 19h1v1h-1zM29 19h2v1h-2zM32 19h1v1h-1zM34 19h7v1h-7zM42 19h1v1h-1zM2 20h1v1h-1zM5 20h1v1h-1zM7 20h2v1h-2zM10 20h2v1h-2zM16 20h1v1h-1zM20 20h1v1h-1zM22 20h8v1h-8zM31 20h1v1h-1zM34 20h4v1h-4zM39 20h4v1h-4zM2 21h1v1h-1zM6 21h1v1h-1zM9 21h1v1h-1zM11 21h2v1h-2zM18 21h1v1h-1zM21 21h3v1h-3zM25 21h3v1h-3zM29 21h1v1h-1zM31 21h2v1h-2zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h1v1h-1zM7 22h3v1h-3zM17 22h2v1h-2zM22 22h1v1h-1zM25 22h3v1h-3zM30 22h1v1h-1zM32 22h1v1h-1zM34 22h2v1h-2zM39 22h1v1h-1zM2 23h6v1h-6zM11 23h1v1h-1zM13 23h5v1h-5zM19 23h2v1h-2zM24 23h2v1h-2zM28 23h3v1h-3zM35 23h4v1h-4zM42 23h1v1h-1zM3 24h2v1h-2zM6 24h3v1h-3zM16 24h4v1h-4zM22 24h1v1h-1zM25 24h5v1h-5zM31 24h2v1h-2zM34 24h1v1h-1zM37 24h1v1h-1zM40 24h1v1h-1zM42 24h1v1h-1zM2 25h2v1h-2zM6 25h1v1h-1zM9 25h1v1h-1zM11 25h2v1h-2zM14 25h1v1h-1zM16 25h1v1h-1zM18 25h2v1h-2zM23 25h1v1h-1zM25 25h2v1h-2zM29 25h1v1h-1zM31 25h2v1h-2zM34 25h2v1h-2zM39 25h1v1h-1zM41 25h1v1h-1zM4 26h3v1h-3zM8 26h1v1h-1zM10 26h2v1h-2zM13 26h2v1h-2zM17 26h1v1h-1zM19 26h1v1h-1zM22 26h2v1h-2zM26 26h1v1h-1zM29 26h3v1h-3zM33 26h3v1h-3zM39 26h1v1h-1zM41 26h1v1h-1zM2 27h3v1h-3zM6 27h2v1h-2zM10 27h1v1h-1zM12 27h1v1h-1zM14 27h1v1h-1zM17 27h2v1h-2zM25 27h1v1h-1zM27 27h4v1h-4zM32 27h1v1h-1zM34 27h1v1h-1zM36 27h3v1h-3zM40 27h3v1h-3zM2 28h2v1h-2zM5 28h1v1h-1zM7 28h5v1h-5zM13 28h2v1h-2zM16 28h1v1h-1zM19 28h2v1h-2zM22 28h4v1h-4zM28 28h2v1h-2zM31 28h1v1h-1zM34 28h1v1h-1zM42 28h1v1h-1zM2 29h2v1h-2zM5 29h3v1h-3zM9 29h6v1h-6zM16 29h2v1h-2zM19 29h5v1h-5zM25 29h1v1h-1zM28 29h1v1h-1zM31 29h6v1h-6zM38 29h2v1h-2zM41 29h2v1h-2zM4 30h1v1h-1zM8 30h2v1h-2zM14 30h2v1h-2zM17 30h1v1h-1zM19 30h1v1h-1zM21 30h1v1h-1zM23 30h4v1h-4zM29 30h3v1h-3zM34 30h1v1h-1zM41 30h1v1h-1zM2 31h2v1h-2zM5 31h3v1h-3zM11 31h1v1h-1zM13 31h2v1h-2zM17 31h1v1h-1zM19 31h1v1h-1zM21 31h3v1h-3zM31 31h1v1h-1zM33 31h1v1h-1zM38 31h2v1h-2zM42 31h1v1h-1zM5 32h1v1h-1zM7 32h11v1h-11zM20 32h1v1h-1zM22 32h2v1h-2zM27 32h1v1h-1zM29 32h1v1h-1zM31 32h3v1h-3zM35 32h1v1h-1zM38 32h2v1h-2zM41 32h2v1h-2zM5 33h2v1h-2zM13 33h4v1h-4zM19 33h1v1h-1zM23 33h1v1h-1zM26 33h1v1h-1zM29 33h7v1h-7zM38 33h2v1h-2zM2 34h5v1h-5zM8 34h3v1h-3zM14 34h1v1h-1zM16 34h1v1h-1zM19 34h1v1h-1zM21 34h6v1h-6zM30 34h2v1h-2zM34 34h6v1h-6zM10 35h4v1h-4zM15 35h1v1h-1zM18 35h1v1h-1zM23 35h1v1h-1zM25 35h10v1h-10zM38 35h1v1h-1zM40 35h1v1h-1zM42 35h1v1h-1zM2 36h7v1h-7zM10 36h3v1h-3zM15 36h2v1h-2zM18 36h2v1h-2zM25 36h2v1h-2zM29 36h2v1h-2zM32 36h3v1h-3zM36 36h1v1h-1zM38 36h2v1h-2zM42 36h1v1h-1zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h1v1h-1zM13 37h2v1h-2zM16 37h2v1h-2zM19 37h2v1h-2zM22 37h1v1h-1zM24 37h2v1h-2zM28 37h1v1h-1zM34 37h1v1h-1zM38 37h2v1h-2zM42 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h4v1h-4zM16 38h1v1h-1zM20 38h1v1h-1zM22 38h1v1h-1zM24 38h1v1h-1zM26 38h3v1h-3zM33 38h7v1h-7zM41 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM13 39h2v1h-2zM17 39h1v1h-1zM23 39h1v1h-1zM25 39h1v1h-1zM27 39h1v1h-1zM29 39h1v1h-1zM31 39h2v1h-2zM34 39h1v1h-1zM37 39h1v1h-1zM39 39h1v1h-1zM41 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM14 40h5v1h-5zM20 40h1v1h-1zM22 40h1v1h-1zM25 40h3v1h-3zM29 40h1v1h-1zM31 40h2v1h-2zM35 40h1v1h-1zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM11 41h1v1h-1zM13 41h2v1h-2zM17 41h2v1h-2zM20 41h2v1h-2zM23 41h2v1h-2zM28 41h1v1h-1zM30 41h8v1h-8zM39 41h1v1h-1zM41 41h2v1h-2zM2 42h7v1h-7zM10 42h1v1h-1zM12 42h1v1h-1zM15 42h4v1h-4zM20 42h5v1h-5zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h3v1h-3zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-03-fuerza-de-lorentz.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

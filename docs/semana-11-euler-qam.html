@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>De Euler a QAM</title>
+<style>
+  :root { --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A;
+          --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --tinta:#1B1F2A; --gris:#5B6472; --borde:#D9DEE6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--tinta); font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  main { max-width:1280px; margin:0 auto; padding:10px 16px 28px; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.6rem; margin:4px 0 0; }
+  .sub { color:var(--gris); margin:0 0 10px; }
+  .lienzos { display:grid; grid-template-columns: minmax(0,0.85fr) minmax(0,1.15fr); gap:14px; }
+  .panel { border:1px solid var(--borde); border-radius:10px; padding:8px; background:#fff; }
+  .panel h2 { font-size:1rem; margin:0 0 4px; color:var(--azul-oscuro); }
+  canvas { width:100%; display:block; touch-action:manipulation; }
+  #lecturas { background:var(--azul-claro); border-radius:10px; padding:10px 14px; margin:12px 0; font-size:1.15rem; }
+  #lecturas b { color:var(--azul-oscuro); }
+  #formula { font-family:Cambria,Georgia,serif; font-size:1.25rem; color:var(--azul-oscuro); margin-top:4px; }
+  .controles { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
+  .grupo { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .grupo > span { font-weight:bold; color:var(--azul-oscuro); margin-right:2px; }
+  button { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; cursor:pointer;
+           border:1px solid var(--azul); background:#fff; color:var(--azul); }
+  button:hover, button:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  button.activo { background:var(--azul); color:#fff; }
+  label { cursor:pointer; }
+  input[type=text] { font:inherit; padding:6px 8px; border:1px solid var(--borde); border-radius:6px; width:12em; }
+  .nota { color:var(--gris); font-size:0.92rem; margin-top:8px; }
+  @media (max-width: 820px) { .lienzos { grid-template-columns:1fr; } }
+
+  .pie-fcfm { max-width:1280px; margin:0 auto; padding:8px 18px 18px; color:#5B6472; font-size:.85rem; }
+  .pie-fcfm a { color:#00408F; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<main>
+  <h1>De Euler a QAM: la onda es la sombra de una flecha que gira</h1>
+  <p class="sub">Haz clic en un punto de la constelación. La flecha z·e<sup>i2πft</sup> gira; su sombra sobre el eje real cae y dibuja la onda.</p>
+
+  <div class="lienzos">
+    <div class="panel">
+      <h2>Plano complejo (arriba) y la sombra que cae (abajo, el tiempo corre hacia abajo)</h2>
+      <canvas id="plano"></canvas>
+    </div>
+    <div class="panel">
+      <h2>La onda que se transmite: s(t) = Re{z·e<sup>i2πft</sup>}</h2>
+      <canvas id="onda"></canvas>
+    </div>
+  </div>
+
+  <div id="lecturas">
+    <div id="numero"></div>
+    <div id="formula"></div>
+  </div>
+
+  <div class="controles">
+    <div class="grupo"><span>Constelación</span>
+      <button type="button" id="qpsk">QPSK</button>
+      <button type="button" id="qam16">16-QAM</button>
+    </div>
+    <div class="grupo"><span>Tiempo</span>
+      <button type="button" id="pausa">Pausa</button>
+      <button type="button" id="paso">Avanzar T/8</button>
+      <button type="button" id="cero">Volver a t = 0</button>
+      <label>Velocidad <input id="vel" type="range" min="0.05" max="1" step="0.05" value="0.25"></label>
+      <span id="velTxt">0.25 vueltas/s</span>
+    </div>
+    <div class="grupo"><span>Mostrar</span>
+      <label><input type="checkbox" id="vComp"> componentes I y Q</label>
+      <label><input type="checkbox" id="vRef"> referencia cos(2πft)</label>
+      <label><input type="checkbox" id="vMarcas" checked> s(0) = I y s(T/4) = −Q</label>
+    </div>
+    <div class="grupo"><span>Mensaje QPSK</span>
+      <input type="text" id="bits" value="01 10 00 11" aria-label="bits del mensaje">
+      <button type="button" id="enviar">Transmitir</button>
+      <button type="button" id="unSimbolo">Un solo símbolo</button>
+    </div>
+  </div>
+  <p class="nota">Código Gray de QPSK: 00 → 1 + i · 01 → −1 + i · 11 → −1 − i · 10 → 1 − i. En el modo mensaje, cada símbolo dura 2 periodos. Teclas: espacio pausa, → avanza T/8, 0 vuelve a t = 0.</p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var C = { azul: "#00408F", azulOscuro: "#0A2A57", guinda: "#8C1D35", oro: "#B8975A",
+            gris: "#5B6472", grisClaro: "#D9DEE6", tinta: "#1B1F2A", fondoSombra: "#F7F1E6" };
+  var GRAY = { "00": [1, 1], "01": [-1, 1], "11": [-1, -1], "10": [1, -1] };
+  var cvP = document.getElementById("plano"), cvO = document.getElementById("onda");
+  var cxP = cvP.getContext("2d"), cxO = cvO.getContext("2d");
+
+  var estado = {
+    constel: "qpsk", I: 1, Q: 1, t: 0, vel: 0.25, corriendo: true,
+    comp: false, ref: false, marcas: true,
+    mensaje: null,            // lista de [I, Q] cuando se transmite un mensaje
+    historia: []              // [t, valor] para la sombra que cae
+  };
+  var VENTANA_CAIDA = 2;      // periodos visibles en la cascada
+
+  function puntos() {
+    if (estado.constel === "qpsk") return [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+    var p = [], n = [-3, -1, 1, 3];
+    n.forEach(function (i) { n.forEach(function (q) { p.push([i, q]); }); });
+    return p;
+  }
+  function rango() { return estado.constel === "qpsk" ? 2.0 : 4.7; }
+
+  function zActual() {
+    if (!estado.mensaje) return [estado.I, estado.Q];
+    var k = Math.floor(estado.t / 2) % estado.mensaje.length;
+    return estado.mensaje[(k + estado.mensaje.length) % estado.mensaje.length];
+  }
+  function s(I, Q, t) { return I * Math.cos(2 * Math.PI * t) - Q * Math.sin(2 * Math.PI * t); }
+  function sMensaje(t) {
+    if (!estado.mensaje) return s(estado.I, estado.Q, t);
+    var n = estado.mensaje.length, k = Math.floor(t / 2), z = estado.mensaje[((k % n) + n) % n];
+    return s(z[0], z[1], t);
+  }
+
+  // ---------------------------------------------------------------- tamaño
+  function ajustar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    cv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: w, h: w * proporcion };
+  }
+  var dimP, dimO;
+  function redimensionar() { dimP = ajustar(cvP, 1.55); dimO = ajustar(cvO, 0.72); }
+  window.addEventListener("resize", redimensionar);
+
+  // ---------------------------------------------------------------- dibujo
+  function linea(cx, x0, y0, x1, y1, color, ancho, guiones) {
+    cx.save(); cx.strokeStyle = color; cx.lineWidth = ancho || 1;
+    if (guiones) cx.setLineDash(guiones);
+    cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); cx.stroke(); cx.restore();
+  }
+  function flecha(cx, x0, y0, x1, y1, color, ancho) {
+    var ang = Math.atan2(y1 - y0, x1 - x0), largo = Math.hypot(x1 - x0, y1 - y0), p = Math.min(16, largo * 0.4);
+    linea(cx, x0, y0, x1 - p * 0.6 * Math.cos(ang), y1 - p * 0.6 * Math.sin(ang), color, ancho);
+    cx.save(); cx.fillStyle = color; cx.beginPath(); cx.moveTo(x1, y1);
+    cx.lineTo(x1 - p * Math.cos(ang - 0.4), y1 - p * Math.sin(ang - 0.4));
+    cx.lineTo(x1 - p * Math.cos(ang + 0.4), y1 - p * Math.sin(ang + 0.4));
+    cx.closePath(); cx.fill(); cx.restore();
+  }
+  function punto(cx, x, y, r, color) { cx.save(); cx.fillStyle = color; cx.beginPath(); cx.arc(x, y, r, 0, 2 * Math.PI); cx.fill(); cx.restore(); }
+  function texto(cx, t, x, y, color, tam, alin, base) {
+    cx.save(); cx.fillStyle = color; cx.font = (tam || 14) + "px Calibri, 'Segoe UI', sans-serif";
+    cx.textAlign = alin || "left"; cx.textBaseline = base || "alphabetic"; cx.fillText(t, x, y); cx.restore();
+  }
+
+  function dibujarPlano() {
+    var cx = cxP, w = dimP.w, lado = w, R = rango(), esc = (lado / 2 - 18) / R;
+    var cx0 = w / 2, cy0 = lado / 2;
+    function X(re) { return cx0 + re * esc; }
+    function Y(im) { return cy0 - im * esc; }
+    cx.clearRect(0, 0, w, dimP.h);
+    // cuadrícula y ejes
+    for (var g = -Math.floor(R); g <= Math.floor(R); g++) {
+      if (g === 0) continue;
+      linea(cx, X(g), Y(R), X(g), Y(-R), "#F0F2F6", 1);
+      linea(cx, X(-R), Y(g), X(R), Y(g), "#F0F2F6", 1);
+    }
+    linea(cx, X(-R), cy0, X(R), cy0, C.gris, 1.2);
+    linea(cx, cx0, Y(R), cx0, Y(-R), C.gris, 1.2);
+    texto(cx, "I (real)", X(R) - 4, cy0 - 6, C.azul, 13, "right");
+    texto(cx, "Q (imag.)", cx0 + 6, Y(R) + 14, C.guinda, 13);
+    var z = zActual(), I = z[0], Q = z[1], r = Math.hypot(I, Q);
+    // círculo que recorre la punta
+    cx.save(); cx.strokeStyle = C.grisClaro; cx.lineWidth = 1.5; cx.setLineDash([4, 4]);
+    cx.beginPath(); cx.arc(cx0, cy0, r * esc, 0, 2 * Math.PI); cx.stroke(); cx.restore();
+    // constelación
+    puntos().forEach(function (p) {
+      var sel = p[0] === I && p[1] === Q;
+      punto(cx, X(p[0]), Y(p[1]), sel ? 7 : 5, sel ? C.guinda : "#B9C2D0");
+    });
+    // flecha que gira: z·e^(i2πt)
+    var ang = 2 * Math.PI * estado.t, c = Math.cos(ang), sn = Math.sin(ang);
+    var re = I * c - Q * sn, im = I * sn + Q * c;
+    if (estado.comp) {
+      var aRe = I * c, aIm = I * sn;           // I·e^(i2πt)
+      flecha(cx, cx0, cy0, X(aRe), Y(aIm), C.azul, 3);
+      flecha(cx, X(aRe), Y(aIm), X(re), Y(im), C.guinda, 3);   // iQ·e^(i2πt)
+      texto(cx, "I·e^(i2πft)", X(aRe / 2) + 6, Y(aIm / 2) - 6, C.azul, 13);
+      texto(cx, "iQ·e^(i2πft)", X((aRe + re) / 2) + 6, Y((aIm + im) / 2) - 6, C.guinda, 13);
+    }
+    flecha(cx, cx0, cy0, X(re), Y(im), C.azulOscuro, 4);
+    // sombra
+    linea(cx, X(re), Y(im), X(re), cy0, C.guinda, 1.5, [5, 4]);
+    punto(cx, X(re), cy0, 7, C.guinda);
+    texto(cx, "sombra = " + re.toFixed(2), X(re), cy0 + 22, C.guinda, 13, "center");
+    // cascada: la sombra cae y dibuja la onda (tiempo hacia abajo)
+    var top = lado + 8, alto = dimP.h - top - 6, pxPeriodo = alto / VENTANA_CAIDA;
+    cx.save(); cx.fillStyle = C.fondoSombra; cx.fillRect(X(-R), top, X(R) - X(-R), alto); cx.restore();
+    linea(cx, cx0, top, cx0, top + alto, C.grisClaro, 1);
+    linea(cx, X(re), cy0, X(re), top, C.guinda, 1, [2, 4]);
+    cx.save(); cx.strokeStyle = C.azulOscuro; cx.lineWidth = 2.5; cx.beginPath();
+    var empezado = false;
+    for (var k = estado.historia.length - 1; k >= 0; k--) {
+      var h = estado.historia[k], y = top + (estado.t - h[0]) * pxPeriodo;
+      if (y > top + alto) break;
+      if (!empezado) { cx.moveTo(X(h[1]), y); empezado = true; } else { cx.lineTo(X(h[1]), y); }
+    }
+    cx.stroke(); cx.restore();
+    punto(cx, X(re), top, 6, C.guinda);
+    texto(cx, "tiempo ↓", X(-R) + 6, top + 16, C.gris, 13);
+    for (var m = 1; m <= VENTANA_CAIDA; m++) {
+      var ym = top + m * pxPeriodo - ((estado.t % 1) * pxPeriodo);
+      if (ym > top && ym < top + alto) texto(cx, "hace " + m + (m === 1 ? " periodo" : " periodos"), X(R) - 6, ym, C.gris, 12, "right");
+    }
+  }
+
+  function cuarto(q) {                       // q cuartos de periodo: 0, T/4, T/2, 3T/4, T, 5T/4...
+    if (q === 0) return "0";
+    if (q % 4 === 0) return (q / 4 === 1 ? "" : q / 4) + "T";
+    if (q % 2 === 0) return (q / 2 === 1 ? "" : q / 2) + "T/2";
+    return (q === 1 ? "" : q) + "T/4";
+  }
+
+  function dibujarOnda() {
+    var cx = cxO, w = dimO.w, h = dimO.h, R = rango();
+    var izq = 46, der = w - 14, arr = 18, abj = h - 30;
+    var durac = estado.mensaje ? 2 * estado.mensaje.length : 2;
+    function X(t) { return izq + (t / durac) * (der - izq); }
+    function Y(v) { return (arr + abj) / 2 - v * ((abj - arr) / 2) / R; }
+    cx.clearRect(0, 0, w, h);
+    linea(cx, izq, Y(0), der, Y(0), C.gris, 1.2);
+    for (var v = -Math.floor(R); v <= Math.floor(R); v++) {
+      if (v !== 0) linea(cx, izq, Y(v), der, Y(v), "#F0F2F6", 1);
+      texto(cx, String(v).replace("-", "−"), izq - 8, Y(v) + 4, C.gris, 12, "right");
+    }
+    var cuartos = durac * 4;
+    for (var q = 0; q <= cuartos; q++) {
+      var xq = X(q / 4), grueso = q % 4 === 0;
+      linea(cx, xq, arr, xq, abj, grueso ? C.grisClaro : "#F3F4F7", 1);
+      if (!estado.mensaje) texto(cx, cuarto(q), xq, abj + 18, C.gris, 12, "center");
+    }
+    if (estado.mensaje) {
+      estado.mensaje.forEach(function (z, k) {
+        linea(cx, X(2 * k), arr, X(2 * k), abj, C.oro, 2, [6, 4]);
+        var bits = Object.keys(GRAY).filter(function (b) { return GRAY[b][0] === z[0] && GRAY[b][1] === z[1]; })[0];
+        texto(cx, bits, X(2 * k + 1), arr + 14, C.guinda, 16, "center");
+      });
+    }
+    function curva(f, color, ancho, guiones) {
+      cx.save(); cx.strokeStyle = color; cx.lineWidth = ancho; if (guiones) cx.setLineDash(guiones);
+      cx.beginPath();
+      for (var i = 0; i <= 600; i++) { var t = durac * i / 600; var y = Y(f(t)); if (i === 0) cx.moveTo(X(t), y); else cx.lineTo(X(t), y); }
+      cx.stroke(); cx.restore();
+    }
+    if (estado.ref) curva(function (t) { return Math.cos(2 * Math.PI * t); }, C.gris, 1.5, [6, 5]);
+    if (estado.comp && !estado.mensaje) {
+      curva(function (t) { return estado.I * Math.cos(2 * Math.PI * t); }, C.azul, 2, [7, 5]);
+      curva(function (t) { return -estado.Q * Math.sin(2 * Math.PI * t); }, C.guinda, 2, [7, 5]);
+    }
+    curva(sMensaje, C.azulOscuro, 3);
+    if (estado.marcas && !estado.mensaje) {
+      punto(cx, X(0), Y(estado.I), 7, C.azul);
+      punto(cx, X(0.25), Y(-estado.Q), 7, C.guinda);
+      texto(cx, "s(0) = I = " + estado.I, X(0) + 10, Y(estado.I) - 10, C.azul, 14);
+      texto(cx, "s(T/4) = −Q = " + String(-estado.Q).replace("-", "−"), X(0.25) + 10, Y(-estado.Q) + 20, C.guinda, 14);
+    }
+    // cursor del tiempo actual
+    var tc = ((estado.t % durac) + durac) % durac;
+    linea(cx, X(tc), arr, X(tc), abj, C.oro, 2);
+    punto(cx, X(tc), Y(sMensaje(estado.t)), 7, C.guinda);
+    texto(cx, "tiempo →", der, h - 4, C.gris, 12, "right");
+  }
+
+  function lecturas() {
+    var z = zActual(), I = z[0], Q = z[1], r = Math.hypot(I, Q);
+    var th = ((Math.atan2(Q, I) * 180 / Math.PI) + 360) % 360;
+    var zTxt = I + (Q >= 0 ? " + " : " − ") + (Math.abs(Q) === 1 ? "" : Math.abs(Q)) + "i";
+    zTxt = zTxt.replace(/^-/, "−");
+    function par(v) { return v < 0 ? "(−" + Math.abs(v) + ")" : String(v); }
+    document.getElementById("numero").innerHTML = "<b>z = " + zTxt + "</b> · r = √(" + par(I) + "² + " +
+      par(Q) + "²) = " + r.toFixed(2) + " · θ = " + th.toFixed(1) + "°" +
+      (estado.mensaje ? " · símbolo " + (Math.floor(estado.t / 2) % estado.mensaje.length + 1) + " de " + estado.mensaje.length : "");
+    document.getElementById("formula").textContent = "s(t) = " + I + "·cos(2πft) " + (Q >= 0 ? "− " : "+ ") +
+      Math.abs(Q) + "·sen(2πft) = " + r.toFixed(2) + "·cos(2πft + " + th.toFixed(1) + "°)";
+    document.getElementById("formula").textContent = document.getElementById("formula").textContent.replace(/-/g, "−");
+  }
+
+  // ---------------------------------------------------------------- ciclo
+  var anterior = null;
+  function cuadro(ahora) {
+    if (anterior === null) anterior = ahora;
+    var dt = Math.min(0.1, (ahora - anterior) / 1000);
+    anterior = ahora;
+    if (estado.corriendo) avanzar(dt * estado.vel);
+    dibujarPlano(); dibujarOnda(); lecturas();
+    requestAnimationFrame(cuadro);
+  }
+  function avanzar(dp) {
+    var pasos = Math.max(1, Math.ceil(dp / 0.01));
+    for (var i = 0; i < pasos; i++) {
+      estado.t += dp / pasos;
+      estado.historia.push([estado.t, sMensaje(estado.t)]);
+    }
+    while (estado.historia.length && estado.t - estado.historia[0][0] > VENTANA_CAIDA + 0.1) estado.historia.shift();
+  }
+  function reiniciar() { estado.t = 0; estado.historia = [[0, sMensaje(0)]]; }
+
+  // ---------------------------------------------------------------- controles
+  function marcarConstel() {
+    document.getElementById("qpsk").classList.toggle("activo", estado.constel === "qpsk");
+    document.getElementById("qam16").classList.toggle("activo", estado.constel === "16qam");
+  }
+  function ponerConstel(c) {
+    estado.constel = c;
+    var ps = puntos();
+    if (!ps.some(function (p) { return p[0] === estado.I && p[1] === estado.Q; })) { estado.I = 1; estado.Q = 1; }
+    estado.mensaje = null; reiniciar(); marcarConstel();
+  }
+  document.getElementById("qpsk").onclick = function () { ponerConstel("qpsk"); };
+  document.getElementById("qam16").onclick = function () { ponerConstel("16qam"); };
+  var bPausa = document.getElementById("pausa");
+  function pausar(p) { estado.corriendo = !p; bPausa.textContent = p ? "Continuar" : "Pausa"; }
+  bPausa.onclick = function () { pausar(estado.corriendo); };
+  document.getElementById("paso").onclick = function () { pausar(true); avanzar(0.125); };
+  document.getElementById("cero").onclick = function () { reiniciar(); };
+  var vel = document.getElementById("vel");
+  vel.oninput = function () { estado.vel = Number(vel.value); document.getElementById("velTxt").textContent = estado.vel.toFixed(2) + " vueltas/s"; };
+  document.getElementById("vComp").onchange = function (e) { estado.comp = e.target.checked; };
+  document.getElementById("vRef").onchange = function (e) { estado.ref = e.target.checked; };
+  document.getElementById("vMarcas").onchange = function (e) { estado.marcas = e.target.checked; };
+  document.getElementById("enviar").onclick = function () {
+    var limpio = document.getElementById("bits").value.replace(/[^01]/g, "");
+    if (limpio.length < 2) return;
+    if (limpio.length % 2) limpio = limpio.slice(0, -1);
+    var lista = [];
+    for (var k = 0; k < limpio.length; k += 2) lista.push(GRAY[limpio.substr(k, 2)]);
+    estado.constel = "qpsk"; marcarConstel(); estado.mensaje = lista; reiniciar(); pausar(false);
+  };
+  document.getElementById("unSimbolo").onclick = function () { estado.mensaje = null; reiniciar(); };
+  cvP.addEventListener("click", function (ev) {
+    var rect = cvP.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    if (y > dimP.w) return;                     // la cascada no se toca
+    var R = rango(), esc = (dimP.w / 2 - 18) / R;
+    var re = (x - dimP.w / 2) / esc, im = (dimP.w / 2 - y) / esc;
+    var mejor = null, dmin = 1e9;
+    puntos().forEach(function (p) { var d = Math.hypot(p[0] - re, p[1] - im); if (d < dmin) { dmin = d; mejor = p; } });
+    estado.mensaje = null; estado.I = mejor[0]; estado.Q = mejor[1]; reiniciar();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "INPUT" && e.target.type === "text") return;
+    if (e.key === " ") { e.preventDefault(); pausar(estado.corriendo); }
+    else if (e.key === "ArrowRight") { pausar(true); avanzar(0.125); }
+    else if (e.key === "0") { reiniciar(); }
+  });
+
+  redimensionar(); marcarConstel(); reiniciar();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<footer class="pie-fcfm">Señales de Transmisión · FCFM-UANL · funciona sin internet · <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a></footer>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-11-euler-qam.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM11 2h1v1h-1zM13 2h4v1h-4zM18 2h1v1h-1zM20 2h3v1h-3zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM14 3h1v1h-1zM18 3h1v1h-1zM23 3h1v1h-1zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h3v1h-3zM15 4h1v1h-1zM18 4h1v1h-1zM22 4h2v1h-2zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h2v1h-2zM17 5h1v1h-1zM19 5h1v1h-1zM22 5h1v1h-1zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h2v1h-2zM15 6h1v1h-1zM18 6h8v1h-8zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h1v1h-1zM15 7h1v1h-1zM17 7h1v1h-1zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h2v1h-2zM14 9h5v1h-5zM21 9h1v1h-1zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM13 10h2v1h-2zM18 10h2v1h-2zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM2 11h1v1h-1zM4 11h1v1h-1zM6 11h2v1h-2zM9 11h1v1h-1zM11 11h2v1h-2zM17 11h1v1h-1zM20 11h6v1h-6zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM8 12h2v1h-2zM11 12h1v1h-1zM13 12h1v1h-1zM15 12h4v1h-4zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h2v1h-2zM5 13h3v1h-3zM9 13h1v1h-1zM11 13h1v1h-1zM15 13h3v1h-3zM23 13h2v1h-2zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h5v1h-5zM8 14h1v1h-1zM10 14h2v1h-2zM13 14h5v1h-5zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM4 15h2v1h-2zM7 15h1v1h-1zM9 15h2v1h-2zM12 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM18 15h6v1h-6zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM2 16h1v1h-1zM4 16h2v1h-2zM8 16h1v1h-1zM10 16h1v1h-1zM12 16h1v1h-1zM14 16h2v1h-2zM17 16h1v1h-1zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM4 17h4v1h-4zM9 17h1v1h-1zM11 17h1v1h-1zM16 17h1v1h-1zM20 17h1v1h-1zM23 17h1v1h-1zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM8 18h2v1h-2zM15 18h3v1h-3zM20 18h1v1h-1zM25 18h1v1h-1zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM4 19h4v1h-4zM12 19h1v1h-1zM15 19h1v1h-1zM17 19h2v1h-2zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM3 20h2v1h-2zM6 20h1v1h-1zM8 20h2v1h-2zM11 20h1v1h-1zM13 20h2v1h-2zM16 20h1v1h-1zM19 20h2v1h-2zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h2v1h-2zM6 21h2v1h-2zM9 21h1v1h-1zM12 21h1v1h-1zM14 21h2v1h-2zM18 21h1v1h-1zM20 21h4v1h-4zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h1v1h-1zM5 22h1v1h-1zM7 22h2v1h-2zM13 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM21 22h2v1h-2zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h1v1h-1zM4 23h1v1h-1zM6 23h1v1h-1zM10 23h3v1h-3zM18 23h5v1h-5zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h2v1h-2zM5 24h2v1h-2zM8 24h1v1h-1zM11 24h4v1h-4zM16 24h2v1h-2zM19 24h1v1h-1zM22 24h3v1h-3zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h1v1h-1zM6 25h1v1h-1zM11 25h2v1h-2zM15 25h3v1h-3zM19 25h7v1h-7zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h2v1h-2zM6 26h1v1h-1zM8 26h2v1h-2zM11 26h3v1h-3zM15 26h4v1h-4zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM4 27h4v1h-4zM9 27h1v1h-1zM12 27h2v1h-2zM15 27h1v1h-1zM17 27h1v1h-1zM20 27h2v1h-2zM24 27h2v1h-2zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h2v1h-2zM8 28h2v1h-2zM13 28h1v1h-1zM15 28h4v1h-4zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h1v1h-1zM6 29h2v1h-2zM10 29h1v1h-1zM15 29h3v1h-3zM22 29h2v1h-2zM31 29h2v1h-2zM34 29h1v1h-1zM2 30h1v1h-1zM4 30h3v1h-3zM8 30h1v1h-1zM11 30h2v1h-2zM14 30h2v1h-2zM17 30h3v1h-3zM21 30h1v1h-1zM24 30h14v1h-14zM10 31h1v1h-1zM12 31h2v1h-2zM16 31h1v1h-1zM18 31h1v1h-1zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h1v1h-1zM15 32h4v1h-4zM20 32h1v1h-1zM22 32h2v1h-2zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h3v1h-3zM14 33h1v1h-1zM17 33h2v1h-2zM21 33h5v1h-5zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h1v1h-1zM13 34h1v1h-1zM15 34h1v1h-1zM20 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h4v1h-4zM17 35h2v1h-2zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM15 36h1v1h-1zM19 36h2v1h-2zM22 36h2v1h-2zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM13 37h4v1h-4zM18 37h1v1h-1zM23 37h2v1h-2zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM13 38h1v1h-1zM16 38h1v1h-1zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-11-euler-qam.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

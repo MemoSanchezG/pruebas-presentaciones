@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espectro electromagnético</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 480px) { header, main, footer { padding-left:10px; padding-right:10px; } h1 { font-size:1.4rem; }
+                              .panel { padding:10px; } }
+  .fila > * { min-width:0; }
+  small { font-size:.94em; }
+  .lectura, .seguridad, .preguntas { overflow-wrap:anywhere; }
+  select { width:100%; margin-top:4px; }
+  .valor { float:right; font-weight:bold; color:var(--guinda); }
+  .opcion { display:flex; align-items:center; gap:8px; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  .opcion input { margin:0; width:18px; height:18px; flex:none; }
+  .lectura .formula { display:block; margin:2px 0 4px; }
+  .lectura .renglon { margin:0 0 6px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .botonera { display:flex; flex-wrap:wrap; }
+  canvas.arrastrable { touch-action:pan-y; cursor:ew-resize; }
+  canvas.arrastrable:focus-visible { outline:2px solid var(--azul); outline-offset:2px; }
+  .enunciado { border:2px solid var(--oro); border-radius:10px; padding:10px 12px; margin-top:8px;
+               font-size:1.15rem; line-height:1.4; color:var(--azul-oscuro); min-height:3.2em; }
+  .enunciado small { display:block; font-size:.95rem; color:var(--gris); margin-bottom:2px; }
+  .resultado { margin-top:10px; min-height:1.5em; line-height:1.5; }
+  .marcador { margin-top:10px; font-weight:bold; color:var(--azul-oscuro); }
+  .donde { margin-top:8px; color:var(--tinta); }
+  button.accion:disabled { opacity:.45; cursor:default; background:#fff; color:var(--azul); }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 05 · El espectro electromagnético y sus bandas</div>
+  <h1>El espectro electromagnético: de la red eléctrica a los rayos gamma</h1>
+  <p class="sub">Recorre todas las bandas con un cursor, mira λ = c/f con tus números y pon a prueba tu mapa del espectro.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Recorre el espectro</button>
+    <button type="button" data-vista="v2" role="tab">Adivina la banda</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="logf">Frecuencia f <small>(escala logarítmica; también puedes arrastrar sobre el lienzo)</small></label>
+        <input id="logf" type="range" min="1" max="21" step="0.001" value="14.699">
+        <div class="botonera">
+          <button type="button" class="accion" id="bajar">f ÷ 10</button>
+          <button type="button" class="accion" id="subir">f × 10</button>
+        </div>
+        <label for="saltar">Banda donde está el cursor <small>(elige otra para saltar)</small></label>
+        <select id="saltar"></select>
+        <label class="opcion"><input type="checkbox" id="verTec" checked> Tecnologías del libro en la lupa</label>
+        <label class="opcion"><input type="checkbox" id="verIsm" checked> Bandas ISM (sin licencia) en la lupa</label>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" class="arrastrable" tabindex="0" aria-label="Espectro electromagnético completo en escala logarítmica, de 10 Hz a 10 elevado a la 21 Hz, con un cursor; abajo, una lupa de la zona del cursor con las bandas y las tecnologías del libro"></canvas>
+        <p class="nota">Arrastra en la barra de arriba para saltar lejos y en la lupa para afinar (con el dedo o con el mouse). Con el lienzo seleccionado, ← → mueven el cursor (con Shift, de 0.1 en 0.1 décadas). Barra dorada: banda ISM. Los límites del ultravioleta, los rayos X y los gamma son aproximados, como en la figura del libro.</p>
+        <div class="lectura" id="banda1" aria-live="polite"></div>
+        <div class="seguridad"><b>Seguridad.</b> Todas estas ondas son el mismo fenómeno; solo cambia f, y con ella λ = c/f. Por eso, dice el libro, conocer el espectro completo —y no solo el rango de una tecnología— permite anticipar por dónde puede fugarse información, qué tan lejos puede escucharse una señal y qué bandas son vulnerables a interferencia y suplantación. Un caso histórico: en 1985, Wim van Eck reconstruyó a distancia la imagen de un monitor captando sus emanaciones con un receptor de televisión modificado; es el origen de la preocupación por las emanaciones comprometedoras (TEMPEST).</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice antes de mover: ¿cuántas veces más larga es una onda de radio AM que la luz del valor inicial? Comprueba con el cursor.</li>
+            <li>Recorre las bandas de la UIT de VLF a EHF con f × 10. ¿Por qué todas ocupan el mismo ancho en la barra? ¿Qué le pasa a λ al cruzar cada frontera?</li>
+            <li>Sube hasta los rayos X y los gamma. ¿Cuántas veces más energía lleva cada fotón que uno de luz visible? ¿Qué dice el libro de esas frecuencias?</li>
+            <li>Compara la longitud de onda de la red eléctrica (50–60 Hz) con el tamaño de la Tierra. ¿Por qué cerca de un cable de energía se habla de un campo magnético variable y no de una onda que viaja?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Reto: ¿en qué banda vive?</h2>
+        <p class="nota" style="margin-top:0">Rondas de 10 señales. Arrastra el marcador (o toca la barra) hasta la banda donde vive cada una y presiona Comprobar. Si te dan λ, primero calcula f = c/λ.</p>
+        <div class="enunciado" id="enunciado" aria-live="polite"></div>
+        <div class="donde" id="donde"></div>
+        <div class="botonera">
+          <button type="button" class="accion" id="comprobar">Comprobar</button>
+          <button type="button" class="accion" id="siguiente">Siguiente</button>
+          <button type="button" class="accion" id="nuevaRonda">Nueva ronda</button>
+        </div>
+        <div class="resultado" id="resultado" aria-live="polite"></div>
+        <div class="marcador" id="marcador"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" class="arrastrable" tabindex="0" aria-label="Espectro electromagnético con las bandas y un marcador que se arrastra para ubicar la señal del reto"></canvas>
+        <p class="nota">En el reto la barra no muestra λ ni las tecnologías. Usa la barra de arriba para acercarte y la lupa para afinar; ← → también mueven el marcador.</p>
+        <div class="seguridad"><b>Seguridad.</b> Ubicar una señal en su banda es el primer paso de un análisis de riesgo: según el libro, la banda dice qué propagación domina (onda terrestre, ionosférica o línea de vista) y, con ello, desde qué distancia podría escucharla un adversario; las bandas sin licencia, además, están abiertas a cualquiera, incluido un atacante.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Cuando el reto te da λ en lugar de f, ¿qué cuenta haces antes de ubicarla? ¿Por qué una λ más corta queda más a la derecha?</li>
+            <li>Las fronteras de la UIT están en 3×10ⁿ Hz. ¿En qué banda quedan 2.6 MHz y 3.4 MHz? ¿Qué te dicen sus longitudes de onda?</li>
+            <li>¿Qué fronteras confundiste? Escribe una regla corta para recordar dónde empieza cada banda.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap02_campos_magneticos.tex (Ecuación eq:lambda-onda-em, λ = c/f; cuadro de bandas de la sección sec:espectro-electromagnetico y Figura fig:espectro-bandas). Propagación, radio AM, radar de 77 GHz y Wi-Fi de 60 GHz: fase2/cap03_lineas_ondas_transmision.tex (Cuadro tab:bandas-cap05). Electronvolt: fase1/cap01_electricidad.tex. * Complementos que no vienen en el libro: E = h·f, la frontera ionizante aproximada, la frontera de las microondas, Li-Fi y las comparaciones de tamaño (ilustrativas). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  // x con n cifras significativas (texto con num)
+  function sig(x, n) {
+    if (x === 0) return "0";
+    var r = Number(Number(x).toPrecision(n)), e = Math.floor(Math.log10(Math.abs(r)) + 1e-9);
+    return num(r, Math.max(0, n - 1 - e));
+  }
+  // Notación científica con n cifras: 5.45×10¹⁴ (sin "×10⁰")
+  function sci(x, n) {
+    var e = Math.floor(Math.log10(Math.abs(x)) + 1e-9), m = Number((x / Math.pow(10, e)).toFixed(n - 1));
+    if (Math.abs(m) >= 10) { m /= 10; e += 1; }
+    return num(m, n - 1) + (e === 0 ? "" : "×10" + sup(e));
+  }
+  var PREF_F = [[1e18, "EHz"], [1e15, "PHz"], [1e12, "THz"], [1e9, "GHz"], [1e6, "MHz"], [1e3, "kHz"], [1, "Hz"]];
+  function fF(f, n) {
+    var r = Number(f.toPrecision(n || 3));
+    for (var i = 0; i < PREF_F.length; i++) if (r >= PREF_F[i][0] * 0.99999) return sig(r / PREF_F[i][0], n || 3) + " " + PREF_F[i][1];
+    return sig(r, n || 3) + " Hz";
+  }
+  var PREF_L = [[1e3, "km"], [1, "m"], [1e-2, "cm"], [1e-3, "mm"], [1e-6, "μm"], [1e-9, "nm"], [1e-12, "pm"], [1e-15, "fm"]];
+  function fL(l, n) {
+    var r = Number(l.toPrecision(n || 3));
+    for (var i = 0; i < PREF_L.length; i++) if (r >= PREF_L[i][0] * 0.99999) return sig(r / PREF_L[i][0], n || 3) + " " + PREF_L[i][1];
+    return sci(r, n || 3) + " m";
+  }
+  // Etiqueta corta para los ejes: 1 MHz, 30 GHz, 300 THz
+  function fEje(f) {
+    if (f >= 9.99e20) return "10" + sup(Math.round(Math.log10(f))) + " Hz";
+    for (var i = 0; i < PREF_F.length; i++) if (f >= PREF_F[i][0] * 0.99999) return num(f / PREF_F[i][0], 0) + " " + PREF_F[i][1];
+    return num(f, 0) + " Hz";
+  }
+  function lEje(l) {
+    for (var i = 0; i < PREF_L.length; i++) if (l >= PREF_L[i][0] * 0.99999) return num(Math.round(l / PREF_L[i][0]), 0) + " " + PREF_L[i][1];
+    return "";
+  }
+
+  // Ayudantes de dibujo
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita, borde) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.94)"; g.fillRect(x0 - 4, y - tam, w + 8, tam + 6);
+    if (borde) { g.strokeStyle = borde; g.lineWidth = 1.5; g.strokeRect(x0 - 4, y - tam, w + 8, tam + 6); }
+    g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+
+  // ================================================================ Datos del libro
+  var CLUZ = 2.998e8;                 // m/s (libro)
+  var H_PLANCK = 6.626e-34;           // J·s (complemento)
+  var EV = 1.602e-19;                 // J (libro, capítulo de Electricidad)
+  var F_ION = 10 * EV / H_PLANCK;     // ≈ 10 eV: frontera ionizante aproximada (complemento)
+  var LOG_MIN = 1, LOG_MAX = 21;
+  function lg(x) { return Math.log10(x); }
+
+  // Regiones del espectro: cuadro del libro (VLF a visible) y figura del libro (UV, X y gamma, aproximados)
+  var REG = [
+    { id: "bajo", corto: "< VLF", nombre: "Debajo de la VLF", lo: 10, hi: 3e3, rf: "menos de 3 kHz", rl: "más de 100 km", color: "#EEF0F4",
+      nota: "El libro no le da nombre de banda a esta región.",
+      usos: ["red eléctrica de 50–60 Hz: un magnetómetro detecta su \"latido\" (ejemplo de las leyes de Maxwell)"] },
+    { id: "VLF", corto: "VLF", nombre: "VLF", lo: 3e3, hi: 3e4, rf: "3–30 kHz", rl: "100–10 km", color: "#E8EEF7", uit: true,
+      usos: ["comunicación con submarinos", "radionavegación"], prop: "onda terrestre",
+      seg: "alcance continental: la señal se capta en una región enorme." },
+    { id: "LF", corto: "LF", nombre: "LF", lo: 3e4, hi: 3e5, rf: "30–300 kHz", rl: "10–1 km", color: "#D6E1F0", uit: true,
+      usos: ["RFID LF de 125–134 kHz (credenciales antiguas)"], prop: "onda terrestre; las credenciales de 125 kHz funcionan por acoplamiento inductivo de campo cercano, no por propagación de una onda",
+      seg: "credenciales fáciles de clonar; interferencia." },
+    { id: "MF", corto: "MF", nombre: "MF", lo: 3e5, hi: 3e6, rf: "300 kHz–3 MHz", rl: "1 km–100 m", color: "#E8EEF7", uit: true,
+      usos: ["radio AM (535–1705 kHz)"], prop: "onda terrestre; de noche, también ionosférica",
+      seg: "escucha a gran distancia." },
+    { id: "HF", corto: "HF", nombre: "HF", lo: 3e6, hi: 3e7, rf: "3–30 MHz", rl: "100–10 m", color: "#D6E1F0", uit: true,
+      usos: ["RFID HF y NFC a 13.56 MHz (pago sin contacto, credenciales)", "radioaficionados", "aviación oceánica"], prop: "onda ionosférica (NFC trabaja en campo cercano)",
+      seg: "intercepción intercontinental; lectura furtiva de tarjetas." },
+    { id: "VHF", corto: "VHF", nombre: "VHF", lo: 3e7, hi: 3e8, rf: "30–300 MHz", rl: "10–1 m", color: "#E8EEF7", uit: true,
+      usos: ["radio FM (88–108 MHz)", "radio marina y aeronáutica"], prop: "línea de vista",
+      seg: "escucha y suplantación con radio definida por software." },
+    { id: "UHF", corto: "UHF", nombre: "UHF", lo: 3e8, hi: 3e9, rf: "300 MHz–3 GHz", rl: "1 m–10 cm", color: "#D6E1F0", uit: true, micro: true,
+      usos: ["telefonía celular", "RFID UHF (902–928 MHz en México)", "GPS L1 (1575.42 MHz)", "Wi-Fi y Bluetooth de 2.4 GHz"], prop: "línea de vista",
+      seg: "suplantación de GPS, cuya señal llega por debajo del nivel de ruido, y puntos de acceso falsos; en la banda ISM de 2.4 GHz cualquiera puede transmitir sin licencia, también un jammer." },
+    { id: "SHF", corto: "SHF", nombre: "SHF", lo: 3e9, hi: 3e10, rf: "3–30 GHz", rl: "10–1 cm", color: "#E8EEF7", uit: true, micro: true,
+      usos: ["Wi-Fi de 5 y 6 GHz", "5G en 3.5 GHz y parte baja de FR2 (24–30 GHz)", "radar", "enlaces satelitales (bandas C y Ku)"], prop: "línea de vista",
+      seg: "intercepción de enlaces punto a punto." },
+    { id: "EHF", corto: "EHF", nombre: "EHF", lo: 3e10, hi: 3e11, rf: "30–300 GHz", rl: "10–1 mm", color: "#D6E1F0", uit: true, micro: true,
+      usos: ["5G en ondas milimétricas (FR2 arriba de 30 GHz)", "radar automotriz de 77 GHz", "Wi-Fi de 60 GHz", "enlaces punto a punto"], prop: "línea de vista corta (absorción)",
+      seg: "alcance corto, difícil de captar de lejos: a 60 GHz los muros bloquean casi toda la energía; aun así el enlace se cifra, porque un receptor dentro de la sala sí lo capta." },
+    { id: "IR", corto: "Infrarrojo", mini: "IR", nombre: "Infrarrojo", lo: 3e11, hi: 4e14, rf: "300 GHz–400 THz", rl: "1 mm–750 nm", color: "#F3E6D2",
+      usos: ["fibra óptica: ventanas de 850, 1310 y 1550 nm", "controles remotos"],
+      seg: "es invisible: un técnico nunca debe mirar el extremo de una fibra activa ni confiar en que \"no se ve luz\", y un tap óptico no es evidente a simple vista." },
+    { id: "VIS", corto: "Visible", nombre: "Luz visible", lo: 4e14, hi: 7.9e14, rf: "400–790 THz", rl: "750–380 nm", color: "#FFFFFF",
+      usos: ["iluminación", "cámaras", "fibra plástica"], extra: "Li-Fi, datos modulados en la luz de un LED" },
+    { id: "UV", corto: "UV", nombre: "Ultravioleta", lo: 7.9e14, hi: 3e16, rf: "790 THz–30 PHz", rl: "380–10 nm", aprox: true, color: "#F5E6EA",
+      usos: [], seg: "el ultravioleta lejano es ionizante." },
+    { id: "X", corto: "Rayos X", nombre: "Rayos X", lo: 3e16, hi: 3e19, rf: "30 PHz–30 EHz", rl: "10 nm–10 pm", aprox: true, color: "#EBD0D7",
+      usos: [], seg: "ionizantes: cada fotón tiene energía suficiente para arrancar electrones de los átomos." },
+    { id: "G", corto: "Gamma", nombre: "Rayos gamma", lo: 3e19, hi: 1e21, rf: "más de 30 EHz", rl: "menos de 10 pm", aprox: true, color: "#DDB6C0",
+      usos: [], seg: "ionizantes: cada fotón tiene energía suficiente para arrancar electrones de los átomos." }
+  ];
+  var REG_ID = {};
+  // Forma de cada región para frases como "está en el infrarrojo"
+  var EN = { bajo: "la región debajo de la VLF", IR: "el infrarrojo", VIS: "la luz visible", UV: "el ultravioleta", X: "los rayos X", G: "los rayos gamma" };
+  REG.forEach(function (r) { REG_ID[r.id] = r; r.la = lg(r.lo); r.lb = lg(r.hi); r.en = EN[r.id] || "la banda " + r.id; });
+  // Intervalo de una región en texto: (f; λ), con aviso si los límites son aproximados
+  function rangos(r) { return r.rf + "; λ " + r.rl + (r.aprox ? "; límites aproximados" : ""); }
+  function regionDe(logf) {
+    for (var i = 0; i < REG.length; i++) if (logf < REG[i].lb) return REG[i];
+    return REG[REG.length - 1];
+  }
+
+  // Tecnologías del libro para la lupa (lo y hi en Hz; sin hi, es una sola frecuencia)
+  var TEC = [
+    { lo: 50, hi: 60, et: "red eléctrica 50–60 Hz", ec: "red 50–60 Hz" },
+    { lo: 125e3, hi: 134e3, et: "RFID LF 125–134 kHz", ec: "RFID LF" },
+    { lo: 535e3, hi: 1705e3, et: "radio AM", ec: "AM" },
+    { lo: 13.56e6, et: "NFC / RFID HF 13.56 MHz", ec: "NFC" },
+    { lo: 88e6, hi: 108e6, et: "radio FM 88–108 MHz", ec: "FM" },
+    { lo: 902e6, hi: 928e6, et: "RFID UHF 902–928 MHz", ec: "RFID UHF" },
+    { lo: 1575.42e6, et: "GPS L1", ec: "GPS" },
+    { lo: 2e9, et: "5G NTN banda S", ec: "NTN S" },
+    { lo: 2.4e9, hi: 2.4835e9, et: "Wi-Fi y Bluetooth 2.4 GHz", ec: "Wi-Fi/BT" },
+    { lo: 3.5e9, et: "5G 3.5 GHz", ec: "5G" },
+    { lo: 5.15e9, hi: 5.85e9, et: "Wi-Fi 5 GHz", ec: "Wi-Fi 5" },
+    { lo: 5.925e9, hi: 7.125e9, et: "Wi-Fi 6 GHz", ec: "Wi-Fi 6" },
+    { lo: 20e9, hi: 30e9, et: "5G NTN banda Ka", ec: "NTN Ka" },
+    { lo: 60e9, et: "Wi-Fi 60 GHz", ec: "Wi-Fi 60" },
+    { lo: 77e9, et: "radar automotriz 77 GHz", ec: "radar" },
+    { lo: CLUZ / 1550e-9, et: "fibra 1550 nm", ec: "1550 nm" },
+    { lo: CLUZ / 1310e-9, et: "fibra 1310 nm", ec: "1310 nm" },
+    { lo: CLUZ / 850e-9, et: "fibra 850 nm", ec: "850 nm" }
+  ];
+  var LARGOS = [ { lo: 410e6, hi: 7.125e9, et: "5G FR1" }, { lo: 24.25e9, hi: 52.6e9, et: "5G FR2" } ];
+  var ISM = [[13.553e6, 13.567e6], [902e6, 928e6], [2.4e9, 2.5e9], [5.725e9, 5.875e9]];
+
+  // Objetos para comparar tamaños (ilustrativos, salvo los núcleos de fibra, que son del libro)
+  var OBJ = [
+    { m: 1.2742e7, t: "el diámetro de la Tierra (≈ 12 700 km)" },
+    { m: 1e4, t: "la altura de crucero de un avión comercial (≈ 10 km)" },
+    { m: 100, t: "una cancha de fútbol (≈ 100 m)" },
+    { m: 12, t: "un autobús (≈ 12 m)" },
+    { m: 1.7, t: "una persona (≈ 1.7 m)" },
+    { m: 0.15, t: "un teléfono celular (≈ 15 cm)" },
+    { m: 0.025, t: "una moneda (≈ 2.5 cm)" },
+    { m: 5e-4, t: "un grano de arena (≈ 0.5 mm)" },
+    { m: 1e-4, t: "el grosor de un cabello (≈ 0.1 mm)" },
+    { m: 5e-5, t: "el núcleo de una fibra multimodo (50 μm, libro)" },
+    { m: 9e-6, t: "el núcleo de una fibra monomodo (8–10 μm, libro)" },
+    { m: 1.5e-6, t: "una bacteria (≈ 1.5 μm)" },
+    { m: 1e-7, t: "un virus (≈ 100 nm)" },
+    { m: 2e-9, t: "el ancho de una molécula de ADN (≈ 2 nm)" },
+    { m: 1e-10, t: "un átomo (≈ 0.1 nm)" },
+    { m: 1e-14, t: "un núcleo atómico (≈ 10 fm)" }
+  ];
+  function comparar(lam) {
+    var mejor = OBJ[0], dmin = Infinity;
+    OBJ.forEach(function (o) { var d = Math.abs(lg(lam / o.m)); if (d < dmin) { dmin = d; mejor = o; } });
+    var r = lam / mejor.m;
+    if (r >= 0.75 && r <= 1.33) return "λ es más o menos del tamaño de " + mejor.t + ".";
+    if (r > 1) return "λ es unas " + sig(r, 2) + " veces más grande que " + mejor.t + ".";
+    return "λ es unas " + sig(1 / r, 2) + " veces más pequeña que " + mejor.t + ".";
+  }
+
+  // Color aproximado de cada longitud de onda visible (para el arcoíris de la barra)
+  function colorLambda(nm) {
+    var r = 0, g = 0, b = 0;
+    if (nm < 440) { r = (440 - nm) / 60; b = 1; }
+    else if (nm < 490) { g = (nm - 440) / 50; b = 1; }
+    else if (nm < 510) { g = 1; b = (510 - nm) / 20; }
+    else if (nm < 580) { r = (nm - 510) / 70; g = 1; }
+    else if (nm < 645) { r = 1; g = (645 - nm) / 65; }
+    else { r = 1; }
+    var k = nm < 420 ? 0.35 + 0.65 * (nm - 380) / 40 : (nm > 700 ? 0.35 + 0.65 * (750 - nm) / 50 : 1);
+    function c(v) { return Math.round(255 * Math.pow(Math.max(0, v * k), 0.8)); }
+    return "rgb(" + c(r) + "," + c(g) + "," + c(b) + ")";
+  }
+
+  // ================================================================ Dibujo del espectro
+  // op: { logf, centro, modo ("explora" o "reto"), tec, ism, revelar }
+  function dibujarEspectro(cv, op) {
+    var w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var F = 15, filas = 4, altoFila = angosto ? 24 : 26, explora = op.modo === "explora";
+    var x0 = angosto ? 10 : 18, x1 = w0 - (angosto ? 10 : 18);
+    var ov = { y0: angosto ? 50 : 52, y1: angosto ? 108 : 100 };
+    var yFov = ov.y1 + 20;
+    var yCaja = yFov + (angosto ? 42 : 40);
+    var yLargos = yCaja + 30;
+    var lupa = { y0: yCaja + (explora ? (op.tec ? 80 + filas * altoFila : 50) : 46) };
+    lupa.y1 = lupa.y0 + (angosto ? 46 : 50);
+    var alto = lupa.y1 + (op.modo === "explora" ? 70 : 50);
+    var d = preparar(cv, alto / w0), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+
+    // Escalas: barra completa y lupa
+    function X(lf) { return x0 + (lf - LOG_MIN) / (LOG_MAX - LOG_MIN) * (x1 - x0); }
+    var media = angosto ? 1.2 : 1.5, a = op.centro - media, b = op.centro + media;
+    if (a < LOG_MIN) { b += LOG_MIN - a; a = LOG_MIN; }
+    if (b > LOG_MAX) { a -= b - LOG_MAX; b = LOG_MAX; }
+    function XL(lf) { return x0 + (lf - a) / (b - a) * (x1 - x0); }
+
+    // ---------------- barra completa
+    if (op.revelar) texto(g, "Banda correcta: " + REG_ID[op.revelar.region].nombre + (op.revelar.ok ? " ✓" : ""), x0, 20, op.revelar.ok ? C.azul : C.guinda, 16, "left", "alphabetic", true);
+    else texto(g, explora ? "Espectro completo (escala logarítmica)" : "Espectro completo: ubica tu marcador", x0, 20, C.azulOscuro, 16, "left", "alphabetic", true);
+    dibujarBarra(g, X, ov.y0, ov.y1, LOG_MIN, LOG_MAX, angosto, true, op);
+    // longitudes de onda arriba de la barra (potencias de 10, que caen en las fronteras de la UIT)
+    if (explora) {
+      for (var m = 7; m >= -12; m--) {
+        var xm = X(lg(CLUZ / Math.pow(10, m)));
+        linea(g, xm, ov.y0 - 5, xm, ov.y0, C.oroTexto, 1);
+        if ((m % 3) === 0 && !(angosto && m === 6)) {
+          var tl = lEje(Math.pow(10, m)), wl = anchoTexto(tl, F);
+          var xt = Math.max(x0 + wl / 2, Math.min(x1 - wl / 2, xm));
+          texto(g, tl, xt, ov.y0 - 8, C.oroTexto, F, "center");
+        }
+      }
+      if (!angosto) texto(g, "λ", x0, ov.y0 - 8, C.oroTexto, F, "left", "alphabetic", true);
+    }
+    // frecuencias abajo de la barra (la primera lleva la unidad)
+    for (var k = LOG_MIN; k <= LOG_MAX; k++) {
+      linea(g, X(k), ov.y1, X(k), ov.y1 + 5, C.gris, 1);
+      if (k % 3 === 0) {
+        var tk = "10" + sup(k) + (k === 3 ? " Hz" : ""), wk = anchoTexto(tk, F);
+        texto(g, tk, Math.max(x0 + wk / 2, Math.min(x1 - wk / 2, X(k))), yFov, C.gris, F, "center");
+      }
+    }
+    // ventana de la lupa y cursor en la barra completa
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 1.5; g.setLineDash([5, 4]);
+    g.strokeRect(X(a), ov.y0 - 2, X(b) - X(a), ov.y1 - ov.y0 + 4); g.restore();
+    linea(g, X(a), ov.y1 + 2, x0, lupa.y0, "rgba(140,29,53,0.25)", 1, [3, 4]);
+    linea(g, X(b), ov.y1 + 2, x1, lupa.y0, "rgba(140,29,53,0.25)", 1, [3, 4]);
+    var xc = X(op.logf);
+    linea(g, xc, ov.y0 - 7, xc, ov.y1 + 7, C.guinda, 3);
+
+    // ---------------- lupa
+    dibujarBarra(g, XL, lupa.y0, lupa.y1, a, b, angosto, false, op);
+    // marcas de frecuencia de la lupa
+    for (var kk = Math.floor(a); kk <= Math.ceil(b); kk++) {
+      for (var mm = 1; mm <= 9; mm++) {
+        var lf = kk + lg(mm);
+        if (lf < a - 1e-9 || lf > b + 1e-9) continue;
+        var xx = XL(lf), mayor = mm === 1 || (mm === 3 && !angosto);
+        linea(g, xx, lupa.y1, xx, lupa.y1 + (mayor ? 7 : 4), C.gris, mayor ? 1.4 : 1);
+        if (mayor) {
+          var tf = fEje(mm * Math.pow(10, kk)), wf = anchoTexto(tf, F);
+          texto(g, tf, Math.max(x0 + wf / 2, Math.min(x1 - wf / 2, xx)), lupa.y1 + 22, C.tinta, F, "center");
+        }
+      }
+    }
+    // longitudes de onda en las fronteras de la lupa (solo al explorar)
+    if (op.modo === "explora") {
+      for (var m2 = 7; m2 >= -12; m2--) {
+        var lfm = lg(CLUZ / Math.pow(10, m2));
+        if (lfm < a || lfm > b) continue;
+        var tl2 = "λ = " + lEje(Math.pow(10, m2)), wl2 = anchoTexto(tl2, F);
+        texto(g, tl2, Math.max(x0 + wl2 / 2, Math.min(x1 - wl2 / 2, XL(lfm))), lupa.y1 + 42, C.oroTexto, F, "center");
+      }
+      texto(g, "lupa: " + num(b - a, 1) + " décadas alrededor del cursor", x1, lupa.y1 + 62, C.gris, F, "right");
+    }
+
+    // tecnologías, bandas ISM y frontera ionizante en la lupa
+    var lion = lg(F_ION), ion = null;
+    if (lion > a && lion < b) ion = { x: XL(lion), et: angosto ? "ionizante →" : "ionizante (aprox.) →" };
+    if (explora && op.ism) {
+      ISM.forEach(function (r) {
+        var xa = XL(lg(r[0])), xb = XL(lg(r[1]));
+        if (xb < x0 || xa > x1) return;
+        g.save(); g.fillStyle = C.oro; g.fillRect(xa - (xb - xa < 3 ? 1.5 : 0), lupa.y1 - 7, Math.max(3, xb - xa), 7); g.restore();
+      });
+    }
+    if (explora && op.tec) dibujarTecnologias(g, XL, a, b, lupa, yLargos, filas, altoFila, angosto, x0, x1, ion);
+    else if (ion) {
+      var wi = anchoTexto(ion.et, F, true);
+      linea(g, ion.x, lupa.y0 - 12, ion.x, lupa.y0, C.guinda, 2, [4, 3]);
+      etiqueta(g, ion.et, Math.max(x0 + wi / 2 + 4, Math.min(x1 - wi / 2 - 4, ion.x)), lupa.y0 - 16, C.guinda, F, "center", true);
+    }
+
+    // banda correcta y valor verdadero al revelar el reto
+    if (op.revelar) {
+      var rr = REG_ID[op.revelar.region];
+      [[X, ov, LOG_MIN, LOG_MAX], [XL, lupa, a, b]].forEach(function (e) {
+        var la = Math.max(rr.la, e[2]), lb = Math.min(rr.lb, e[3]);
+        if (lb <= la) return;
+        g.save(); g.strokeStyle = C.azul; g.lineWidth = 3; g.strokeRect(e[0](la), e[1].y0 - 3, e[0](lb) - e[0](la), e[1].y1 - e[1].y0 + 6); g.restore();
+      });
+      if (op.revelar.logf !== undefined) {
+        var xv = XL(op.revelar.logf), xvo = X(op.revelar.logf);
+        if (xv >= x0 - 1 && xv <= x1 + 1) {
+          linea(g, xv, lupa.y0 - 14, xv, lupa.y1, C.azul, 2.5, [6, 4]);
+          var tv = "aquí: " + op.revelar.texto, wv = anchoTexto(tv, F, true);
+          etiqueta(g, tv, Math.max(x0 + wv / 2 + 4, Math.min(x1 - wv / 2 - 4, xv)), lupa.y0 - 18, C.azul, F, "center", true);
+        }
+        linea(g, xvo, ov.y0 - 4, xvo, ov.y1 + 4, C.azul, 2.5, [4, 3]);
+      }
+    }
+
+    // cursor en la lupa
+    var xcl = XL(op.logf);
+    if (xcl >= x0 - 1 && xcl <= x1 + 1) {
+      linea(g, xcl, yCaja + 8, xcl, lupa.y1 + 2, C.guinda, 2.5);
+      g.save(); g.fillStyle = C.guinda; g.beginPath(); g.moveTo(xcl, lupa.y1 + 1); g.lineTo(xcl - 7, lupa.y1 + 11); g.lineTo(xcl + 7, lupa.y1 + 11); g.closePath(); g.fill(); g.restore();
+    }
+    var xcaja = Math.max(x0, Math.min(x1, xcl));
+    if (explora) {
+      var fr = Number(Math.pow(10, op.logf).toPrecision(3));
+      var tc = "f = " + fF(fr) + " · λ = " + fL(CLUZ / fr), wc = anchoTexto(tc, 16, true);
+      etiqueta(g, tc, Math.max(x0 + wc / 2 + 4, Math.min(x1 - wc / 2 - 4, xcaja)), yCaja, C.guinda, 16, "center", true, C.guinda);
+    } else {
+      var tm = op.revelar ? "tu marcador: " + regionDe(op.logf).corto : "tu marcador", wm = anchoTexto(tm, 16, true);
+      etiqueta(g, tm, Math.max(x0 + wm / 2 + 4, Math.min(x1 - wm / 2 - 4, xcaja)), yCaja, C.guinda, 16, "center", true, C.guinda);
+    }
+    return { X: X, XL: XL, a: a, b: b, ov: ov, lupa: lupa, yCaja: yCaja, x0: x0, x1: x1, yFov: yFov };
+  }
+
+  // Barra de regiones entre log a y log b
+  function dibujarBarra(g, X, y0, y1, a, b, angosto, completa, op) {
+    REG.forEach(function (r) {
+      var la = Math.max(r.la, a), lb = Math.min(r.lb, b);
+      if (lb <= la) return;
+      var xa = X(la), xb = X(lb);
+      if (r.id === "VIS") {
+        var gr = g.createLinearGradient(X(r.la), 0, X(r.lb), 0);
+        for (var i = 0; i <= 10; i++) gr.addColorStop(i / 10, colorLambda(750 - i * 37));
+        g.save(); g.fillStyle = gr; g.fillRect(xa, y0, xb - xa, y1 - y0); g.restore();
+      } else {
+        g.save(); g.fillStyle = r.color; g.fillRect(xa, y0, xb - xa, y1 - y0); g.restore();
+      }
+      if (r.la >= a) linea(g, xa, y0, xa, y1, "#9AA4B4", 1);
+      // nombre de la región
+      var ancho = xb - xa, nombre = completa ? r.corto : (r.id === "bajo" ? "debajo de VLF" : r.corto);
+      var conRango = !completa ? nombre + " · " + r.rf + (r.aprox ? " (aprox.)" : "") : nombre;
+      var colorT = r.id === "VIS" ? "#FFFFFF" : C.azulOscuro;
+      if (r.id === "VIS") {
+        if (ancho > anchoTexto(nombre, 15, true) + 10) etiqueta(g, nombre, (xa + xb) / 2, (y0 + y1) / 2 + 5, C.azulOscuro, 15, "center", true);
+        else if (completa && !angosto) { linea(g, (xa + xb) / 2, y0, (xa + xb) / 2, y0 - 3, C.azulOscuro, 1); }
+        return;
+      }
+      if (!completa && ancho > anchoTexto(conRango, 15, true) + 12) texto(g, conRango, (xa + xb) / 2, (y0 + y1) / 2 + 5, colorT, 15, "center", "alphabetic", true);
+      else if (ancho > anchoTexto(nombre, 15, true) + 6) texto(g, nombre, (xa + xb) / 2, (y0 + y1) / 2 + 5, colorT, 15, "center", "alphabetic", true);
+      else if (completa && ancho > 13 && (y1 - y0) > anchoTexto(nombre, 15, true) + 6) {
+        g.save(); g.translate((xa + xb) / 2 + 5, (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+        texto(g, nombre, 0, 0, colorT, 15, "center", "alphabetic", true); g.restore();
+      }
+      else if (r.mini && ancho > anchoTexto(r.mini, 15, true) + 4) texto(g, r.mini, (xa + xb) / 2, (y0 + y1) / 2 + 5, colorT, 15, "center", "alphabetic", true);
+    });
+    g.save(); g.strokeStyle = "#9AA4B4"; g.lineWidth = 1; g.strokeRect(X(a), y0, X(b) - X(a), y1 - y0); g.restore();
+    // frontera ionizante aproximada (en la lupa, su etiqueta se acomoda con las de las tecnologías)
+    var li = lg(F_ION);
+    if (li > a && li < b) linea(g, X(li), y0 - 3, X(li), y1 + 3, C.guinda, 2, [4, 3]);
+    if (completa && !angosto && op.modo === "explora") {
+      texto(g, "ionizante →", X(li) + 4, y1 + 20, C.guinda, 15, "left", "alphabetic", true);
+    }
+  }
+
+  // Marcadores de tecnologías en la lupa, en filas para que las etiquetas no se encimen
+  function dibujarTecnologias(g, XL, a, b, lupa, yLargos, filas, altoFila, angosto, x0, x1, ion) {
+    var base = lupa.y0 - 4, items = [];
+    TEC.forEach(function (t) {
+      var la = lg(t.lo), lb = t.hi ? lg(t.hi) : la;
+      if (lb < a || la > b) return;
+      var xa = XL(Math.max(la, a)), xb = XL(Math.min(lb, b));
+      items.push({ xa: xa, xb: xb, x: (xa + xb) / 2, et: angosto ? t.ec : t.et, rango: !!t.hi });
+    });
+    if (ion) items.push({ xa: ion.x, xb: ion.x, x: ion.x, et: ion.et, ion: true });
+    items.sort(function (p, q) { return p.x - q.x; });
+    var ocupado = [];
+    for (var f = 0; f < filas; f++) ocupado.push([]);
+    items.forEach(function (it) {
+      var negrita = !!it.ion, wt = anchoTexto(it.et, 15, negrita) + 8, xt = Math.max(x0 + wt / 2, Math.min(x1 - wt / 2, it.x)), fila = -1;
+      for (var f = 0; f < filas && fila < 0; f++) {
+        var libre = ocupado[f].every(function (r) { return xt + wt / 2 < r[0] || xt - wt / 2 > r[1]; });
+        if (libre) fila = f;
+      }
+      if (!it.ion) {
+        g.save(); g.fillStyle = C.azul;
+        if (it.rango) g.fillRect(it.xa, base - 4, Math.max(3, it.xb - it.xa), 5);
+        else { g.beginPath(); g.arc(it.x, base - 2, 4, 0, 2 * Math.PI); g.fill(); }
+        g.restore();
+      }
+      if (fila < 0) return;
+      ocupado[fila].push([xt - wt / 2, xt + wt / 2]);
+      var yt = base - 14 - fila * altoFila;
+      if (it.ion) linea(g, it.x, base + 4, it.x, yt + 3, C.guinda, 2, [4, 3]);
+      else linea(g, it.x, base - 5, it.x, yt + 3, "rgba(0,64,143,0.55)", 1);
+      etiqueta(g, it.et, xt, yt, it.ion ? C.guinda : C.azulOscuro, 15, "center", negrita);
+    });
+    // intervalos largos de 5G (corchetes arriba)
+    LARGOS.forEach(function (r) {
+      var la = lg(r.lo), lb = lg(r.hi);
+      if (lb < a || la > b) return;
+      var xa = XL(Math.max(la, a)), xb = XL(Math.min(lb, b)), yb = yLargos;
+      if (xb - xa < 30) return;
+      linea(g, xa, yb, xb, yb, C.oroTexto, 2);
+      if (la >= a) linea(g, xa, yb - 5, xa, yb + 5, C.oroTexto, 2);
+      if (lb <= b) linea(g, xb, yb - 5, xb, yb + 5, C.oroTexto, 2);
+      var tt = r.et + (angosto ? "" : (r.et === "5G FR1" ? " (410 MHz–7.125 GHz)" : " (24.25–52.6 GHz)"));
+      if (anchoTexto(tt, 15, true) + 10 >= xb - xa) tt = r.et;
+      if (anchoTexto(tt, 15, true) + 10 < xb - xa) etiqueta(g, tt, (xa + xb) / 2, yb + 5, C.oroTexto, 15, "center", true);
+    });
+  }
+
+  // ================================================================ Vista 1
+  var est1 = { logf: lg(5e14), centro: lg(5e14) }, geo1 = null;
+  var selSaltar = $("saltar");
+  REG.forEach(function (r) {
+    var o = document.createElement("option"); o.value = r.id;
+    o.textContent = r.nombre + " (" + r.rf + (r.aprox ? ", aprox." : "") + ")"; selSaltar.appendChild(o);
+  });
+
+  function lectura1() {
+    var fr = Number(Math.pow(10, est1.logf).toPrecision(3)), lam = CLUZ / fr, r = regionDe(lg(fr));
+    var h = "";
+    h += "<div class='renglon'><b>f = " + fF(fr) + "</b> = " + sci(fr, 3) + " Hz</div>";
+    var enMetros = / m$/.test(fL(lam));
+    h += "<div class='renglon'><span class='formula'>λ = c/f</span>(2.998×10⁸ m/s)/(" + sci(fr, 3) + " Hz) = " + (enMetros ? "" : sci(lam, 3) + " m = ") + "<b>" + fL(lam) + "</b></div>";
+    h += "<div class='renglon'>Banda: <b>" + r.nombre + "</b> (" + rangos(r) + ")</div>";
+    $("lectura1").innerHTML = h;
+
+    var E = H_PLANCK * fr, eV = E / EV, b = "";
+    b += "<div class='renglon'><b>" + r.nombre + "</b>" + (r.uit ? " · banda de la UIT" : "") + " · " + rangos(r) + "</div>";
+    if (r.nota) b += "<div class='renglon'>" + r.nota + "</div>";
+    if (r.usos.length) b += "<div class='renglon'><b>Usos (libro):</b> " + r.usos.join("; ") + "." + (r.extra ? " Complemento*: " + r.extra + "." : "") + "</div>";
+    else b += "<div class='renglon'><b>Usos:</b> el libro no menciona tecnologías de comunicación en esta región.</div>";
+    if (r.micro) b += "<div class='renglon'>Forma parte de las <b>microondas</b> (frontera aproximada*: desde unos 300 MHz).</div>";
+    if (r.prop) b += "<div class='renglon'><b>Propagación dominante (libro):</b> " + r.prop + ".</div>";
+    if (r.seg) b += "<div class='renglon'><b>Seguridad (libro):</b> " + r.seg + "</div>";
+    var ion;
+    if (fr < 7.9e14) ion = "No. Según el libro, solo son ionizantes el ultravioleta lejano, los rayos X y los gamma.";
+    else if (fr < F_ION) ion = "No en esta parte del ultravioleta. El libro dice que el ultravioleta lejano sí lo es (frontera aproximada*: ≈ 10 eV, λ ≈ 124 nm).";
+    else if (fr < 3e16) ion = "<span class='mal'>Sí:</span> ultravioleta lejano (frontera aproximada*: ≈ 10 eV).";
+    else ion = "<span class='mal'>Sí:</span> cada fotón tiene energía suficiente para arrancar electrones de los átomos (libro).";
+    b += "<div class='renglon'><b>¿Ionizante?</b> " + ion + "</div>";
+    b += "<div class='renglon'><b>Energía de cada fotón*:</b> <span class='formula' style='display:inline'>E = h·f</span> = (6.626×10⁻³⁴ J·s)(" + sci(fr, 3) + " Hz) = " + sci(E, 3) + " J = <b>" + (eV >= 0.01 && eV < 1e4 ? sig(eV, 3) : sci(eV, 3)) + " eV</b></div>";
+    b += "<div class='renglon'><b>Tamaño (comparación ilustrativa):</b> " + comparar(lam) + "</div>";
+    b += "<div class='renglon nota'>* Complemento: no viene en el libro.</div>";
+    $("banda1").innerHTML = b;
+
+    if (document.activeElement !== $("logf")) $("logf").value = est1.logf.toFixed(3);
+    selSaltar.value = r.id;
+  }
+  function refrescar1() { lectura1(); if ($("v1").classList.contains("activo")) geo1 = dibujarEspectro($("lienzo1"), { logf: est1.logf, centro: est1.centro, modo: "explora", tec: $("verTec").checked, ism: $("verIsm").checked }); }
+  function ponerF1(lf, recentrar) {
+    est1.logf = Math.min(LOG_MAX, Math.max(LOG_MIN, lf));
+    if (recentrar !== false) est1.centro = est1.logf;
+    refrescar1();
+  }
+  $("logf").addEventListener("input", function () { ponerF1(Number($("logf").value)); });
+  $("bajar").addEventListener("click", function () { ponerF1(est1.logf - 1); });
+  $("subir").addEventListener("click", function () { ponerF1(est1.logf + 1); });
+  selSaltar.addEventListener("change", function () {
+    var r = REG_ID[selSaltar.value]; ponerF1((r.la + Math.min(r.lb, LOG_MAX)) / 2);
+  });
+  $("verTec").addEventListener("change", refrescar1);
+  $("verIsm").addEventListener("change", refrescar1);
+
+  // Arrastre en un lienzo de espectro: en la barra completa salta; en la lupa afina sin mover la ventana
+  function arrastrable(cv, obtenerGeo, poner, soltar) {
+    var zona = null;
+    function zonaDe(y, geo) {
+      if (y >= geo.ov.y0 - 22 && y <= geo.yFov + 6) return "ov";
+      if (y >= geo.yCaja - 20 && y <= geo.lupa.y1 + 30) return "lupa";
+      return null;
+    }
+    function mover(ev) {
+      var geo = obtenerGeo(); if (!geo) return;
+      var r = cv.getBoundingClientRect(), x = ev.clientX - r.left - cv.clientLeft;
+      if (zona === "ov") poner(LOG_MIN + (x - geo.x0) / (geo.x1 - geo.x0) * (LOG_MAX - LOG_MIN), true);
+      else poner(Math.min(geo.b, Math.max(geo.a, geo.a + (x - geo.x0) / (geo.x1 - geo.x0) * (geo.b - geo.a))), false);
+    }
+    cv.addEventListener("pointerdown", function (ev) {
+      var geo = obtenerGeo(); if (!geo) return;
+      var r = cv.getBoundingClientRect();
+      zona = zonaDe(ev.clientY - r.top - cv.clientTop, geo);
+      if (!zona) return;
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+      mover(ev);
+    });
+    cv.addEventListener("pointermove", function (ev) { if (zona) mover(ev); });
+    function fin() { if (zona === "lupa") soltar(); zona = null; }
+    cv.addEventListener("pointerup", fin);
+    cv.addEventListener("pointercancel", fin);
+    cv.addEventListener("keydown", function (ev) {
+      var geo = obtenerGeo(); if (!geo) return;
+      var p = ev.shiftKey ? 0.1 : 0.01, actual = geo.actual;
+      if (ev.key === "ArrowLeft") { ev.preventDefault(); poner(actual - p, true); }
+      else if (ev.key === "ArrowRight") { ev.preventDefault(); poner(actual + p, true); }
+      else if (ev.key === "PageDown") { ev.preventDefault(); poner(actual - 1, true); }
+      else if (ev.key === "PageUp") { ev.preventDefault(); poner(actual + 1, true); }
+    });
+  }
+  arrastrable($("lienzo1"), function () { if (geo1) geo1.actual = est1.logf; return geo1; },
+    function (lf, recentrar) { ponerF1(lf, recentrar); },
+    function () { est1.centro = est1.logf; refrescar1(); });
+
+  // ================================================================ Vista 2: reto
+  // Tecnologías del libro (r = región correcta; f o lam = valor que se marca al revelar)
+  var TEC_RETO = [
+    { t: "Comunicación con submarinos", r: "VLF" },
+    { t: "Radio AM", r: "MF", nota: "En el libro, la radio AM ocupa de 535 a 1705 kHz." },
+    { t: "Radioaficionados que hablan entre continentes gracias a la onda ionosférica", r: "HF" },
+    { t: "Radio marina y aeronáutica", r: "VHF" },
+    { t: "5G FR1 en su extremo inferior: 410 MHz", r: "UHF", f: 410e6 },
+    { t: "Satélites integrados a la red 5G (NTN) en banda S, alrededor de 2 GHz", r: "UHF", f: 2e9 },
+    { t: "Enlace satelital en banda Ku", r: "SHF" },
+    { t: "Radar automotriz de 77 GHz", r: "EHF", f: 77e9 },
+    { t: "Enlace Wi-Fi de 60 GHz entre dos racks de un centro de datos", r: "EHF", f: 60e9 },
+    { t: "Control remoto de la televisión", r: "IR" },
+    { t: "Fibra óptica multimodo para enlaces cortos, a 850 nm", r: "IR", lam: 850e-9 },
+    { t: "Iluminación, cámaras y fibra plástica", r: "VIS" },
+    { t: "El \"latido\" de 50–60 Hz de los cables de energía que mide un magnetómetro", r: "bajo", f: 55 }
+  ];
+  // Valores numéricos del reto: f en Hz o lam en m
+  var NUM_RETO = [
+    { f: 180 }, { f: 750 }, { lam: 4.5e5 },
+    { f: 4.7e3 }, { f: 7.5e3 }, { f: 1.8e4 }, { lam: 4.5e4 }, { lam: 1.8e4 },
+    { f: 4.7e4 }, { f: 7.5e4 }, { f: 1.8e5 }, { lam: 4.5e3 }, { lam: 2.7e3 },
+    { f: 4.7e5 }, { f: 7.5e5 }, { f: 1.8e6 }, { lam: 450 }, { lam: 270 },
+    { f: 4.7e6 }, { f: 7.5e6 }, { f: 1.8e7 }, { f: 2.3e7 }, { lam: 45 }, { lam: 27 },
+    { f: 4.7e7 }, { f: 7.5e7 }, { f: 1.8e8 }, { f: 2.3e8 }, { lam: 4.5 }, { lam: 1.8 },
+    { f: 4.7e8 }, { f: 7.5e8 }, { f: 1.8e9 }, { lam: 0.45 }, { lam: 0.27 },
+    { f: 4.7e9 }, { f: 7.5e9 }, { f: 1.8e10 }, { f: 2.3e10 }, { lam: 0.045 }, { lam: 0.018 },
+    { f: 4.7e10 }, { f: 7.5e10 }, { f: 1.8e11 }, { lam: 0.0045 }, { lam: 0.0027 },
+    { f: 4.7e12 }, { f: 7.5e13 }, { lam: 4.5e-5 }, { lam: 4.5e-6 }, { lam: 1.8e-6 },
+    { lam: 4.8e-7 }, { lam: 5.3e-7 },
+    { lam: 2.5e-7 }, { lam: 4.5e-8 }, { f: 1.8e15 },
+    { lam: 1.8e-9 }, { lam: 4.5e-11 }, { f: 2.3e17 }, { f: 7.5e18 },
+    { lam: 4.5e-12 }, { lam: 1.8e-12 }, { f: 4.7e19 }, { f: 2.3e20 }
+  ];
+  NUM_RETO.forEach(function (it) { it.fv = it.f !== undefined ? it.f : CLUZ / it.lam; it.r = regionDe(lg(it.fv)).id; });
+
+  var est2 = { pin: 11, centro: 11, ronda: [], i: 0, aciertos: 0, contestadas: 0, comprobado: false, revelar: null };
+  var geo2 = null;
+  function barajar(arr) {
+    for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  }
+  function nuevaRonda() {
+    var tec = barajar(TEC_RETO.slice()).slice(0, 4).map(function (t) { return { tipo: "tec", d: t }; });
+    var porF = barajar(NUM_RETO.filter(function (x) { return x.f !== undefined; }).slice());
+    var porL = barajar(NUM_RETO.filter(function (x) { return x.lam !== undefined; }).slice());
+    var usadas = {}, nums = [];
+    function tomar(lista, cuantos) {
+      for (var i = 0; i < lista.length && cuantos > 0; i++) {
+        if (usadas[lista[i].r]) continue;
+        usadas[lista[i].r] = true; nums.push({ tipo: lista[i].f !== undefined ? "f" : "lam", d: lista[i] }); cuantos--;
+      }
+    }
+    tomar(porF, 3); tomar(porL, 3);
+    est2.ronda = barajar(tec.concat(nums));
+    est2.i = 0; est2.aciertos = 0; est2.contestadas = 0;
+    prepararSenal();
+  }
+  function textoItem(it) {
+    if (it.tipo === "tec") return it.d.t;
+    if (it.tipo === "f") return "Una señal de f = " + fF(it.d.f, 2) + (it.d.f >= 1e15 ? " (" + sci(it.d.f, 2) + " Hz)" : "");
+    return "Una onda con λ = " + fL(it.d.lam, 2);
+  }
+  function prepararSenal() {
+    est2.comprobado = false; est2.revelar = null; est2.pin = 11; est2.centro = 11;
+    var it = est2.ronda[est2.i];
+    $("enunciado").innerHTML = "<small>Señal " + (est2.i + 1) + " de " + est2.ronda.length + "</small>" + textoItem(it);
+    $("resultado").innerHTML = "";
+    $("comprobar").disabled = false; $("siguiente").disabled = true;
+    actualizar2();
+  }
+  function marcador() {
+    $("marcador").textContent = "Aciertos: " + est2.aciertos + " de " + est2.contestadas + (est2.contestadas === est2.ronda.length ? " · ronda terminada" : "");
+  }
+  function actualizar2() {
+    $("donde").innerHTML = "Tu marcador está en: <b>" + regionDe(est2.pin).nombre + "</b>";
+    marcador();
+    if ($("v2").classList.contains("activo")) geo2 = dibujarEspectro($("lienzo2"), { logf: est2.pin, centro: est2.centro, modo: "reto", revelar: est2.revelar });
+  }
+  function ponerPin(lf, recentrar) {
+    if (est2.comprobado) return;
+    est2.pin = Math.min(LOG_MAX, Math.max(LOG_MIN, lf));
+    if (recentrar !== false) est2.centro = est2.pin;
+    actualizar2();
+  }
+  arrastrable($("lienzo2"), function () { if (geo2) geo2.actual = est2.pin; return geo2; }, ponerPin,
+    function () { if (!est2.comprobado) est2.centro = est2.pin; actualizar2(); });
+
+  $("comprobar").addEventListener("click", function () {
+    if (est2.comprobado) return;
+    var it = est2.ronda[est2.i], correcta = REG_ID[it.d.r], puesta = regionDe(est2.pin), ok = puesta.id === correcta.id;
+    est2.comprobado = true; est2.contestadas++; if (ok) est2.aciertos++;
+    var h = ok ? "<span class='ok'>✓ Correcto.</span> " : "<span class='mal'>✗ No:</span> lo pusiste en " + puesta.en + ". ";
+    var fv = null, etq = "";
+    if (it.tipo === "f") {
+      fv = it.d.f; etq = fF(fv, 2);
+      h += "λ = c/f = (2.998×10⁸ m/s)/(" + sci(fv, 2) + " Hz) = " + fL(CLUZ / fv) + ". ";
+    } else if (it.tipo === "lam") {
+      fv = CLUZ / it.d.lam; etq = fF(fv);
+      h += "f = c/λ = (2.998×10⁸ m/s)/(" + sci(it.d.lam, 2) + " m) = " + sci(fv, 3) + " Hz = " + fF(fv) + ". ";
+    } else if (it.d.f !== undefined || it.d.lam !== undefined) {
+      fv = it.d.f !== undefined ? it.d.f : CLUZ / it.d.lam; etq = it.d.f !== undefined ? fF(fv, 3) : fL(it.d.lam, 3);
+    }
+    h += "Está en <b>" + correcta.en + "</b> (" + rangos(correcta) + ").";
+    if (it.tipo === "tec" && it.d.nota) h += " " + it.d.nota;
+    $("resultado").innerHTML = h;
+    est2.revelar = { region: correcta.id, ok: ok, logf: fv !== null ? lg(fv) : undefined, texto: etq };
+    if (fv !== null) est2.centro = Math.abs(lg(fv) - est2.pin) < 2 ? (lg(fv) + est2.pin) / 2 : lg(fv);
+    else est2.centro = Math.abs((correcta.la + Math.min(correcta.lb, LOG_MAX)) / 2 - est2.pin) < 2 ? est2.pin : (correcta.la + Math.min(correcta.lb, LOG_MAX)) / 2;
+    $("comprobar").disabled = true;
+    $("siguiente").disabled = est2.i >= est2.ronda.length - 1;
+    if (est2.i >= est2.ronda.length - 1) $("resultado").innerHTML += "<br><b>Ronda terminada: " + est2.aciertos + " de " + est2.ronda.length + ".</b> Presiona Nueva ronda para jugar otra.";
+    actualizar2();
+  });
+  $("siguiente").addEventListener("click", function () {
+    if (!est2.comprobado || est2.i >= est2.ronda.length - 1) return;
+    est2.i++; prepararSenal();
+  });
+  $("nuevaRonda").addEventListener("click", nuevaRonda);
+
+  // ================================================================ General
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) refrescar1();
+    if ($("v2").classList.contains("activo")) actualizar2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  nuevaRonda();
+  refrescar1();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) inicial.click();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-05-espectro-electromagnetico.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM12 2h2v1h-2zM16 2h3v1h-3zM21 2h2v1h-2zM25 2h3v1h-3zM30 2h2v1h-2zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h2v1h-2zM14 3h6v1h-6zM23 3h4v1h-4zM32 3h1v1h-1zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM16 4h1v1h-1zM20 4h1v1h-1zM23 4h5v1h-5zM30 4h1v1h-1zM32 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM14 5h3v1h-3zM20 5h1v1h-1zM23 5h3v1h-3zM29 5h4v1h-4zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h1v1h-1zM14 6h2v1h-2zM17 6h5v1h-5zM23 6h1v1h-1zM26 6h1v1h-1zM28 6h3v1h-3zM33 6h1v1h-1zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM13 7h2v1h-2zM20 7h5v1h-5zM27 7h1v1h-1zM30 7h1v1h-1zM32 7h3v1h-3zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h2v1h-2zM14 9h1v1h-1zM16 9h4v1h-4zM21 9h1v1h-1zM26 9h1v1h-1zM31 9h2v1h-2zM2 10h1v1h-1zM4 10h2v1h-2zM7 10h3v1h-3zM13 10h2v1h-2zM19 10h2v1h-2zM22 10h2v1h-2zM25 10h2v1h-2zM28 10h1v1h-1zM30 10h4v1h-4zM36 10h1v1h-1zM39 10h1v1h-1zM41 10h2v1h-2zM4 11h1v1h-1zM6 11h2v1h-2zM9 11h2v1h-2zM13 11h2v1h-2zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h3v1h-3zM4 12h1v1h-1zM8 12h1v1h-1zM11 12h1v1h-1zM13 12h2v1h-2zM17 12h2v1h-2zM20 12h1v1h-1zM24 12h5v1h-5zM30 12h1v1h-1zM35 12h1v1h-1zM40 12h2v1h-2zM3 13h1v1h-1zM5 13h2v1h-2zM10 13h1v1h-1zM15 13h1v1h-1zM17 13h2v1h-2zM21 13h1v1h-1zM24 13h1v1h-1zM26 13h2v1h-2zM29 13h2v1h-2zM34 13h3v1h-3zM41 13h2v1h-2zM2 14h4v1h-4zM8 14h1v1h-1zM10 14h5v1h-5zM19 14h1v1h-1zM21 14h1v1h-1zM24 14h1v1h-1zM27 14h3v1h-3zM31 14h1v1h-1zM33 14h1v1h-1zM37 14h1v1h-1zM39 14h2v1h-2zM42 14h1v1h-1zM2 15h1v1h-1zM6 15h2v1h-2zM10 15h2v1h-2zM13 15h1v1h-1zM15 15h5v1h-5zM23 15h1v1h-1zM25 15h1v1h-1zM28 15h4v1h-4zM33 15h1v1h-1zM35 15h2v1h-2zM39 15h1v1h-1zM41 15h2v1h-2zM3 16h2v1h-2zM7 16h3v1h-3zM11 16h1v1h-1zM13 16h1v1h-1zM15 16h1v1h-1zM17 16h2v1h-2zM20 16h1v1h-1zM26 16h3v1h-3zM32 16h3v1h-3zM36 16h7v1h-7zM4 17h1v1h-1zM6 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM15 17h3v1h-3zM20 17h5v1h-5zM26 17h1v1h-1zM28 17h3v1h-3zM33 17h1v1h-1zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM5 18h2v1h-2zM8 18h2v1h-2zM11 18h3v1h-3zM15 18h1v1h-1zM17 18h2v1h-2zM20 18h6v1h-6zM27 18h1v1h-1zM29 18h2v1h-2zM38 18h1v1h-1zM41 18h2v1h-2zM2 19h1v1h-1zM6 19h1v1h-1zM9 19h1v1h-1zM12 19h2v1h-2zM15 19h3v1h-3zM19 19h2v1h-2zM22 19h1v1h-1zM24 19h3v1h-3zM29 19h1v1h-1zM31 19h1v1h-1zM35 19h1v1h-1zM37 19h1v1h-1zM39 19h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h3v1h-3zM15 20h1v1h-1zM17 20h3v1h-3zM22 20h2v1h-2zM26 20h6v1h-6zM34 20h2v1h-2zM38 20h4v1h-4zM2 21h1v1h-1zM4 21h2v1h-2zM13 21h1v1h-1zM15 21h2v1h-2zM24 21h1v1h-1zM27 21h3v1h-3zM31 21h1v1h-1zM37 21h1v1h-1zM39 21h2v1h-2zM42 21h1v1h-1zM5 22h4v1h-4zM10 22h1v1h-1zM13 22h2v1h-2zM16 22h1v1h-1zM20 22h2v1h-2zM24 22h1v1h-1zM27 22h2v1h-2zM31 22h2v1h-2zM35 22h2v1h-2zM38 22h3v1h-3zM42 22h1v1h-1zM4 23h4v1h-4zM9 23h3v1h-3zM13 23h4v1h-4zM19 23h7v1h-7zM27 23h1v1h-1zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h3v1h-3zM41 23h2v1h-2zM3 24h4v1h-4zM8 24h2v1h-2zM11 24h2v1h-2zM19 24h1v1h-1zM23 24h5v1h-5zM30 24h3v1h-3zM35 24h7v1h-7zM2 25h1v1h-1zM4 25h4v1h-4zM11 25h4v1h-4zM17 25h2v1h-2zM21 25h1v1h-1zM26 25h2v1h-2zM32 25h3v1h-3zM37 25h2v1h-2zM2 26h2v1h-2zM8 26h1v1h-1zM13 26h1v1h-1zM15 26h2v1h-2zM19 26h1v1h-1zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM40 26h1v1h-1zM42 26h1v1h-1zM3 27h1v1h-1zM5 27h2v1h-2zM15 27h2v1h-2zM19 27h3v1h-3zM26 27h1v1h-1zM28 27h4v1h-4zM33 27h2v1h-2zM36 27h1v1h-1zM39 27h2v1h-2zM42 27h1v1h-1zM2 28h2v1h-2zM7 28h4v1h-4zM14 28h3v1h-3zM20 28h3v1h-3zM24 28h1v1h-1zM27 28h2v1h-2zM33 28h5v1h-5zM39 28h1v1h-1zM41 28h2v1h-2zM2 29h1v1h-1zM4 29h3v1h-3zM9 29h3v1h-3zM13 29h1v1h-1zM16 29h3v1h-3zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h3v1h-3zM37 29h1v1h-1zM39 29h1v1h-1zM42 29h1v1h-1zM2 30h1v1h-1zM8 30h2v1h-2zM13 30h1v1h-1zM17 30h2v1h-2zM20 30h1v1h-1zM23 30h2v1h-2zM27 30h1v1h-1zM29 30h1v1h-1zM32 30h4v1h-4zM37 30h3v1h-3zM41 30h2v1h-2zM3 31h3v1h-3zM7 31h1v1h-1zM10 31h1v1h-1zM12 31h1v1h-1zM14 31h1v1h-1zM16 31h2v1h-2zM20 31h2v1h-2zM24 31h1v1h-1zM26 31h4v1h-4zM31 31h2v1h-2zM34 31h1v1h-1zM39 31h2v1h-2zM2 32h1v1h-1zM5 32h6v1h-6zM14 32h1v1h-1zM17 32h1v1h-1zM19 32h2v1h-2zM22 32h6v1h-6zM29 32h1v1h-1zM34 32h4v1h-4zM39 32h1v1h-1zM41 32h1v1h-1zM4 33h1v1h-1zM7 33h1v1h-1zM10 33h1v1h-1zM14 33h2v1h-2zM19 33h1v1h-1zM22 33h1v1h-1zM24 33h1v1h-1zM26 33h1v1h-1zM30 33h3v1h-3zM34 33h1v1h-1zM36 33h1v1h-1zM38 33h5v1h-5zM3 34h1v1h-1zM6 34h1v1h-1zM8 34h3v1h-3zM12 34h2v1h-2zM16 34h1v1h-1zM18 34h4v1h-4zM23 34h1v1h-1zM25 34h2v1h-2zM28 34h1v1h-1zM31 34h2v1h-2zM34 34h7v1h-7zM42 34h1v1h-1zM10 35h1v1h-1zM12 35h2v1h-2zM18 35h1v1h-1zM20 35h3v1h-3zM25 35h1v1h-1zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM10 36h1v1h-1zM12 36h2v1h-2zM15 36h1v1h-1zM17 36h3v1h-3zM22 36h4v1h-4zM28 36h1v1h-1zM30 36h2v1h-2zM33 36h2v1h-2zM36 36h1v1h-1zM38 36h4v1h-4zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h2v1h-2zM13 37h2v1h-2zM16 37h2v1h-2zM20 37h5v1h-5zM26 37h3v1h-3zM33 37h2v1h-2zM38 37h1v1h-1zM41 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h1v1h-1zM13 38h1v1h-1zM20 38h2v1h-2zM23 38h2v1h-2zM26 38h1v1h-1zM29 38h1v1h-1zM31 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h1v1h-1zM12 39h1v1h-1zM15 39h1v1h-1zM17 39h1v1h-1zM20 39h2v1h-2zM23 39h1v1h-1zM26 39h1v1h-1zM29 39h1v1h-1zM32 39h3v1h-3zM38 39h4v1h-4zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM12 40h5v1h-5zM18 40h2v1h-2zM21 40h3v1h-3zM26 40h1v1h-1zM32 40h2v1h-2zM37 40h1v1h-1zM40 40h3v1h-3zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM15 41h3v1h-3zM20 41h2v1h-2zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h2v1h-2zM13 42h2v1h-2zM16 42h2v1h-2zM19 42h1v1h-1zM22 42h4v1h-4zM27 42h1v1h-1zM32 42h3v1h-3zM36 42h1v1h-1zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-05-espectro-electromagnetico.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capas del modelo OSI</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .semana, footer { font-size:.95rem; }
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .fila + .fila { margin-top:16px; }
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 480px) { header, main, footer { padding-left:10px; padding-right:10px; } h1 { font-size:1.4rem; }
+                              .panel { padding:10px; } nav.pestanas button { padding:8px 9px; } }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  .lectura { overflow-wrap:anywhere; }
+  select { width:100%; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:10px 0 0; padding:4px 10px 10px; min-width:0; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  label.casilla { display:flex; gap:8px; align-items:flex-start; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:2px 0 0; flex:none; }
+  label.casilla b { color:var(--azul-oscuro); }
+  #mensaje { width:100%; }
+
+  /* 1. Pila y ficha de cada capa */
+  .pila { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,6.4em); gap:6px 8px; margin-top:10px; }
+  .pila.sin-modelo { grid-template-columns:minmax(0,1fr); }
+  .pila.sin-modelo .grupo { display:none; }
+  button.capa-btn { font:inherit; text-align:left; display:flex; flex-wrap:wrap; align-items:baseline; column-gap:8px; width:100%;
+                    min-height:44px; background:#fff; color:var(--tinta); border:1px solid var(--borde); border-left:6px solid var(--azul);
+                    border-radius:8px; padding:8px 10px; cursor:pointer; }
+  button.capa-btn.fisica { border-left-color:var(--guinda); }
+  .capa-btn .num { font-weight:bold; color:var(--azul); min-width:1em; }
+  .capa-btn.fisica .num { color:var(--guinda); }
+  .capa-btn .nom { font-weight:bold; color:var(--azul-oscuro); }
+  .capa-btn .pdu { color:var(--gris); font-style:italic; margin-left:auto; }
+  button.capa-btn:hover { background:var(--oro-claro); }
+  button.capa-btn.activo { background:var(--oro-claro); outline:2px solid var(--oro); }
+  button.capa-btn:focus-visible { outline:2px solid var(--azul); outline-offset:1px; }
+  .grupo { border:1px dashed var(--azul); border-radius:8px; display:flex; align-items:center; justify-content:center;
+           text-align:center; color:var(--azul-oscuro); font-weight:bold; padding:4px 6px; overflow-wrap:anywhere; }
+  .grupo.fisica-g { border-color:var(--guinda); }
+  .det-cab { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .det-cab h2 { margin:0; font-size:1.25rem; font-family:Cambria,Georgia,serif; }
+  .det-cab .nav button.accion { margin:0 0 0 6px; padding:4px 10px; }
+  .ficha { display:grid; grid-template-columns:minmax(0,13em) minmax(0,1fr); margin:8px 0 0; }
+  .ficha dt { font-weight:bold; color:var(--azul-oscuro); padding:7px 12px 7px 0; border-top:1px solid var(--gris-claro); }
+  .ficha dd { margin:0; padding:7px 0; border-top:1px solid var(--gris-claro); overflow-wrap:anywhere; }
+  @media (max-width: 600px) { .ficha { grid-template-columns:minmax(0,1fr); } .ficha dd { border-top:none; padding-top:0; } }
+  ul.lista-curso { margin:0; padding-left:18px; }
+  ul.lista-curso li { margin:2px 0; }
+
+  /* 2. Encapsulamiento */
+  .pasos { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .pasos button.accion { margin:0; }
+  .paso-num { color:var(--guinda); font-weight:bold; margin-top:10px; }
+  .paso-titulo { font-weight:bold; color:var(--azul-oscuro); font-size:1.05rem; }
+  .paso-texto { margin:2px 0 10px; min-height:3em; }
+  .esc-fila { display:grid; grid-template-columns:minmax(0,10.5em) minmax(0,1fr); gap:8px; margin-bottom:6px; }
+  @media (max-width: 480px) { .esc-fila { grid-template-columns:minmax(0,7.6em) minmax(0,1fr); gap:6px; } }
+  .esc-capa { border:1px solid var(--borde); border-left:5px solid var(--azul); border-radius:6px; padding:4px 8px; background:#fff;
+              font-weight:bold; color:var(--azul-oscuro); display:flex; flex-direction:column; justify-content:center; overflow-wrap:anywhere; }
+  .esc-fila.fisica .esc-capa { border-left-color:var(--guinda); }
+  .esc-capa .num { color:var(--azul); }
+  .esc-fila.fisica .esc-capa .num { color:var(--guinda); }
+  .esc-capa .flecha { color:var(--guinda); }
+  .esc-fila.activa .esc-capa { background:var(--oro-claro); outline:2px solid var(--oro); }
+  .esc-fila.oculta .esc-capa { opacity:.45; }
+  .esc-fila.oculta .campos { display:none; }
+  .esc-fila.hecha { opacity:.45; }
+  .campos { display:flex; flex-wrap:wrap; gap:4px; align-items:stretch; min-width:0; }
+  .campo { border:1px solid var(--borde); border-radius:4px; padding:2px 7px; background:#fff; color:var(--azul-oscuro);
+           line-height:1.25; overflow-wrap:anywhere; max-width:100%; }
+  .campo b { display:block; }
+  .campo small { display:block; font-size:15px; color:var(--gris); }
+  .campo.enc { border-color:var(--azul); }
+  .campo.dat { background:var(--oro-claro); border-color:var(--oro); }
+  .campo.cif { background:var(--guinda); border-color:var(--guinda); color:#fff; }
+  .campo.cif small { color:#F5E6EA; }
+  .campo.vis { background:var(--gris-claro); border-color:#C9CFD9; }
+  .campo.nuevo { outline:3px solid var(--oro); outline-offset:1px; }
+  .campo.sale { border-style:dashed; opacity:.6; }
+  .campo.sale b { text-decoration:line-through; }
+  .pdu-nombre { align-self:center; color:var(--gris); font-style:italic; padding-left:2px; }
+  .barra-eta { display:flex; height:16px; border-radius:4px; overflow:hidden; border:1px solid var(--borde); margin:8px 0 2px; background:var(--gris-claro); }
+  .barra-eta span { display:block; height:100%; background:var(--oro); }
+  .leyenda-eta { display:flex; justify-content:space-between; gap:8px; color:var(--gris); font-size:.95rem; }
+  .camino { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr);
+            gap:4px; align-items:center; margin-top:4px; }
+  .nodo { border:2px solid var(--azul-oscuro); border-radius:8px; padding:6px 4px; text-align:center; background:#fff; overflow-wrap:anywhere; }
+  .nodo b { display:block; color:var(--azul-oscuro); }
+  .nodo .capas-n { display:block; color:var(--gris); }
+  .nodo .clave { display:block; color:var(--guinda); font-weight:bold; }
+  button.tramo { font:inherit; background:#fff; border:2px solid transparent; border-radius:8px; padding:4px 4px 6px; cursor:pointer;
+                 color:var(--tinta); text-align:center; width:100%; overflow-wrap:anywhere; }
+  button.tramo:hover { border-color:var(--borde); }
+  button.tramo.con-espia { border-color:var(--guinda); background:var(--guinda-claro); }
+  button.tramo:focus-visible { outline:2px solid var(--azul); }
+  .tramo .linea { display:block; height:6px; border-radius:3px; background:var(--gris); margin:4px 0; }
+  .tramo.fibra .linea { background:var(--oro); }
+  .camino.viaje .tramo .linea { background:var(--azul); }
+  .tramo .t-nom { display:block; font-weight:bold; color:var(--azul-oscuro); }
+  .tramo .t-cif { display:block; color:var(--guinda); font-weight:bold; }
+  .tramo .t-espia { display:block; color:var(--guinda); }
+  @media (max-width: 760px) {
+    .camino { grid-template-columns:minmax(0,1fr); }
+    .nodo { display:flex; flex-wrap:wrap; justify-content:center; column-gap:8px; padding:4px 6px; }
+    button.tramo { display:grid; grid-template-columns:8px minmax(0,1fr); grid-template-areas:"l n" "l c" "l e";
+                   column-gap:12px; text-align:left; padding:2px 10px; }
+    .tramo .linea { grid-area:l; width:6px; height:auto; margin:2px 0; }
+    .tramo .t-nom { grid-area:n; } .tramo .t-cif { grid-area:c; } .tramo .t-espia { grid-area:e; }
+  }
+  .captura { border:1px solid var(--borde); border-radius:10px; padding:10px 12px; margin-top:12px; }
+  .captura h3 { margin:0 0 6px; font-size:1.02rem; color:var(--guinda); }
+  #lienzoSenal { margin:4px 0 8px; }
+  .bloque-ruido { background:var(--guinda); color:#fff; border-radius:4px; padding:10px; text-align:center; font-weight:bold; }
+  .ve-no { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+  .ve-no ul { margin:2px 0 0; padding-left:18px; }
+  @media (max-width: 600px) { .ve-no { grid-template-columns:minmax(0,1fr); } }
+
+  /* 3. Juego de clasificación */
+  .barra-juego { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .marcador { font-weight:bold; color:var(--azul-oscuro); }
+  .barra-juego button.accion { margin:0; padding:4px 12px; }
+  .mazo { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  button.carta { font:inherit; text-align:left; background:#fff; color:var(--tinta); border:1px solid var(--borde); border-radius:8px;
+                 padding:6px 10px; cursor:grab; touch-action:manipulation; user-select:none; -webkit-user-select:none; max-width:100%; }
+  button.carta:hover { border-color:var(--azul); }
+  button.carta:focus-visible { outline:2px solid var(--azul); outline-offset:1px; }
+  button.carta.elegida { outline:3px solid var(--oro); border-color:var(--oro); background:var(--oro-claro); }
+  .tipo { display:block; font-size:15px; font-weight:bold; letter-spacing:.02em; }
+  .tipo.ataque { color:var(--guinda); }
+  .tipo.defensa { color:var(--azul); }
+  .tipo.tecnologia { color:var(--oro-texto); }
+  .mesa { border:2px solid var(--oro); border-radius:10px; padding:10px 12px; margin-top:10px; background:#fff;
+          touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
+  .mesa.vacia { cursor:default; touch-action:auto; }
+  .mesa-cab { display:flex; justify-content:space-between; align-items:center; gap:4px 10px; flex-wrap:wrap; }
+  .mesa-botones { display:flex; gap:6px; margin-left:auto; }
+  .mesa-botones button.accion { margin:0; padding:3px 10px; }
+  .mesa-titulo { font-family:Cambria,Georgia,serif; font-size:1.25rem; color:var(--azul-oscuro); font-weight:bold; }
+  .mesa-desc { margin:2px 0 0; }
+  .destinos { margin-top:10px; display:flex; flex-direction:column; gap:5px; }
+  .destino { display:grid; grid-template-columns:minmax(0,12.5em) minmax(0,1fr); gap:4px 8px; align-items:center; border:1px solid var(--borde);
+             border-left:6px solid var(--azul); border-radius:8px; padding:2px 6px; background:#fff; min-height:44px; cursor:pointer; }
+  .destino.fisica { border-left-color:var(--guinda); }
+  .destino.listo:hover { background:var(--oro-claro); }
+  .destino.sobre { background:var(--oro-claro); outline:2px dashed var(--oro); }
+  button.destino-btn { font:inherit; text-align:left; background:none; border:none; color:var(--azul-oscuro); font-weight:bold;
+                       cursor:pointer; padding:5px 4px; }
+  button.destino-btn:focus-visible { outline:2px solid var(--azul); }
+  button.destino-btn .num { color:var(--azul); margin-right:4px; }
+  .destino.fisica .destino-btn .num { color:var(--guinda); }
+  button.destino-btn small { font-weight:normal; color:var(--gris); font-style:italic; }
+  .colocadas { display:flex; flex-wrap:wrap; gap:4px; min-width:0; }
+  button.colocada { font:inherit; background:var(--gris-claro); border:1px solid #C9CFD9; border-radius:6px; padding:2px 8px;
+                    cursor:pointer; color:var(--tinta); text-align:left; max-width:100%; }
+  button.colocada.ayuda { border-style:dashed; }
+  button.colocada:focus-visible { outline:2px solid var(--azul); }
+  .fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:#fff; border:2px solid var(--oro); border-radius:8px;
+              padding:6px 10px; box-shadow:0 4px 14px rgba(10,42,87,.25); font-weight:bold; color:var(--azul-oscuro); max-width:260px; }
+  @media (max-width: 600px) { .destino { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 820px) { #v3 .panel.panel-mazo { order:2; } }
+  @media (min-width: 821px) { .destino { min-height:40px; } .destinos { gap:4px; margin-top:8px; }
+                              .mesa { margin-top:8px; padding:8px 12px; } #resultado { margin-top:8px; padding:8px 12px; } }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 15 · Modelo OSI y capa física</div>
+  <h1>Las siete capas del modelo OSI</h1>
+  <p class="sub">Recorre las capas y lo que el curso estudió en cada una, mira cómo se encapsula un mensaje y qué ve un espía según la capa que cifra, y clasifica ataques, defensas y tecnologías.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab" aria-selected="true">1. Las siete capas</button>
+    <button type="button" data-vista="v2" role="tab" aria-selected="false">2. Encapsulamiento</button>
+    <button type="button" data-vista="v3" role="tab" aria-selected="false">3. ¿En qué capa vive?</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La pila del modelo OSI</h2>
+        <label for="modelo">Comparar con</label>
+        <select id="modelo">
+          <option value="rfc" selected>TCP/IP de 4 capas (RFC 1122)</option>
+          <option value="kr">5 capas (Kurose y Ross)</option>
+          <option value="no">Solo el modelo OSI</option>
+        </select>
+        <div class="pila" id="pila" aria-label="Las siete capas del modelo OSI; toca una para ver su ficha"></div>
+        <p class="nota">Toca una capa o usa las flechas ↑ ↓. La capa física, en guinda, es la que estudió el curso de principio a fin.</p>
+      </div>
+      <div class="panel" id="panelFicha">
+        <div class="det-cab">
+          <h2 id="fichaTitulo">Capa 1 · Física</h2>
+          <div class="nav">
+            <button type="button" class="accion" id="capaArriba" aria-label="Ver la capa de arriba">▲ Arriba</button>
+            <button type="button" class="accion" id="capaAbajo" aria-label="Ver la capa de abajo">▼ Abajo</button>
+          </div>
+        </div>
+        <dl class="ficha" id="ficha" aria-live="polite"></dl>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Toca la capa 1 y cuenta cuántos capítulos del curso caben en ella. ¿Qué temas del curso quedan en otras capas, y en cuáles?</li>
+            <li>Busca las dos capas en las que aparece la palabra "codificación". ¿Qué se codifica en cada una?</li>
+            <li>Compara con TCP/IP de 4 capas: ¿qué capas de OSI se juntan? ¿Qué tienen en común las tres de arriba?</li>
+            <li>Hamming y el CRC se estudiaron junto con el ruido del canal. ¿Por qué el libro no los pone en la capa 1?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Un vocabulario común.</b> Ubicar un incidente en su capa ayuda a elegir el control de esa misma capa. En el ejemplo del libro, un analista ubica el envenenamiento ARP en la capa 2, la inundación SYN en la 4 y el phishing en la 7, y responde con inspección dinámica de ARP en el conmutador, SYN cookies en el sistema operativo y filtrado de correo con capacitación de usuarios.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>El mensaje</h2>
+        <label for="mensaje">Escribe un mensaje corto <small>(hasta 60 caracteres)</small></label>
+        <input type="text" id="mensaje" maxlength="60" value="Nos vemos a las 7 en la biblioteca" autocomplete="off" spellcheck="false">
+        <div class="lectura" id="lecturaBytes"></div>
+      </div>
+      <div class="panel">
+        <h2>Encapsulamiento: baja por el emisor, sube por el receptor</h2>
+        <div class="pasos">
+          <button type="button" class="accion" id="pasoAtras" aria-label="Paso anterior">◀ Atrás</button>
+          <button type="button" class="accion" id="pasoAdelante" aria-label="Paso siguiente">Paso ▶</button>
+          <button type="button" class="accion" id="reproducir">Reproducir</button>
+          <button type="button" class="accion" id="verTodo">Ver todo</button>
+        </div>
+        <div class="paso-num" id="pasoNum"></div>
+        <div class="paso-titulo" id="pasoTitulo"></div>
+        <p class="paso-texto" id="pasoTexto" aria-live="polite"></p>
+        <div id="escalera"></div>
+        <p class="nota">Recuadro dorado: lo que agrega la capa al bajar. Tachado: lo que quita la capa del receptor al subir. Guinda: datos cifrados.</p>
+      </div>
+    </div>
+    <div class="fila">
+      <div class="panel">
+        <h2>El espía en el medio</h2>
+        <fieldset>
+          <legend>¿Quién cifra?</legend>
+          <label class="casilla"><input type="checkbox" id="cTLS"> <span><b>TLS (HTTPS)</b>, capas 5-7: de extremo a extremo</span></label>
+          <label class="casilla"><input type="checkbox" id="cIPsec"> <span><b>IPsec en modo túnel</b>, capa 3: de A a B</span></label>
+          <label class="casilla"><input type="checkbox" id="cMACsec"> <span><b>MACsec</b>, capa 2: de A a B (un salto)</span></label>
+          <label class="casilla"><input type="checkbox" id="cFisica"> <span><b>Cifrado de la señal</b>, capa 1: en la fibra (OTN cifrado o VPSC)</span></label>
+        </fieldset>
+        <fieldset>
+          <legend>¿Dónde se conecta el espía?</legend>
+          <label class="casilla"><input type="radio" name="espia" value="1"> <span>Tramo 1: par trenzado, del emisor a A</span></label>
+          <label class="casilla"><input type="radio" name="espia" value="2" checked> <span>Tramo 2: fibra óptica, de A a B</span></label>
+          <label class="casilla"><input type="radio" name="espia" value="3"> <span>Tramo 3: par trenzado, de B al receptor</span></label>
+        </fieldset>
+        <p class="nota">También puedes tocar un tramo en el dibujo.</p>
+      </div>
+      <div class="panel">
+        <div class="camino" id="camino" aria-label="Camino del emisor al receptor: tres tramos y dos enrutadores"></div>
+        <div class="captura">
+          <h3 id="capturaTitulo"></h3>
+          <canvas id="lienzoSenal" aria-label="Señal que capta el espía en el tramo (ilustrativa)"></canvas>
+          <div id="tramaEspia"></div>
+          <div class="lectura" id="lecturaEspia" aria-live="polite"></div>
+        </div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Recorre la pila con "Paso". ¿Qué capas agregan bytes y cuántos? ¿Qué fracción de lo que pasa por el cable es tu mensaje? ¿Y si lo alargas al máximo?</li>
+            <li>Sin cifrado, conecta el espía en cualquier tramo: ¿qué lee? Activa solo TLS: ¿qué deja de ver y qué sigue viendo?</li>
+            <li>Con el espía en el tramo 2, activa uno a la vez IPsec, MACsec y el cifrado de la señal. ¿Cuál le oculta más? Luego muévelo al tramo 1 o al 3: ¿cuál de los tres te sigue protegiendo?</li>
+            <li>Con MACsec, ¿en qué equipos queda la trama en claro? ¿Qué condición deben cumplir esos equipos?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Defensa en profundidad.</b> Cifrar arriba (TLS) protege los datos por cualquier ruta y solo los extremos tienen las claves; cifrar abajo (IPsec, MACsec, capa 1) oculta más metadatos, pero en un solo tramo, y cada equipo que descifra debe ser confiable. Por eso se combinan. Aun así, el tamaño y el ritmo de las tramas delatan algo, salvo que la capa 1 rellene la señal.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel panel-mazo">
+        <h2 id="mazoTitulo">Por clasificar</h2>
+        <p class="nota" style="margin-top:0">Elige una tarjeta y colócala en la capa donde vive: arrástrala, o tócala y luego toca la capa. Con teclado: Enter para elegir y las teclas 1 a 7 para colocar.</p>
+        <div class="mazo" id="mazo"></div>
+      </div>
+      <div class="panel">
+        <div class="barra-juego">
+          <div class="marcador" id="marcador" aria-live="polite"></div>
+          <button type="button" class="accion" id="revolver">Revolver</button>
+        </div>
+        <div class="lectura" id="resultado" aria-live="polite"></div>
+        <div class="mesa" id="mesa"></div>
+        <div class="destinos" id="destinos" aria-label="Las siete capas: toca una para colocar la tarjeta elegida"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>¿Qué tarjetas te costaron más? ¿Confundiste el lugar donde se configura algo, o por dónde viaja, con la capa en la que trabaja?</li>
+            <li>¿Por qué la tarjeta de HTTPS acepta tres capas? ¿Por qué no la 4?</li>
+            <li>Para cada tarjeta de la capa 1, ¿qué capítulo del curso explica su física?</li>
+            <li>Busca un ataque y una defensa que hayan quedado en la misma capa. ¿Por qué un control de otra capa no serviría contra ese ataque?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>El nombre no dice la capa.</b> Codificar no es cifrar, detectar errores no es autenticar y viajar por radio no vuelve a WPA3 de la capa física. Para ubicar algo, pregúntate qué unidad de datos toca: bits, tramas, paquetes, segmentos o datos.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fuente: fase3/cap01_modelo_osi_seguridad.tex (Figura fig:osi-tcpip, Definición def:encapsulacion, Ecuación eq:eficiencia-encapsulacion, Figura fig:cifrado-por-capa y Cuadros tab:cifrado-capas y tab:sintesis-curso). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+  var vistaActiva = "v1";
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) {
+        x.classList.remove("activo"); x.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo"); b.setAttribute("aria-selected", "true");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      if (vistaActiva !== "v2") detenerReproduccion();
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function angosta() { return window.innerWidth < 820; }
+  // Desplaza la página solo si el elemento quedó fuera de la vista (útil en el celular)
+  function asegurarVisible(el) {
+    var r = el.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  // =====================================================================
+  // Las siete capas (contenido del libro)
+  // =====================================================================
+  var CAPAS = {
+    7: { nombre: "Aplicación", pdu: "datos",
+         funcion: "Servicios que usa el usuario.",
+         tcpip: "Aplicación, que reúne las capas 5, 6 y 7 (en la versión de 4 capas y en la de 5).",
+         ejemplos: "HTTP, DNS, SMTP y SSH. HTTPS es HTTP sobre TLS.",
+         ataque: "Phishing, inyección SQL.",
+         controles: "Filtrado de correo con capacitación de usuarios contra el phishing (ejemplo del analista en el libro). TLS/HTTPS y SSH cifran los datos de la aplicación de extremo a extremo.",
+         espia: "MAC, IP, puertos, el nombre del servidor (SNI), tamaños y tiempos. El libro agrupa este cifrado (TLS/HTTPS, SSH) en las capas 5-7.",
+         curso: "El cifrado Vernam y los cifrados de flujo que usa TLS 1.3 (AES-GCM, ChaCha20-Poly1305), de este capítulo. Ojo: Vernam es un algoritmo y puede usarse en cualquier capa." },
+    6: { nombre: "Presentación", pdu: "datos",
+         funcion: "Formato, codificación de caracteres, compresión y cifrado de los datos.",
+         tcpip: "Aplicación, que reúne las capas 5, 6 y 7.",
+         ejemplos: "Codificación de caracteres como ASCII o Latin-1 (ISO 8859-1). TLS se ubica entre las capas 5 y 6.",
+         ataque: "Degradar la versión de TLS.",
+         controles: "TLS/HTTPS y SSH, que el libro agrupa en las capas 5-7. TLS 1.3 solo admite cifrados con autenticación integrada.",
+         espia: "Lo mismo que en la capa 7: MAC, IP, puertos, SNI, tamaños y tiempos.",
+         curso: "La tabla ASCII del cifrado Vernam (la h es 104 = 01101000). La compresión también es función de esta capa: el código de Huffman (capítulo Evolución de la comunicación) es codificación de fuente, y comprimir no oculta nada, porque el árbol no es secreto." },
+    5: { nombre: "Sesión", pdu: "datos",
+         funcion: "Establecimiento, mantenimiento y cierre de los diálogos entre aplicaciones.",
+         tcpip: "Aplicación, que reúne las capas 5, 6 y 7.",
+         ejemplos: "TLS, que el libro ubica entre las capas 5 y 6.",
+         ataque: "Secuestro de sesión.",
+         controles: "TLS/HTTPS y SSH cifran de extremo a extremo; el libro los agrupa en las capas 5-7.",
+         espia: "Lo mismo que en la capa 7: MAC, IP, puertos, SNI, tamaños y tiempos.",
+         curso: "Ningún capítulo la trata por separado: en TCP/IP queda dentro de la capa de aplicación, junto con la 6 y la 7." },
+    4: { nombre: "Transporte", pdu: "segmento",
+         funcion: "Comunicación de extremo a extremo entre procesos, con puertos, control de flujo y, en TCP, retransmisión.",
+         tcpip: "Transporte.",
+         ejemplos: "TCP (encabezado de 20 bytes) y UDP (8 bytes).",
+         ataque: "Inundación SYN.",
+         controles: "SYN cookies en el sistema operativo (ejemplo del analista en el libro).",
+         espia: "El libro no ubica un cifrado en esta capa: TLS funciona sobre TCP.",
+         curso: "La retransmisión (ARQ) de TCP, que el capítulo Evolución de la comunicación compara con detectar errores (el CRC de Ethernet) y corregirlos (FEC)." },
+    3: { nombre: "Red", pdu: "paquete",
+         funcion: "Direccionamiento lógico y enrutamiento entre redes.",
+         tcpip: "Internet (RFC 1122) o red (versión de 5 capas).",
+         ejemplos: "IP (encabezado de 20 bytes).",
+         dispositivos: "Enrutador.",
+         ataque: "Suplantación de IP.",
+         controles: "IPsec cifra y autentica paquetes IP completos. En modo túnel, el de la mayoría de las VPN entre sitios, el paquete original viaja dentro de otro paquete cifrado.",
+         espia: "MAC e IP de los extremos del túnel, tamaños y tiempos (IPsec en modo túnel).",
+         curso: "Aparece en este capítulo con IPsec, el cifrado de capa 3." },
+    2: { nombre: "Enlace de datos", pdu: "trama",
+         funcion: "Entrega entre nodos vecinos del mismo medio, direcciones MAC, acceso al medio y detección de errores con la secuencia de verificación de trama (FCS, un CRC-32 en Ethernet).",
+         tcpip: "Enlace o acceso a la red, junto con la capa 1 (RFC 1122); enlace (versión de 5 capas).",
+         ejemplos: "Ethernet (encabezado de 14 bytes y FCS de 4), las tramas de Wi-Fi, WPA2/WPA3 y MACsec.",
+         dispositivos: "Conmutador (switch) y punto de acceso.",
+         ataque: "ARP spoofing, desautenticación.",
+         controles: "Inspección dinámica de ARP en el conmutador (ejemplo del analista). WPA2 y WPA3 cifran las tramas de Wi-Fi entre el cliente y el punto de acceso; MACsec (IEEE 802.1AE) lo hace salto por salto en Ethernet, por cable o fibra.",
+         espia: "Direcciones MAC, tamaño y tiempo de las tramas (WPA2/WPA3, MACsec).",
+         curso: "Paridad, CRC y Hamming (capítulo Evolución de la comunicación): detectar y corregir errores le toca a la capa de enlace o a las superiores, no a la física. WEP, WPA2 y WPA3 (capítulo Tecnologías de comunicación): la confidencialidad de Wi-Fi no depende de la capa física, sino de la criptografía de la capa de enlace." },
+    1: { nombre: "Física", pdu: "bit",
+         funcion: "Transmisión de bits crudos como señal eléctrica, óptica o de radio: representa cada bit, sincroniza al receptor (preámbulos y códigos de línea), fija el modo (símplex, semidúplex o dúplex completo) y define medios y conectores. Entrega los bits sin garantizar que lleguen sin errores.",
+         tcpip: "Enlace o acceso a la red, junto con la capa 2 (RFC 1122); física (la versión de 5 capas la separa del enlace).",
+         ejemplos: "Par trenzado, coaxial, fibra óptica y radio. Codificación de línea: Manchester (10BASE-T), 4B5B + MLT-3 (100BASE-TX), PAM-5 (1000BASE-T), 8B/10B (1000BASE-SX) y 64B/66B (10GBASE-LR); OFDM en Wi-Fi.",
+         dispositivos: "Cables, conectores, transceptores, repetidores y antenas.",
+         ataque: "Jamming, toma de fibra, TEMPEST. El libro suma la interceptación, la suplantación (GNSS, retransmisión, gemelo malvado) y la contaminación del canal.",
+         controles: "Espectro ensanchado con código secreto, blindaje, monitoreo de potencia, OTDR y huella TDR; cifrado de la señal (OTN cifrado, VPSC) y QKD para distribuir claves. Controles NIST PE-4, PE-19 y SC-40 e ISO/IEC 27002 7.12.",
+         espia: "Que hay una señal; en el mejor caso, ni el protocolo ni la tasa (OTN cifrado, VPSC).",
+         deteccion: "Midiendo la señal: potencia, piso de ruido, huella TDR u OTDR. No suelen aparecer en los registros del sistema operativo ni del cortafuegos.",
+         curso: "<ul class='lista-curso'>" +
+                "<li><b>Electricidad:</b> carga y campo eléctrico, conductores y dieléctricos, capacitancia, blindaje y jaula de Faraday.</li>" +
+                "<li><b>Campos magnéticos:</b> inducción, ondas electromagnéticas, espectro, fibra óptica y reflexión total interna.</li>" +
+                "<li><b>Evolución de la comunicación:</b> el telégrafo, la multiplexación y el dúplex, el cable transatlántico, el ruido y la interferencia entre símbolos.</li>" +
+                "<li><b>Transformadas y teoremas:</b> Fourier, Nyquist, modulación digital, decibeles y Shannon-Hartley.</li>" +
+                "<li><b>Líneas y ondas de transmisión:</b> líneas, reflexiones y TDR, propagación, Friis y antenas.</li>" +
+                "<li><b>Tecnologías de comunicación:</b> la radio de Wi-Fi (OFDM), satélites y GNSS, telefonía celular y Bluetooth.</li>" +
+                "<li><b>Este capítulo:</b> codificación de línea, errores de bit (BER), espectro ensanchado, amenazas de la capa física y cifrado en fibra.</li>" +
+                "</ul>" }
+  };
+  var MODELOS = {
+    rfc: [{ t: "Aplicación", capas: [7, 6, 5] }, { t: "Transporte", capas: [4] }, { t: "Internet", capas: [3] },
+          { t: "Enlace (acceso a la red)", capas: [2, 1] }],
+    kr: [{ t: "Aplicación", capas: [7, 6, 5] }, { t: "Transporte", capas: [4] }, { t: "Red", capas: [3] },
+         { t: "Enlace", capas: [2] }, { t: "Física", capas: [1] }]
+  };
+
+  // =====================================================================
+  // 1. LAS SIETE CAPAS
+  // =====================================================================
+  var capaSel = 1;
+  function construirPila() {
+    var modelo = $("modelo").value, h = [];
+    for (var n = 7; n >= 1; n--) {
+      h.push('<button type="button" class="capa-btn' + (n === 1 ? " fisica" : "") + '" data-capa="' + n +
+             '" style="grid-row:' + (8 - n) + ';grid-column:1"><span class="num">' + n + '</span><span class="nom">' +
+             CAPAS[n].nombre + '</span><span class="pdu">' + CAPAS[n].pdu + "</span></button>");
+    }
+    if (modelo !== "no") {
+      MODELOS[modelo].forEach(function (gr) {
+        var arriba = Math.max.apply(null, gr.capas);
+        h.push('<div class="grupo' + (gr.capas.indexOf(1) >= 0 ? " fisica-g" : "") + '" style="grid-row:' + (8 - arriba) +
+               " / span " + gr.capas.length + ';grid-column:2">' + gr.t + "</div>");
+      });
+    }
+    $("pila").classList.toggle("sin-modelo", modelo === "no");
+    $("pila").innerHTML = h.join("");
+    marcarCapa();
+  }
+  function marcarCapa() {
+    $("pila").querySelectorAll(".capa-btn").forEach(function (b) {
+      var si = +b.dataset.capa === capaSel;
+      b.classList.toggle("activo", si); b.setAttribute("aria-pressed", si ? "true" : "false");
+    });
+  }
+  function pintarFicha() {
+    var c = CAPAS[capaSel], filas = [];
+    $("fichaTitulo").textContent = "Capa " + capaSel + " · " + c.nombre;
+    filas.push(["Qué hace", c.funcion]);
+    filas.push(["Unidad de datos (PDU)", c.pdu.charAt(0).toUpperCase() + c.pdu.slice(1) + "."]);
+    filas.push(["En TCP/IP", c.tcpip]);
+    filas.push(["Protocolos y tecnologías", c.ejemplos]);
+    if (c.dispositivos) filas.push(["Dispositivos", c.dispositivos]);
+    filas.push(["Ataque típico (figura del libro)", c.ataque]);
+    filas.push(["Controles y cifrado del libro", c.controles]);
+    filas.push(["Si se cifra aquí, el espía todavía ve", c.espia]);
+    if (c.deteccion) filas.push(["Cómo se detectan sus incidentes", c.deteccion]);
+    filas.push(["En el curso", c.curso]);
+    $("ficha").innerHTML = filas.map(function (f) { return "<dt>" + f[0] + "</dt><dd>" + f[1] + "</dd>"; }).join("");
+    $("capaArriba").disabled = capaSel === 7;
+    $("capaAbajo").disabled = capaSel === 1;
+  }
+  function elegirCapa(n, desdeToque) {
+    capaSel = Math.max(1, Math.min(7, n));
+    marcarCapa(); pintarFicha();
+    if (desdeToque && angosta()) asegurarVisible($("panelFicha"));
+  }
+  $("modelo").addEventListener("change", construirPila);
+  $("pila").addEventListener("click", function (e) {
+    var b = e.target.closest(".capa-btn");
+    if (b) elegirCapa(+b.dataset.capa, true);
+  });
+  $("pila").addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    elegirCapa(capaSel + (e.key === "ArrowUp" ? 1 : -1), false);
+    var b = $("pila").querySelector('.capa-btn[data-capa="' + capaSel + '"]');
+    if (b) b.focus();
+  });
+  $("capaArriba").addEventListener("click", function () { elegirCapa(capaSel + 1, false); });
+  $("capaAbajo").addEventListener("click", function () { elegirCapa(capaSel - 1, false); });
+
+  // =====================================================================
+  // 2. ENCAPSULAMIENTO
+  // =====================================================================
+  var B = { tcp: 20, ip: 20, eth: 14, fcs: 4, pre: 8, sep: 12, macsec: 32, tramaMin: 64 };
+  var H_BASE = B.tcp + B.ip + B.eth + B.fcs + B.pre + B.sep;          // 78 bytes (libro)
+  var PDU = { 7: "datos", 6: "datos", 5: "datos", 4: "segmento", 3: "paquete", 2: "trama", 1: "bits (señal)" };
+  var TRAMOS = { 1: { medio: "par trenzado", ruta: "del emisor a A" },
+                 2: { medio: "fibra óptica", ruta: "de A a B" },
+                 3: { medio: "par trenzado", ruta: "de B al receptor" } };
+  var NPASOS = 15;
+  var E = { texto: "", D: 0, aviso: "", tls: false, ipsec: false, macsec: false, fisica: false, espia: 2, paso: 0, reloj: null };
+
+  // Mensaje en Latin-1: un byte por carácter; lo que no cabe se cuenta como "?"
+  function leerMensaje() {
+    var chars = Array.from($("mensaje").value), fuera = false;
+    var limpio = chars.map(function (c) {
+      var k = c.codePointAt(0);
+      if (k < 32 || k > 255) { fuera = true; return "?"; }
+      return c;
+    });
+    E.texto = limpio.join(""); E.D = limpio.length;
+    E.aviso = fuera ? 'Los caracteres que no están en Latin-1 se cuentan como "?".' : "";
+  }
+  function leerControles() {
+    E.tls = $("cTLS").checked; E.ipsec = $("cIPsec").checked; E.macsec = $("cMACsec").checked; E.fisica = $("cFisica").checked;
+    var r = document.querySelector('input[name="espia"]:checked');
+    E.espia = r ? +r.value : 2;
+  }
+  function relleno() { return Math.max(0, B.tramaMin - (B.eth + B.ip + B.tcp + E.D + B.fcs)); }
+
+  // Campos de la unidad de datos tal como sale de la capa n del emisor (de izquierda a derecha)
+  function camposCapa(n) {
+    var cifra = E.tls && n <= 6;
+    var c = [{ id: "datos", nombre: "Datos", bytes: E.D, tipo: cifra ? "cif" : "dat" }];
+    if (cifra) c.unshift({ id: "tls", nombre: "Registro TLS", bytes: null, tipo: "enc" });
+    if (n <= 4) c.unshift({ id: "tcp", nombre: "TCP", bytes: B.tcp, tipo: "enc" });
+    if (n <= 3) c.unshift({ id: "ip", nombre: "IP", bytes: B.ip, tipo: "enc" });
+    if (n <= 2) {
+      c.unshift({ id: "eth", nombre: "Ethernet", bytes: B.eth, tipo: "enc" });
+      if (relleno()) c.push({ id: "relleno", nombre: "Relleno", bytes: relleno(), tipo: "enc" });
+      c.push({ id: "fcs", nombre: "FCS", bytes: B.fcs, tipo: "enc" });
+    }
+    if (n <= 1) {
+      c.unshift({ id: "pre", nombre: "Preámbulo", bytes: B.pre, tipo: "enc" });
+      c.push({ id: "sep", nombre: "Separación", bytes: B.sep, tipo: "enc" });
+    }
+    return c;
+  }
+  // Paso 0: todo a la vista; 1-7: emisor (capa 7 a 1); 8: el medio; 9-15: receptor (capa 1 a 7)
+  function capaDelPaso(p) {
+    if (p >= 1 && p <= 7) return { lado: "emisor", n: 8 - p };
+    if (p === 8) return { lado: "medio", n: 1 };
+    if (p >= 9) return { lado: "receptor", n: p - 8 };
+    return null;
+  }
+  function textoDelPaso() {
+    var info = capaDelPaso(E.paso);
+    if (!info) return { t: "La pila completa", d: 'Al enviar, cada capa le agrega su encabezado (la 2, también una cola) a lo que recibe de arriba: es la encapsulación. Al recibir, la capa par del otro extremo lo quita y entrega el resto hacia arriba. Usa "Paso" para recorrerlo.' };
+    var n = info.n, nom = "capa " + n + " (" + CAPAS[n].nombre.toLowerCase() + ")", r = relleno();
+    if (info.lado === "emisor") {
+      return { t: "Emisor · " + nom, d: {
+        7: "Tu mensaje, de " + E.D + " bytes, es el dato que la aplicación quiere enviar.",
+        6: E.tls ? "TLS, que el libro ubica entre las capas 5 y 6, cifra los datos y les antepone el encabezado del registro TLS (pocos bytes, que el libro cuenta como datos útiles)."
+                 : "El texto ya está en bytes (Latin-1, un byte por carácter). Sin cifrado, quien capture la trama lo lee tal cual.",
+        5: "Mantiene el diálogo entre las aplicaciones. En este esquema, como en la figura del libro, no agrega un encabezado propio.",
+        4: "TCP agrega 20 bytes con los puertos y lo necesario para el control de flujo y la retransmisión. Ahora es un segmento.",
+        3: "IP agrega 20 bytes con las direcciones IP de origen y destino, que sirven para enrutar entre redes. Ahora es un paquete.",
+        2: "Ethernet agrega 14 bytes de encabezado, con las direcciones MAC, y 4 de FCS al final: un CRC-32 para detectar errores. Ahora es una trama." +
+           (r ? " Como quedaría por debajo del mínimo de 64 bytes, se rellena con " + r + " bytes." : ""),
+        1: "Agrega 8 bytes de preámbulo para que el receptor sincronice su reloj, convierte cada bit en señal con un código de línea y deja 12 bytes de silencio entre tramas. Ya solo hay bits."
+      }[n] };
+    }
+    if (info.lado === "medio") {
+      return { t: "En el medio", d: "La señal recorre los tramos 1, 2 y 3. Cada enrutador abre la trama hasta la capa 3 para leer la IP de destino, decide por dónde seguir y arma una trama nueva para el siguiente tramo. El espía del tramo " +
+               E.espia + " capta la señal y, como el código de línea es público, la convierte en bits." };
+    }
+    return { t: "Receptor · " + nom, d: {
+      1: "Detecta la señal, se sincroniza con el preámbulo y recupera los bits. Quita el preámbulo; la separación es solo silencio entre tramas.",
+      2: "Recalcula el CRC-32 y lo compara con la FCS: si no coincide, descarta la trama. Si está bien, quita el encabezado Ethernet y la FCS" + (r ? " (y el relleno)" : "") + " y entrega el paquete.",
+      3: "Comprueba que la IP de destino sea la suya y quita el encabezado IP.",
+      4: "Por el puerto sabe a qué proceso entregar los datos; TCP confirma lo que recibe y pide retransmitir lo que falte. Quita el encabezado TCP.",
+      5: "El diálogo sigue abierto; no hay encabezado que quitar.",
+      6: E.tls ? "TLS verifica y descifra con la clave que solo tienen los dos extremos, y quita el registro TLS." : "Interpreta los bytes como caracteres Latin-1.",
+      7: 'La aplicación recibe el mensaje: "' + esc(E.texto) + '".'
+    }[n] };
+  }
+  function chipEscalera(f, marca) {
+    var sub = f.bytes === null ? "pocos B" : f.bytes + " B";
+    if (f.id === "datos" && f.tipo === "cif") sub += " · cifrados";
+    return '<span class="campo ' + f.tipo + (marca ? " " + marca : "") + '"><b>' + f.nombre + "</b><small>" + sub + "</small></span>";
+  }
+  function pintarEscalera() {
+    var info = capaDelPaso(E.paso), h = [];
+    for (var n = 7; n >= 1; n--) {
+      var cls = "esc-fila" + (n === 1 ? " fisica" : ""), flecha = "";
+      if (info) {
+        if (info.lado === "emisor") { if (n < info.n) cls += " oculta"; if (n === info.n) { cls += " activa"; flecha = "↓ emisor"; } }
+        else if (info.lado === "medio") { if (n === 1) { cls += " activa"; flecha = "↔ en el medio"; } }
+        else { if (n < info.n) cls += " hecha"; if (n === info.n) { cls += " activa"; flecha = "↑ receptor"; } }
+      }
+      var arriba = {};
+      if (n < 7) camposCapa(n + 1).forEach(function (f) { arriba[f.id + ":" + f.tipo] = true; });
+      var activa = info && info.n === n && info.lado !== "medio";
+      var chips = camposCapa(n).map(function (f) {
+        var marca = "";
+        if (activa) {
+          var propio = n === 7 ? f.id === "datos" : !arriba[f.id + ":" + f.tipo];
+          if (info.lado === "emisor" && propio) marca = "nuevo";
+          else if (info.lado === "receptor" && propio && f.id !== "datos") marca = "sale";
+          else if (info.lado === "receptor" && n === 7) marca = "nuevo";
+        }
+        return chipEscalera(f, marca);
+      });
+      h.push('<div class="' + cls + '"><div class="esc-capa"><span><span class="num">' + n + "</span> " + CAPAS[n].nombre + "</span>" +
+             (flecha ? '<span class="flecha">' + flecha + "</span>" : "") + '</div><div class="campos">' + chips.join("") +
+             '<span class="pdu-nombre">' + PDU[n] + "</span></div></div>");
+    }
+    $("escalera").innerHTML = h.join("");
+    var t = textoDelPaso();
+    $("pasoNum").textContent = E.paso ? "Paso " + E.paso + " de " + NPASOS : "Vista completa";
+    $("pasoTitulo").textContent = t.t;
+    $("pasoTexto").innerHTML = t.d;
+    $("pasoAtras").disabled = E.paso === 0;
+    $("pasoAdelante").disabled = E.paso === NPASOS;
+    $("camino").classList.toggle("viaje", E.paso === 8);
+  }
+  function lecturaBytes() {
+    var D = E.D, r = relleno(), H = H_BASE + r, T = D + H, eta = D / T, h = [];
+    if (E.aviso) h.push('<span class="mal">' + E.aviso + "</span><br>");
+    if (!D) h.push('<span class="mal">Escribe al menos un carácter.</span><br>');
+    h.push("<b>Datos:</b> D = " + D + " B (un byte por carácter).");
+    h.push("<br><b>Encabezados y colas:</b> TCP 20 + IP 20 + Ethernet 14 + FCS 4 + preámbulo 8 + separación 12" +
+           (r ? " + relleno " + r : "") + " = H = " + H + " B.");
+    h.push("<br><b>En el cable:</b> D + H = " + T + ' B.<br><span class="formula">η = D/(D + H) = ' + D + "/" + T + " ≈ " +
+           num(eta, 3) + "</span>: el " + num(100 * eta, 1) + " % de lo que pasa por el cable es tu mensaje.");
+    h.push('<div class="barra-eta" aria-hidden="true"><span style="width:' + (100 * eta).toFixed(1) + '%"></span></div>' +
+           '<div class="leyenda-eta" aria-hidden="true"><span>datos</span><span>encabezados, colas y silencio</span></div>');
+    if (r) h.push('<span class="nota">La trama mínima de Ethernet es de 64 bytes: con menos de 6 caracteres se rellena.</span>');
+    if (E.tls) h.push("<br>Con TLS, el registro TLS agrega unos pocos bytes que el libro cuenta como datos útiles.");
+    if (E.macsec) h.push("<br>En el tramo 2, MACsec agrega una etiqueta y un código de integridad, hasta 32 B más: ahí η baja a " +
+                         D + "/" + (T + B.macsec) + " ≈ " + num(D / (T + B.macsec), 3) + ".");
+    if (E.ipsec) h.push("<br>En el tramo 2, IPsec en modo túnel agrega otro encabezado IP y bytes propios que el libro no cuantifica.");
+    $("lecturaBytes").innerHTML = h.join("");
+  }
+
+  // ---- El espía: qué viaja en cada tramo y qué se ve ----
+  function semilla(txt) {
+    var x = 2166136261;
+    for (var i = 0; i < txt.length; i++) { x ^= txt.charCodeAt(i); x = Math.imul(x, 16777619) >>> 0; }
+    return x || 1;
+  }
+  // Bytes de aspecto aleatorio (xorshift32) para mostrar lo cifrado; ilustrativo
+  function hexAzar(txt, n) {
+    var x = semilla(txt), s = [];
+    for (var i = 0; i < n; i++) {
+      x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+      s.push(("0" + (x & 255).toString(16)).slice(-2));
+    }
+    return s.join(" ") + "…";
+  }
+  function contenido(id) {
+    return { pre: "10101010…", eth: "MAC de este tramo", tunel: "IP de A → IP de B", ip: "IP emisor → receptor",
+             tcp: "puertos", tls: "SNI en el saludo", datos: '"' + esc(E.texto) + '"', relleno: "relleno", fcs: "CRC-32",
+             sep: "silencio", sectag: "etiqueta", icv: "integridad" }[id];
+  }
+  function tramaEnTramo(s) {
+    var c = camposCapa(1).map(function (f) { return { id: f.id, nombre: f.nombre, cif: f.tipo === "cif" }; });
+    function poner(despuesDe, campo) {
+      for (var i = 0; i < c.length; i++) if (c[i].id === despuesDe) { c.splice(i + 1, 0, campo); return; }
+    }
+    function cifrar(ids) { c.forEach(function (f) { if (ids.indexOf(f.id) >= 0) f.cif = true; }); }
+    if (s === 2) {
+      if (E.ipsec || E.macsec) c = c.filter(function (f) { return f.id !== "relleno"; });
+      if (E.ipsec) { poner("eth", { id: "tunel", nombre: "IP del túnel", cif: false }); cifrar(["ip", "tcp", "tls", "datos"]); }
+      if (E.macsec) {
+        poner("eth", { id: "sectag", nombre: "Etiqueta MACsec", cif: false });
+        for (var i = 0; i < c.length; i++) if (c[i].id === "fcs") { c.splice(i, 0, { id: "icv", nombre: "Código de integridad", cif: false }); break; }
+        cifrar(["tunel", "ip", "tcp", "tls", "datos"]);
+      }
+      if (E.fisica) c.forEach(function (f) { f.cif = true; });
+    }
+    return c;
+  }
+  function cifradosEn(s) {
+    var l = [];
+    if (E.tls) l.push("TLS");
+    if (s === 2) { if (E.ipsec) l.push("IPsec"); if (E.macsec) l.push("MACsec"); if (E.fisica) l.push("capa 1"); }
+    return l;
+  }
+  function pintarCamino() {
+    var nodos = [
+      { nom: "Emisor", capas: "capas 1 a 7", notas: E.tls ? ["cifra con TLS"] : [] },
+      { nom: "Enrutador A", capas: "capas 1 a 3", notas: [] },
+      { nom: "Enrutador B", capas: "capas 1 a 3", notas: [] },
+      { nom: "Receptor", capas: "capas 1 a 7", notas: E.tls ? ["descifra TLS"] : [] }
+    ];
+    if (E.ipsec) { nodos[1].notas.push("entra al túnel IPsec"); nodos[2].notas.push("sale del túnel IPsec"); }
+    if (E.macsec) { nodos[1].notas.push("cifra la trama (MACsec)"); nodos[2].notas.push("descifra la trama"); }
+    if (E.fisica) { nodos[1].notas.push("cifra la señal"); nodos[2].notas.push("descifra la señal"); }
+    var h = [];
+    nodos.forEach(function (nd, i) {
+      h.push('<div class="nodo"><b>' + nd.nom + '</b><span class="capas-n">' + nd.capas + "</span>" +
+             nd.notas.map(function (t) { return '<span class="clave">' + t + "</span>"; }).join("") + "</div>");
+      if (i < 3) {
+        var s = i + 1, cif = cifradosEn(s), con = E.espia === s;
+        h.push('<button type="button" class="tramo' + (s === 2 ? " fibra" : "") + (con ? " con-espia" : "") + '" data-tramo="' + s +
+               '" aria-pressed="' + con + '" aria-label="Conectar el espía en el tramo ' + s + '">' +
+               '<span class="t-nom">Tramo ' + s + " · " + TRAMOS[s].medio + '</span><span class="linea"></span>' +
+               '<span class="t-cif">' + (cif.length ? "cifra: " + cif.join(" · ") : "sin cifrado") + "</span>" +
+               '<span class="t-espia">' + (con ? "espía conectado aquí" : "conectar el espía") + "</span></button>");
+      }
+    });
+    $("camino").innerHTML = h.join("");
+    $("camino").classList.toggle("viaje", E.paso === 8);
+  }
+  function pintarCaptura() {
+    var s = E.espia, t = TRAMOS[s], campos = tramaEnTramo(s), todo = s === 2 && E.fisica;
+    $("capturaTitulo").textContent = "Lo que capta el espía en el tramo " + s + " (" + t.medio + ", " + t.ruta + ")";
+    if (todo) {
+      $("tramaEspia").innerHTML = '<div class="bloque-ruido">Señal cifrada en la capa 1: parece ruido. No se distinguen campos ni protocolo.</div>';
+    } else {
+      $("tramaEspia").innerHTML = '<div class="campos">' + campos.map(function (f) {
+        return '<span class="campo ' + (f.cif ? "cif" : "vis") + '"><b>' + f.nombre + "</b><small>" +
+               (f.cif ? hexAzar(E.texto + f.id + cifradosEn(s).join(""), 3) : contenido(f.id)) + "</small></span>";
+      }).join("") + "</div>";
+    }
+    var ve = [], no = [], vis = {};
+    if (todo) {
+      ve.push("que hay una señal; en el mejor caso, ni el protocolo ni la tasa");
+      no.push("las direcciones, los puertos, dónde empieza cada campo y el contenido");
+    } else {
+      campos.forEach(function (f) { vis[f.id] = !f.cif; });
+      ve.push("las direcciones MAC de los equipos de este tramo");
+      if (vis.tunel) ve.push("las direcciones IP de los extremos del túnel (A y B)");
+      if (vis.ip) ve.push("las direcciones IP del emisor y del receptor"); else no.push("las direcciones IP del emisor y del receptor");
+      if (vis.tcp) ve.push("los puertos de origen y destino"); else no.push("los puertos");
+      if ("tls" in vis) {
+        if (vis.tls) ve.push("que la conexión usa TLS y el nombre del servidor (SNI) del saludo inicial, salvo con ECH");
+        else no.push("que la conexión usa TLS y el nombre del servidor");
+      }
+      if (vis.datos) ve.push('el mensaje completo: "' + esc(E.texto) + '"'); else no.push("el contenido del mensaje");
+      ve.push("el tamaño y el momento de cada trama");
+    }
+    var resumen;
+    if (todo) resumen = "Como en el cuadro del libro para la capa 1 (OTN cifrado, VPSC): solo sabe que hay una señal. Protege un solo tramo físico.";
+    else if (s === 2 && E.macsec) resumen = "Como en el cuadro del libro para la capa 2: direcciones MAC, tamaño y tiempo de las tramas. Protege un salto: A cifra y B descifra.";
+    else if (s === 2 && E.ipsec) resumen = "Como en el cuadro del libro para la capa 3 (IPsec en modo túnel): MAC e IP de los extremos del túnel, tamaños y tiempos.";
+    else if (E.tls) resumen = "Como en el cuadro del libro para las capas 5-7 (TLS): MAC, IP, puertos, SNI, tamaños y tiempos.";
+    else resumen = "Sin cifrado, el espía lee todo. El código de línea es público: codificar no es cifrar.";
+    if (s !== 2 && (E.ipsec || E.macsec || E.fisica)) resumen += " IPsec, MACsec y el cifrado de la señal solo actúan en el tramo 2 (de A a B): en este tramo no protegen nada.";
+    function lista(a) { return a.length ? "<ul>" + a.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>" : "<ul><li>nada</li></ul>"; }
+    $("lecturaEspia").innerHTML = '<div class="ve-no"><div><b>Lo que ve</b>' + lista(ve) + "</div><div><b>Lo que no ve</b>" + lista(no) +
+                                  "</div></div>" + resumen;
+    dibujarSenal();
+  }
+  function dibujarSenal() {
+    var cv = $("lienzoSenal");
+    if (vistaActiva !== "v2" || !cv.clientWidth) return;
+    var angosto = cv.clientWidth < 560, P = preparar(cv, angosto ? 0.32 : 0.12), g = P.g, w = P.w, h = P.h;
+    var cifrada = E.espia === 2 && E.fisica, x0 = 10, x1 = w - 10, yc = h * 0.62, amp = h * 0.22;
+    g.clearRect(0, 0, w, h);
+    g.save(); g.strokeStyle = C.grisClaro; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, yc); g.lineTo(x1, yc); g.stroke(); g.restore();
+    g.save(); g.lineWidth = angosto ? 2.2 : 2.6; g.lineJoin = "round"; g.beginPath();
+    if (cifrada) {
+      // Ruido de aspecto aleatorio pero fijo (xorshift32), para que no parpadee al redibujar
+      g.strokeStyle = C.guinda;
+      var x = 1234567, pasoX = 3, n = Math.floor((x1 - x0) / pasoX);
+      for (var i = 0; i <= n; i++) {
+        x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+        var u = ((x & 1023) / 1023 - 0.5) * 2.2, X = x0 + i * pasoX, Y = yc - u * amp;
+        if (i) g.lineTo(X, Y); else g.moveTo(X, Y);
+      }
+    } else {
+      // Manchester (IEEE 802.3): 1 = bajo → alto, 0 = alto → bajo; preámbulo 1010…
+      g.strokeStyle = C.azul;
+      var nb = angosto ? 12 : 24, bw = (x1 - x0) / nb, alto = yc - amp, bajo = yc + amp;
+      g.moveTo(x0, bajo);
+      for (var b = 0; b < nb; b++) {
+        var uno = b % 2 === 0, a = uno ? bajo : alto, z = uno ? alto : bajo, xs = x0 + b * bw;
+        g.lineTo(xs, a); g.lineTo(xs + bw / 2, a); g.lineTo(xs + bw / 2, z); g.lineTo(xs + bw, z);
+      }
+    }
+    g.stroke(); g.restore();
+    g.save(); g.fillStyle = cifrada ? C.guinda : C.gris; g.font = "bold 15px " + FUENTE; g.textBaseline = "top";
+    g.fillText(cifrada ? "señal cifrada: parece ruido" : (angosto ? "preámbulo 1 0 1 0 … (ilustrativo)" : "preámbulo 1 0 1 0 … en Manchester (ilustrativo): el espía reconoce la señal y mide su tasa"), x0, 4);
+    g.restore();
+  }
+  function actualizarEnc() {
+    leerMensaje(); leerControles();
+    pintarEscalera(); lecturaBytes(); pintarCamino(); pintarCaptura();
+  }
+  function irAPaso(p) { E.paso = Math.max(0, Math.min(NPASOS, p)); pintarEscalera(); }
+  function detenerReproduccion() {
+    if (E.reloj) { clearInterval(E.reloj); E.reloj = null; }
+    $("reproducir").textContent = "Reproducir";
+  }
+  $("mensaje").addEventListener("input", actualizarEnc);
+  ["cTLS", "cIPsec", "cMACsec", "cFisica"].forEach(function (id) { $(id).addEventListener("change", actualizarEnc); });
+  document.querySelectorAll('input[name="espia"]').forEach(function (r) { r.addEventListener("change", actualizarEnc); });
+  $("camino").addEventListener("click", function (e) {
+    var b = e.target.closest(".tramo");
+    if (!b) return;
+    document.querySelector('input[name="espia"][value="' + b.dataset.tramo + '"]').checked = true;
+    actualizarEnc();
+  });
+  $("pasoAdelante").addEventListener("click", function () { detenerReproduccion(); irAPaso(E.paso + 1); });
+  $("pasoAtras").addEventListener("click", function () { detenerReproduccion(); irAPaso(E.paso - 1); });
+  $("verTodo").addEventListener("click", function () { detenerReproduccion(); irAPaso(0); });
+  $("reproducir").addEventListener("click", function () {
+    if (E.reloj) { detenerReproduccion(); return; }
+    if (E.paso >= NPASOS) E.paso = 0;
+    $("reproducir").textContent = "Pausa";
+    irAPaso(E.paso + 1);
+    E.reloj = setInterval(function () {
+      if (E.paso >= NPASOS) { detenerReproduccion(); return; }
+      irAPaso(E.paso + 1);
+    }, 1800);
+  });
+
+  // =====================================================================
+  // 3. ¿EN QUÉ CAPA VIVE? (juego de clasificación)
+  // =====================================================================
+  var TARJETAS = [
+    { id: "sql", tipo: "Ataque", titulo: "Inyección SQL", capas: [7],
+      desc: "Alguien escribe instrucciones de base de datos en un formulario web para que el servidor las ejecute.",
+      porque: "Capa 7 (aplicación), como en la figura del libro. El ataque viaja dentro de los datos que interpreta la aplicación; las capas de abajo los transportan sin leerlos, así que ahí no hay nada anormal que ver.",
+      pistas: { 6: "Cerca, pero el problema no es el formato de los datos ni su codificación: es lo que la aplicación hace con ellos.",
+                5: "No se apropia de un diálogo: abusa del servicio que usa el usuario, la propia aplicación web.",
+                4: "Los segmentos que lo llevan son normales: la trampa está en el contenido, y solo la aplicación lo interpreta.",
+                3: "Los paquetes que lo llevan son normales: la trampa está en el contenido, y solo la aplicación lo interpreta.",
+                otro: "Nada en la señal ni en la trama es anormal: el problema está en lo que la aplicación hace con los datos." } },
+    { id: "https", tipo: "Defensa", titulo: "HTTPS (HTTP sobre TLS)", capas: [5, 6, 7],
+      desc: "El navegador y el servidor cifran lo que intercambian; nadie en el camino tiene la clave.",
+      porque: "El libro la ubica en las capas 5-7: TLS funciona sobre TCP y por debajo de la aplicación (en OSI, entre las capas 5 y 6) y HTTP es de la capa 7; en TCP/IP todo queda en la capa de aplicación. Por eso se aceptan la 5, la 6 y la 7. Cifra de extremo a extremo, pero el espía sigue viendo MAC, IP, puertos, el nombre del servidor (SNI), tamaños y tiempos.",
+      pistas: { 4: 'TLS viaja sobre TCP, que es la capa 4, pero no es parte de ella, aunque su nombre (Transport Layer Security) diga "transporte". Sube.',
+                3: "El cifrado de la capa 3 es IPsec. Con HTTPS, el espía todavía ve las direcciones IP: el cifrado está más arriba.",
+                2: "Si cifrara en la capa 2, el espía no vería las direcciones IP ni los puertos; con HTTPS sí los ve.",
+                otro: "No cambia la señal: cifra los datos de la aplicación, que viajan dentro de todo lo demás." } },
+    { id: "ascii", tipo: "Tecnología", titulo: "ASCII o Latin-1", capas: [6],
+      desc: "Una tabla que asigna un byte a cada carácter: la h es 104 = 01101000.",
+      porque: "Capa 6 (presentación): formato y codificación de caracteres. Decide qué byte representa cada letra, sin decir nada de voltajes ni de luz.",
+      pistas: { 1: 'Cuidado con la palabra "codificación": la de la capa 1 es la codificación de línea, que convierte bits en señal. ASCII decide qué bits representan una letra.',
+                7: "La aplicación usa el texto, pero darle formato y codificar sus caracteres le toca a la capa de abajo.",
+                5: "La capa 5 maneja diálogos, no el formato de los datos.",
+                4: "El transporte entrega bytes entre procesos sin importarle qué letras representan.",
+                otro: "Esa capa mueve bytes sin saber qué letra representa cada uno. Busca la del formato y la codificación de caracteres." } },
+    { id: "sesion", tipo: "Ataque", titulo: "Secuestro de sesión", capas: [5],
+      desc: "El atacante toma el lugar de un usuario en una conversación entre aplicaciones que ya estaba abierta.",
+      porque: "Capa 5 (sesión): establece, mantiene y cierra los diálogos entre aplicaciones, y el secuestro de sesión ataca ese diálogo (figura del libro).",
+      pistas: { 4: "TCP comunica procesos, pero el libro asigna el diálogo entre aplicaciones, y su secuestro, a la capa de arriba.",
+                6: "No toca el formato de los datos: se apropia del diálogo. Baja una capa.",
+                7: "Casi: el diálogo que se secuestra lo establece y mantiene la capa que está justo debajo de la aplicación.",
+                otro: "Busca la capa que establece, mantiene y cierra los diálogos entre aplicaciones." } },
+    { id: "syn", tipo: "Ataque", titulo: "Inundación SYN", capas: [4],
+      desc: "Una avalancha de segmentos SYN, los que piden abrir una conexión TCP, satura a un servidor.",
+      porque: "Capa 4 (transporte): los SYN son segmentos de TCP, el protocolo que abre las conexiones entre procesos. Es el ataque típico de esta capa en la figura del libro.",
+      pistas: { 3: "Los paquetes IP solo los llevan; lo que se satura es el mecanismo de conexiones de TCP. ¿En qué capa vive TCP?",
+                7: "No llega a ninguna aplicación: se queda en las conexiones de TCP.",
+                5: "Ataca la apertura de conexiones de TCP, una capa más abajo.",
+                otro: 'Fíjate en la palabra "segmentos": ¿de qué capa es esa unidad de datos?' } },
+    { id: "cookies", tipo: "Defensa", titulo: "SYN cookies", capas: [4],
+      desc: "Se activan en el sistema operativo del servidor para resistir una avalancha de solicitudes SYN.",
+      porque: "Capa 4: es el control de la misma capa que la inundación SYN, como en el ejemplo del analista del libro. Que se active en el sistema operativo no la vuelve de la capa 7: ahí vive TCP.",
+      pistas: { 7: "Se configura en el sistema operativo, pero protege el mecanismo de conexiones de TCP. ¿En qué capa vive TCP?",
+                3: "No toca direcciones ni rutas: protege las conexiones de TCP.",
+                5: "Protege la apertura de conexiones de TCP, una capa más abajo.",
+                otro: "Un control funciona en la capa del ataque que frena. ¿En qué capa está la inundación SYN?" } },
+    { id: "ipsec", tipo: "Defensa", titulo: "IPsec en modo túnel", capas: [3],
+      desc: "Una VPN entre dos sitios: cada paquete original viaja cifrado dentro de otro paquete.",
+      porque: "Capa 3 (red): IPsec cifra y autentica paquetes IP completos. En modo túnel, el espía solo ve la MAC y las IP de los extremos del túnel, tamaños y tiempos.",
+      pistas: { 4: "Cifra también el encabezado TCP, así que tiene que estar debajo del transporte.",
+                2: "No es salto por salto: protege paquetes IP entre los extremos del túnel, aunque haya muchos enlaces en medio.",
+                1: "No toca la señal: trabaja con paquetes.",
+                otro: "Funciona sin que la aplicación se entere: protege paquetes IP completos." } },
+    { id: "arp", tipo: "Ataque", titulo: "Envenenamiento ARP", capas: [2],
+      desc: "Mensajes ARP falsos en la red local hacen que el tráfico de los vecinos llegue a la dirección MAC del atacante.",
+      porque: "Capa 2 (enlace de datos): el engaño ocurre dentro de la red local, entre nodos vecinos, con direcciones MAC. El libro lo frena en el conmutador con la inspección dinámica de ARP.",
+      pistas: { 3: "ARP relaciona direcciones IP con direcciones MAC, pero el engaño ocurre en la red local, con direcciones MAC: una capa más abajo.",
+                1: "No altera la señal: falsifica mensajes que viajan dentro de las tramas.",
+                4: "No usa puertos ni conexiones: engaña con direcciones MAC dentro de la red local.",
+                otro: 'Fíjate en "dirección MAC" y "red local": ¿qué capa entrega entre nodos vecinos?' } },
+    { id: "wpa", tipo: "Defensa", titulo: "WPA2 o WPA3", capas: [2],
+      desc: "Protegen una red Wi-Fi: cifran lo que viaja por el aire entre tu equipo y el punto de acceso.",
+      porque: "Capa 2 (enlace de datos): WPA2 (AES-CCMP) y WPA3 cifran las tramas de Wi-Fi entre el cliente y el punto de acceso. La radio (OFDM, canales, potencia) es capa 1, pero la confidencialidad de Wi-Fi no depende de ella sino de la criptografía de la capa de enlace (capítulo Tecnologías de comunicación).",
+      pistas: { 1: "La radio es de la capa 1, pero WPA no cambia la señal: cifra las tramas. Un espía con un SDR sigue captando la señal y ve las direcciones MAC.",
+                3: "Protege un solo salto, entre tu equipo y el punto de acceso, no paquetes de un extremo a otro.",
+                otro: "Protege un solo salto, entre tu equipo y el punto de acceso, y ahí se descifra: está por debajo de la capa de red." } },
+    { id: "fcs", tipo: "Tecnología", titulo: "FCS (CRC-32)", capas: [2],
+      desc: "Cuatro bytes al final de cada trama de Ethernet; el receptor los recalcula para detectar bits dañados.",
+      porque: "Capa 2: la secuencia de verificación de trama detecta errores y la trama dañada se descarta. Ojo: no es seguridad. Su regla es pública y no usa clave, así que quien altera la trama puede recalcularla.",
+      pistas: { 1: "La capa 1 entrega bits crudos sin garantizar que lleguen bien; detectar los errores le toca a la capa de enlace.",
+                4: "TCP retransmite lo que se pierde, pero la FCS viaja al final de cada trama.",
+                3: 'Fíjate en "al final de cada trama": ¿de qué capa es la trama?',
+                otro: "No es un mecanismo de seguridad de las capas altas (no usa clave): es detección de errores en cada trama." } },
+    { id: "jamming", tipo: "Ataque", titulo: "Interferencia intencional (jamming)", capas: [1],
+      desc: "Un emisor satura el canal con ruido o señales espurias para bloquear las comunicaciones.",
+      porque: "Capa 1 (física): mete energía en el medio y ataca la disponibilidad. Su efecto se calcula con Shannon-Hartley, tratando la potencia del jammer como ruido adicional.",
+      pistas: { 2: "No necesita fabricar tramas: le basta con meter ruido en el canal.",
+                3: "No necesita direcciones ni rutas: le basta con meter ruido en el canal.",
+                otro: "Piensa en qué ataca: la señal en el medio, no los datos." } },
+    { id: "toma", tipo: "Ataque", titulo: "Toma por curvatura", capas: [1],
+      desc: "El atacante dobla un tramo de fibra óptica y capta con un fotodetector la luz que escapa, sin cortarla.",
+      porque: "Capa 1: lo que se intercepta es la luz, es decir, la señal. Explota la reflexión total interna (capítulo Campos magnéticos) y el espía no necesita tocar ningún equipo de red.",
+      pistas: { otro: "Lo que se roba es luz: la señal misma. ¿Qué capa transmite los bits como señal eléctrica, óptica o de radio?" } },
+    { id: "manchester", tipo: "Tecnología", titulo: "Código Manchester", capas: [1],
+      desc: "Una transición a mitad de cada bit: 0 = alto → bajo y 1 = bajo → alto (IEEE 802.3).",
+      porque: "Capa 1: decide cómo se convierte cada bit en señal (codificación de línea) y ayuda al receptor a recuperar el reloj. Es pública: quien capta la señal y conoce el código lee los bits; codificar no es cifrar.",
+      pistas: { 6: "No codifica caracteres: codifica bits como niveles de voltaje. Eso ocurre en la capa más baja.",
+                2: "Trabaja con bits sueltos y voltajes, antes de que exista una trama.",
+                otro: "Habla de niveles alto y bajo en cada bit: ¿qué capa convierte bits en señal?" } },
+    { id: "otdr", tipo: "Defensa", titulo: "Reflectometría óptica (OTDR)", capas: [1],
+      desc: "Envía pulsos de luz por la fibra y mide la que regresa: una toma aparece como un escalón en la traza.",
+      porque: "Capa 1: mide la luz en la fibra y ubica el evento con d = ct/(2n) (capítulo Campos magnéticos). Los controles de la capa 1 son físicos: OTDR, monitoreo de potencia, blindaje.",
+      pistas: { 7: "No es un programa que revise registros: es un instrumento que mide la luz en la fibra.",
+                otro: "Mide luz en la fibra: ¿en qué capa vive la señal?" } }
+  ];
+  var J = { orden: [], estado: {}, elegida: null, colocadas: 0, primer: 0, ayuda: 0 };
+  var CLASE_TIPO = { "Ataque": "ataque", "Defensa": "defensa", "Tecnología": "tecnologia" };
+  function porId(id) { for (var i = 0; i < TARJETAS.length; i++) if (TARJETAS[i].id === id) return TARJETAS[i]; return null; }
+  function pendientes() { return J.orden.filter(function (id) { return J.estado[id].capa === null; }); }
+  function nombreCapa(n) { return "capa " + n + " (" + CAPAS[n].nombre.toLowerCase() + ")"; }
+
+  function revolver() {
+    J.orden = TARJETAS.map(function (t) { return t.id; });
+    for (var i = J.orden.length - 1; i > 0; i--) {
+      var k = Math.floor(Math.random() * (i + 1)), x = J.orden[i];
+      J.orden[i] = J.orden[k]; J.orden[k] = x;
+    }
+    J.estado = {};
+    TARJETAS.forEach(function (t) { J.estado[t.id] = { fallos: 0, capa: null, ayuda: false }; });
+    J.colocadas = J.primer = J.ayuda = 0;
+    J.elegida = J.orden[0];
+    $("resultado").innerHTML = "Hay una tarjeta sobre la mesa: colócala en la capa donde vive. Si fallas, recibes una pista; al segundo error se coloca sola, con la explicación.";
+    pintarJuego();
+  }
+  function elegir(id) {
+    if (!J.estado[id] || J.estado[id].capa !== null) return;
+    J.elegida = id; pintarJuego();
+  }
+  // Siguiente tarjeta pendiente después de la actual (da la vuelta al final del mazo)
+  function vecina(id, paso) {
+    var pend = pendientes();
+    if (!pend.length) return null;
+    var i = pend.indexOf(id);
+    if (i < 0) {
+      var k = J.orden.indexOf(id);
+      for (var j = 1; j <= J.orden.length; j++) {
+        var cand = J.orden[(k + j * (paso > 0 ? 1 : -1) + J.orden.length * 2) % J.orden.length];
+        if (J.estado[cand].capa === null) return cand;
+      }
+      return pend[0];
+    }
+    return pend[(i + paso + pend.length) % pend.length];
+  }
+  function pista(t, n) { return t.pistas[n] || t.pistas.otro || "Relee la descripción: ¿qué unidad de datos toca?"; }
+
+  function colocar(id, n) {
+    var t = porId(id), st = J.estado[id], msj;
+    if (!t || !st || st.capa !== null || !CAPAS[n]) return;
+    if (t.capas.indexOf(n) >= 0) {
+      st.capa = n; J.colocadas++;
+      if (st.fallos === 0) J.primer++;
+      msj = '<span class="ok">' + (st.fallos === 0 ? "✓ ¡Correcto!" : "✓ Ahora sí.") + "</span> <b>" + t.titulo + " → " + nombreCapa(n) + ".</b> " + t.porque;
+    } else {
+      st.fallos++;
+      if (st.fallos >= 2) {
+        var destino = t.capas.length > 1 ? 6 : t.capas[0];
+        st.capa = destino; st.ayuda = true; J.colocadas++; J.ayuda++;
+        msj = '<span class="mal">✗ Tampoco va en la capa ' + n + ".</span> <b>" + t.titulo + " va en " +
+              (t.capas.length > 1 ? "las capas 5 a 7 (se coloca en la 6)" : "la " + nombreCapa(destino)) + ".</b> " + t.porque;
+      } else {
+        msj = '<span class="mal">✗ No va en la ' + nombreCapa(n) + ".</span> <b>Pista:</b> " + pista(t, n) + " Prueba otra vez.";
+      }
+    }
+    if (st.capa !== null) J.elegida = vecina(id, 1);
+    if (J.colocadas === TARJETAS.length) {
+      msj += "<br><b>¡Mazo completo!</b> " + J.primer + " de " + TARJETAS.length + " al primer intento" +
+             (J.ayuda ? " y " + J.ayuda + " con ayuda" : "") + '. Usa "Revolver" para jugar otra vez.';
+    }
+    $("resultado").innerHTML = msj;
+    pintarJuego();
+    if (angosta()) asegurarVisible($("resultado"));
+  }
+  function pintarJuego() {
+    var pend = pendientes(), total = TARJETAS.length;
+    $("mazoTitulo").textContent = "Por clasificar: " + pend.length + " de " + total;
+    $("mazo").innerHTML = pend.length ? pend.map(function (id) {
+      var t = porId(id), si = id === J.elegida;
+      return '<button type="button" class="carta' + (si ? " elegida" : "") + '" data-id="' + id + '" aria-pressed="' + si + '">' +
+             '<span class="tipo ' + CLASE_TIPO[t.tipo] + '">' + t.tipo + "</span>" + t.titulo + "</button>";
+    }).join("") : '<p class="nota">No quedan tarjetas. Usa "Revolver" para jugar otra vez.</p>';
+    var t = J.elegida ? porId(J.elegida) : null;
+    $("mesa").classList.toggle("vacia", !t);
+    $("mesa").innerHTML = t ?
+      '<div class="mesa-cab"><span class="tipo ' + CLASE_TIPO[t.tipo] + '">' + t.tipo + " · arrástrala o toca su capa</span>" +
+      '<span class="mesa-botones"><button type="button" class="accion" id="mesaAnt" aria-label="Tarjeta anterior">‹ Otra</button>' +
+      '<button type="button" class="accion" id="mesaSig" aria-label="Tarjeta siguiente">Otra ›</button></span></div>' +
+      '<div class="mesa-titulo">' + t.titulo + '</div><p class="mesa-desc">' + t.desc + "</p>" :
+      '<div class="mesa-titulo">Mesa vacía</div><p class="mesa-desc">Ya colocaste todas las tarjetas. Toca cualquiera de ellas en su capa para volver a leer su explicación.</p>';
+    var h = [];
+    for (var n = 7; n >= 1; n--) {
+      var aqui = J.orden.filter(function (id) { return J.estado[id].capa === n; });
+      h.push('<div class="destino' + (n === 1 ? " fisica" : "") + (t ? " listo" : "") + '" data-capa="' + n + '">' +
+             '<button type="button" class="destino-btn" data-capa="' + n + '"><span class="num">' + n + "</span>" + CAPAS[n].nombre +
+             " <small>" + CAPAS[n].pdu + "</small></button>" +
+             '<div class="colocadas">' + aqui.map(function (id) {
+               var c = porId(id), st = J.estado[id];
+               return '<button type="button" class="colocada' + (st.ayuda ? " ayuda" : "") + '" data-id="' + id + '">' +
+                      (st.ayuda ? "↺ " : "✓ ") + c.titulo + "</button>";
+             }).join("") + "</div></div>");
+    }
+    $("destinos").innerHTML = h.join("");
+    $("marcador").textContent = "Colocadas: " + J.colocadas + " de " + total + " · al primer intento: " + J.primer + " · con ayuda: " + J.ayuda;
+  }
+
+  // Tocar: elegir tarjeta, luego capa
+  var suprimirClic = false;
+  $("mazo").addEventListener("click", function (e) {
+    if (suprimirClic) return;
+    var b = e.target.closest(".carta");
+    if (!b) return;
+    elegir(b.dataset.id);
+    if (angosta()) asegurarVisible($("mesa"));   // en el celular el mazo queda abajo: sube a la mesa y las capas
+  });
+  $("mesa").addEventListener("click", function (e) {
+    if (suprimirClic) return;
+    if (e.target.closest("#mesaAnt")) { J.elegida = vecina(J.elegida, -1); pintarJuego(); }
+    else if (e.target.closest("#mesaSig")) { J.elegida = vecina(J.elegida, 1); pintarJuego(); }
+  });
+  $("destinos").addEventListener("click", function (e) {
+    if (suprimirClic) return;
+    var col = e.target.closest(".colocada");
+    if (col) {
+      var t = porId(col.dataset.id), st = J.estado[t.id];
+      $("resultado").innerHTML = "<b>" + t.titulo + " → " + (t.capas.length > 1 ? "capas 5 a 7" : nombreCapa(st.capa)) + ".</b> " + t.porque;
+      return;
+    }
+    var d = e.target.closest(".destino");
+    if (!d) return;
+    if (!J.elegida) { $("resultado").innerHTML = 'No hay tarjeta en la mesa. Usa "Revolver" para jugar otra vez.'; return; }
+    colocar(J.elegida, +d.dataset.capa);
+  });
+  $("revolver").addEventListener("click", revolver);
+  document.addEventListener("keydown", function (e) {
+    if (vistaActiva !== "v3" || !J.elegida || e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "select" || tag === "textarea") return;
+    if (/^[1-7]$/.test(e.key)) { e.preventDefault(); colocar(J.elegida, +e.key); }
+  });
+
+  // Arrastrar con eventos pointer (ratón, pluma o dedo sobre la tarjeta de la mesa)
+  var arrastre = null;
+  function destinoEn(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return el ? el.closest("#destinos .destino") : null;
+  }
+  function resaltar(d) {
+    document.querySelectorAll("#destinos .destino.sobre").forEach(function (x) { if (x !== d) x.classList.remove("sobre"); });
+    if (d) d.classList.add("sobre");
+  }
+  function iniciarArrastre(e, id, origen) {
+    if (!id || (e.pointerType === "mouse" && e.button !== 0)) return;
+    arrastre = { id: id, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, activo: false, fantasma: null, pid: e.pointerId, vy: 0, raf: 0 };
+    try { origen.setPointerCapture(e.pointerId); } catch (err) { /* sin captura: se siguen los eventos del documento */ }
+  }
+  function moverFantasma() {
+    if (!arrastre || !arrastre.fantasma) return;
+    arrastre.fantasma.style.transform = "translate(" + Math.round(arrastre.x - 40) + "px," + Math.round(arrastre.y - 56) + "px)";
+    resaltar(destinoEn(arrastre.x, arrastre.y));
+  }
+  function desplazar() {
+    if (!arrastre || !arrastre.activo || !arrastre.vy) { if (arrastre) arrastre.raf = 0; return; }
+    window.scrollBy(0, arrastre.vy); moverFantasma();
+    arrastre.raf = requestAnimationFrame(desplazar);
+  }
+  document.addEventListener("pointermove", function (e) {
+    if (!arrastre || e.pointerId !== arrastre.pid) return;
+    arrastre.x = e.clientX; arrastre.y = e.clientY;
+    if (!arrastre.activo) {
+      var dx = e.clientX - arrastre.x0, dy = e.clientY - arrastre.y0;
+      if (dx * dx + dy * dy < 64) return;
+      arrastre.activo = true;
+      var f = document.createElement("div");
+      f.className = "fantasma"; f.textContent = porId(arrastre.id).titulo;
+      document.body.appendChild(f); arrastre.fantasma = f;
+    }
+    if (e.cancelable) e.preventDefault();
+    moverFantasma();
+    var margen = 56;
+    arrastre.vy = e.clientY < margen ? -14 : (e.clientY > window.innerHeight - margen ? 14 : 0);
+    if (arrastre.vy && !arrastre.raf) arrastre.raf = requestAnimationFrame(desplazar);
+  });
+  function terminarArrastre(e, soltar) {
+    if (!arrastre || e.pointerId !== arrastre.pid) return;
+    var a = arrastre; arrastre = null;
+    if (a.raf) cancelAnimationFrame(a.raf);
+    if (!a.activo) return;
+    if (a.fantasma) a.fantasma.remove();
+    resaltar(null);
+    suprimirClic = true; setTimeout(function () { suprimirClic = false; }, 0);
+    if (!soltar) return;
+    var d = destinoEn(e.clientX, e.clientY);
+    if (d) { J.elegida = a.id; colocar(a.id, +d.dataset.capa); }
+  }
+  document.addEventListener("pointerup", function (e) { terminarArrastre(e, true); });
+  document.addEventListener("pointercancel", function (e) { terminarArrastre(e, false); });
+  $("mazo").addEventListener("pointerdown", function (e) {
+    var b = e.target.closest(".carta");
+    if (b) iniciarArrastre(e, b.dataset.id, b);
+  });
+  $("mesa").addEventListener("pointerdown", function (e) {
+    if (e.target.closest("button") || !J.elegida) return;
+    iniciarArrastre(e, J.elegida, $("mesa"));
+  });
+
+  // =====================================================================
+  function dibujarTodo() { if (vistaActiva === "v2") dibujarSenal(); }
+  window.addEventListener("resize", dibujarTodo);
+  construirPila(); pintarFicha();
+  actualizarEnc();
+  revolver();
+  // Abrir directamente una pestaña con #p1 ... #p3 (o #v1 ... #v3) al final de la dirección
+  var hash = (location.hash || "").replace("#p", "v").replace("#", ""),
+      bHash = document.querySelector('nav.pestanas button[data-vista="' + hash + '"]');
+  if (bHash) bHash.click(); else dibujarTodo();
+  // Acceso para pruebas desde la consola
+  window.__osi = { CAPAS: CAPAS, TARJETAS: TARJETAS, J: J, E: E, elegirCapa: elegirCapa, colocar: colocar, elegir: elegir,
+                   revolver: revolver, irAPaso: irAPaso, tramaEnTramo: tramaEnTramo, actualizarEnc: actualizarEnc,
+                   camposCapa: camposCapa, relleno: relleno };
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-15-capas-osi.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM11 2h1v1h-1zM15 2h4v1h-4zM20 2h3v1h-3zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM13 3h1v1h-1zM17 3h1v1h-1zM23 3h1v1h-1zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h6v1h-6zM17 4h1v1h-1zM22 4h2v1h-2zM26 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h6v1h-6zM17 5h1v1h-1zM19 5h1v1h-1zM22 5h1v1h-1zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h2v1h-2zM18 6h8v1h-8zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h1v1h-1zM16 7h2v1h-2zM23 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h2v1h-2zM14 9h1v1h-1zM16 9h3v1h-3zM21 9h1v1h-1zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM12 10h2v1h-2zM15 10h2v1h-2zM18 10h2v1h-2zM22 10h1v1h-1zM24 10h1v1h-1zM27 10h2v1h-2zM32 10h5v1h-5zM2 11h2v1h-2zM6 11h2v1h-2zM9 11h3v1h-3zM13 11h1v1h-1zM16 11h2v1h-2zM20 11h6v1h-6zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM5 12h1v1h-1zM8 12h4v1h-4zM13 12h1v1h-1zM15 12h4v1h-4zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h6v1h-6zM9 13h1v1h-1zM11 13h1v1h-1zM15 13h3v1h-3zM23 13h2v1h-2zM26 13h1v1h-1zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h5v1h-5zM8 14h4v1h-4zM13 14h5v1h-5zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM4 15h2v1h-2zM7 15h1v1h-1zM9 15h4v1h-4zM14 15h1v1h-1zM16 15h1v1h-1zM18 15h6v1h-6zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM3 16h3v1h-3zM8 16h1v1h-1zM10 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM29 16h7v1h-7zM37 16h2v1h-2zM3 17h4v1h-4zM9 17h1v1h-1zM12 17h1v1h-1zM16 17h1v1h-1zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM3 18h1v1h-1zM7 18h4v1h-4zM15 18h1v1h-1zM17 18h1v1h-1zM20 18h1v1h-1zM25 18h3v1h-3zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h2v1h-2zM6 19h1v1h-1zM12 19h2v1h-2zM15 19h1v1h-1zM17 19h2v1h-2zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM3 20h1v1h-1zM5 20h2v1h-2zM8 20h4v1h-4zM13 20h1v1h-1zM16 20h1v1h-1zM19 20h2v1h-2zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h1v1h-1zM6 21h2v1h-2zM9 21h1v1h-1zM12 21h1v1h-1zM14 21h2v1h-2zM18 21h1v1h-1zM20 21h4v1h-4zM25 21h2v1h-2zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h1v1h-1zM4 22h2v1h-2zM7 22h3v1h-3zM13 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM21 22h2v1h-2zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h1v1h-1zM6 23h1v1h-1zM10 23h3v1h-3zM15 23h1v1h-1zM18 23h5v1h-5zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM3 24h1v1h-1zM5 24h4v1h-4zM11 24h1v1h-1zM13 24h5v1h-5zM19 24h1v1h-1zM22 24h3v1h-3zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM3 25h1v1h-1zM6 25h2v1h-2zM12 25h1v1h-1zM15 25h3v1h-3zM19 25h7v1h-7zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM7 26h3v1h-3zM11 26h3v1h-3zM17 26h2v1h-2zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM12 27h1v1h-1zM15 27h1v1h-1zM17 27h1v1h-1zM20 27h2v1h-2zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM8 28h2v1h-2zM13 28h1v1h-1zM15 28h4v1h-4zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM6 29h2v1h-2zM10 29h1v1h-1zM14 29h4v1h-4zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM2 30h1v1h-1zM4 30h3v1h-3zM8 30h1v1h-1zM11 30h5v1h-5zM17 30h3v1h-3zM21 30h1v1h-1zM24 30h14v1h-14zM10 31h4v1h-4zM15 31h2v1h-2zM18 31h1v1h-1zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h1v1h-1zM16 32h3v1h-3zM20 32h1v1h-1zM22 32h1v1h-1zM24 32h1v1h-1zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h2v1h-2zM14 33h1v1h-1zM17 33h2v1h-2zM21 33h5v1h-5zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h4v1h-4zM15 34h1v1h-1zM20 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h2v1h-2zM14 35h1v1h-1zM16 35h3v1h-3zM21 35h2v1h-2zM24 35h3v1h-3zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM14 36h2v1h-2zM19 36h2v1h-2zM22 36h2v1h-2zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM15 37h2v1h-2zM18 37h1v1h-1zM21 37h1v1h-1zM23 37h2v1h-2zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM16 38h1v1h-1zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-15-capas-osi.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Árbol de Huffman</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .barra { text-decoration:overline; }
+  .fila > .panel { min-width:0; }
+  textarea { font:inherit; width:100%; border:1px solid var(--borde); border-radius:6px; padding:6px 8px; resize:vertical; }
+  select, input[type=text] { width:100%; }
+  .nota { color:var(--gris); }
+  .desliza { overflow-x:auto; }
+  .dos { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:14px; align-items:start; }
+  @media (max-width: 1000px) { .dos { grid-template-columns:1fr; } }
+  table.datos { border-collapse:collapse; margin-top:10px; width:100%; }
+  table.datos th, table.datos td { border:1px solid var(--borde); padding:3px 7px; text-align:center; }
+  table.datos th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  table.datos tr.suma td { font-weight:bold; background:var(--azul-claro); }
+  table.datos tr.nuevo td { background:var(--oro-claro); }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+  .bits { display:flex; flex-wrap:wrap; gap:6px 4px; margin:6px 0 4px; }
+  .grupo { display:flex; flex-direction:column; align-items:center; border-radius:6px; padding:2px 3px; }
+  .grupo.par { background:var(--azul-claro); } .grupo.impar { background:var(--oro-claro); }
+  .grupo.dano { outline:2px solid var(--guinda); }
+  .grupo .sim { font-weight:bold; color:var(--azul-oscuro); font-size:1.05rem; }
+  .grupo .sim.mal { color:var(--guinda); }
+  .bit { font:bold 1.25rem Consolas,"Courier New",monospace; border:1px solid transparent; background:none; color:var(--tinta);
+         padding:0 3px; cursor:pointer; border-radius:4px; }
+  .bit:hover, .bit:focus-visible { border-color:var(--azul); outline:none; }
+  .bit.volteado { color:#fff; background:var(--guinda); }
+  .bit.leido { text-decoration:underline; text-decoration-color:var(--oro); text-decoration-thickness:3px; }
+  .bit.actual { box-shadow:0 0 0 2px var(--oro); }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 7 · Día 2 · Codificación de Huffman</div>
+  <h1>El árbol de Huffman, paso a paso</h1>
+  <p class="sub">Cuenta los símbolos de un texto, une una y otra vez los dos menos frecuentes y mide cuántos bits ahorras frente a un código de longitud fija.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Construir el árbol</button>
+    <button type="button" data-vista="v2" role="tab">Codificar y decodificar</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La fuente</h2>
+        <label for="ejemplo">Ejemplo</label>
+        <select id="ejemplo">
+          <option value="LRLWLRLD">Registro del SIEM (ejemplo del libro)</option>
+          <option value="ESTE MENSAJE ESTA COMPRIMIDO PERO NO CIFRADO">Una frase de seguridad</option>
+          <option value="ABRACADABRA">ABRACADABRA</option>
+          <option value="">Mi propio texto</option>
+        </select>
+        <label for="texto">Texto <small>(hasta 200 caracteres; el espacio también es un símbolo)</small></label>
+        <textarea id="texto" rows="3" maxlength="200" spellcheck="false"></textarea>
+        <div class="nota" id="notaEj"></div>
+        <div>
+          <button type="button" class="accion" id="sig">Siguiente paso ▶</button>
+          <button type="button" class="accion" id="ant">◀ Paso anterior</button>
+          <button type="button" class="accion" id="todo">Construir todo</button>
+          <button type="button" class="accion" id="reini">Reiniciar</button>
+        </div>
+        <div class="lectura" id="lectPaso"></div>
+        <p class="nota">Empates: se toma primero el nodo que va antes en la tabla (las hojas antes que los nodos nuevos). El primer nodo elegido va a la rama 0 y el segundo a la rama 1. Otra regla da otros códigos, pero la misma <span class='barra'>L</span>.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de pulsar "Siguiente paso": ¿qué dos nodos se unirán? Al final, ¿qué símbolo quedará más cerca de la raíz?</li>
+            <li>Escribe un texto en el que todos los símbolos se repitan igual (por ejemplo, cuatro símbolos distintos, dos veces cada uno). ¿Cuánto ahorra Huffman frente al código fijo de ⌈log₂ M⌉ bits? ¿Por qué?</li>
+            <li>Escribe un texto casi todo con la misma letra (como AAAAAAAB). ¿Puede <span class='barra'>L</span> bajar de 1 bit por símbolo?</li>
+            <li>Revisa la tabla: ¿algún código es el inicio de otro? ¿Qué propiedad del árbol lo garantiza?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 id="tituloArbol">El bosque de nodos, de menor a mayor frecuencia (n = número de apariciones)</h2>
+        <div class="desliza"><canvas id="lienzo1" aria-label="Árbol de Huffman en construcción"></canvas></div>
+        <div class="dos">
+          <div>
+            <table class="datos" id="tabla"></table>
+          </div>
+          <div>
+            <div class="lectura" id="lectRes"></div>
+            <div class="seguridad"><b>Seguridad.</b> Comprimir no oculta nada: el árbol no es secreto. Huffman es <i>codificación de fuente</i> (eficiencia), no cifrado; solo una clave secreta protege la confidencialidad. Un archivo comprimido o cifrado se ve casi aleatorio (cerca de 8 bits de entropía por byte), así que ese indicio solo no distingue uno de otro.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Codificar con el árbol</h2>
+        <label for="palabra">Palabra o frase <small>(solo símbolos de la tabla)</small></label>
+        <input id="palabra" type="text" maxlength="40" autocomplete="off" spellcheck="false">
+        <div class="lectura" id="lectCod"></div>
+        <h2 style="margin-top:14px">Decodificar</h2>
+        <button type="button" class="accion" id="bit1">Leer un bit ▶</button>
+        <button type="button" class="accion" id="bitTodo">Leer todo</button>
+        <button type="button" class="accion" id="bit0">Desde el inicio</button>
+        <button type="button" class="accion" id="limpiaRuido">Quitar el ruido</button>
+        <div class="lectura" id="lectDec"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Haz clic en un solo bit para invertirlo (ruido) y decodifica: ¿cuántos símbolos salen mal? ¿Qué pasaría con un código de longitud fija?</li>
+            <li>El decodificador nunca usa separadores. ¿Cómo sabe dónde termina cada símbolo? ¿Qué le pasa al Morse si le quitas las pausas?</li>
+            <li>Un atacante captura los bits comprimidos, pero no el árbol. ¿Está protegido el mensaje? ¿Qué haría falta?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Bits enviados (haz clic en un bit para invertirlo) y lo que lee el receptor</h2>
+        <div class="bits" id="bitsCod"></div>
+        <div class="nota">Lo que decodifica el receptor:</div>
+        <div class="bits" id="bitsDec"></div>
+        <div class="desliza"><canvas id="lienzo2" aria-label="Árbol de Huffman con el camino que sigue el decodificador"></canvas></div>
+        <div class="seguridad"><b>Seguridad.</b> La compresión quita la redundancia del mensaje, así que lo deja más frágil ante el ruido: por eso, después de comprimir, se agrega <i>codificación de canal</i> (paridad, CRC, Hamming). Y ninguna de las dos protege la confidencialidad: para eso hace falta cifrar con una clave secreta.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex, subsección El código Morse (Ecuación eq:longitud-promedio, <span class='barra'>L</span> = Σ p<sub>i</sub> l<sub>i</sub>; principio de Huffman y Ejemplo del SIEM, Figura fig:arbol-huffman) y fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:entropia-shannon y eq:cota-shannon, como adelanto). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6" };
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      if (b.dataset.vista === "v2") prepararV2();
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita, fuente) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + (fuente || "Calibri, 'Segoe UI', sans-serif");
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function rectRedondo(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function bitsTxt(k) { return k === 1 ? "1 bit" : k + " bits"; }
+  function ver(s) { return s === " " ? "␣" : s; }       // el espacio se muestra como ␣
+
+  // ------------------------------------------------------------------ Huffman
+  function limpiar(t) {
+    var s = String(t).toUpperCase().replace(/Ñ/g, "\u0001");
+    if (s.normalize) s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return s.replace(/\u0001/g, "Ñ").replace(/\s+/g, " ").slice(0, 200);
+  }
+  // Hojas ordenadas como en la tabla: más frecuente primero; empate, por primera aparición.
+  function contar(s) {
+    var mapa = {}, lista = [];
+    for (var i = 0; i < s.length; i++) {
+      var c = s[i];
+      if (!mapa[c]) { mapa[c] = { s: c, n: 0, primera: i, hoja: true, h: 0 }; lista.push(mapa[c]); }
+      mapa[c].n++;
+    }
+    lista.sort(function (a, b) { return b.n - a.n || a.primera - b.primera; });
+    lista.forEach(function (x, i) { x.id = i; });
+    return lista;
+  }
+  function cmp(a, b) { return a.n - b.n || a.id - b.id; }
+  // Une repetidamente los dos nodos de menor frecuencia (libro, Ec. eq:longitud-promedio y texto siguiente).
+  function construir(hojas) {
+    var bosque = hojas.slice(), pasos = [], sig = hojas.length;
+    while (bosque.length > 1) {
+      bosque.sort(cmp);
+      var a = bosque.shift(), b = bosque.shift();
+      var p = { id: sig++, n: a.n + b.n, izq: a, der: b, hoja: false, h: 1 + Math.max(a.h, b.h) };
+      bosque.push(p); pasos.push({ a: a, b: b, p: p });
+    }
+    return pasos;
+  }
+  function codigosDe(raiz) {
+    var c = {};
+    (function rec(n, pre) { if (n.hoja) { c[n.s] = pre; return; } rec(n.izq, pre + "0"); rec(n.der, pre + "1"); })(raiz, "");
+    return c;
+  }
+  function descendientes(n, lista) { lista = lista || []; lista.push(n); if (!n.hoja) { descendientes(n.izq, lista); descendientes(n.der, lista); } return lista; }
+
+  var E = { s: "", N: 0, hojas: [], pasos: [], k: 0, cods: null, raiz: null };
+  function nuevaFuente() {
+    E.s = limpiar($("texto").value);
+    E.N = E.s.length;
+    E.hojas = contar(E.s);
+    E.pasos = E.hojas.length > 1 ? construir(E.hojas) : [];
+    E.raiz = E.pasos.length ? E.pasos[E.pasos.length - 1].p : null;
+    E.cods = E.raiz ? codigosDe(E.raiz) : null;
+    E.k = 0;
+    dec.ruido = {}; dec.simbolos = []; dec.orig = "";
+    var primera = E.s.split(" ").filter(function (x) { return x.length >= 2; })[0] || E.s.slice(0, 8);
+    $("palabra").value = primera.trim();
+    actualizar1();
+  }
+  function bosqueEn(k) {
+    var r = E.hojas.slice();
+    for (var i = 0; i < k; i++) {
+      var q = E.pasos[i];
+      r.splice(r.indexOf(q.a), 1); r.splice(r.indexOf(q.b), 1); r.push(q.p);
+    }
+    return r.sort(cmp);
+  }
+  function completo() { return E.pasos.length > 0 && E.k === E.pasos.length; }
+
+  // ------------------------------------------------------------------ dibujo del árbol
+  // op: { completo, nuevo, ruta: [nodos], hojaFinal, codigos }
+  function dibujarArbol(cv, raices, op) {
+    var cont = cv.parentNode.clientWidth || 600;
+    if (!raices.length) {
+      cv.style.minWidth = "0";
+      var d0 = preparar(cv, 0.2);
+      texto(d0.g, "Escribe un texto con al menos dos símbolos distintos.", d0.w / 2, d0.h / 2, C.gris, 17, "center", "middle");
+      return;
+    }
+    var pos = 0;
+    function asignar(n) {
+      if (n.hoja) { n.sx = pos; pos += 1; }
+      else { asignar(n.izq); asignar(n.der); n.sx = (n.izq.sx + n.der.sx) / 2; }
+    }
+    raices.forEach(function (r, i) { if (i) pos += 0.35; asignar(r); });
+    var slots = pos, maxH = 0;
+    raices.forEach(function (r) { maxH = Math.max(maxH, r.h); });
+    if (op.maxH) maxH = Math.max(maxH, op.maxH);          // misma escala en todos los pasos
+    var margen = 12, necesario = Math.ceil(slots * 44 + 2 * margen);
+    cv.style.minWidth = necesario > cont ? necesario + "px" : "0";
+    var w = cv.clientWidth || cont;
+    var nivel = Math.max(36, Math.min(70, 320 / Math.max(maxH, 1)));
+    var arriba = 42, yHoja = arriba + maxH * nivel + 30;
+    var alto = yHoja + 26 + (op.codigos ? 30 : 0) + 8;
+    var d = preparar(cv, alto / w), g = d.g, slotW = (w - 2 * margen) / slots;
+    function X(n) { return margen + (n.sx + 0.5) * slotW; }
+    function Y(n) { return n.hoja ? yHoja : arriba + (maxH - n.h) * nivel; }
+    var resaltar = [], ruta = op.ruta || [];
+    if (op.nuevo) resaltar = [op.nuevo, op.nuevo.izq, op.nuevo.der];
+    function marcado(n) { return resaltar.indexOf(n) >= 0 || ruta.indexOf(n) >= 0; }
+    // aristas
+    function aristas(n) {
+      if (n.hoja) return;
+      [[n.izq, "0"], [n.der, "1"]].forEach(function (par) {
+        var h = par[0], x0 = X(n), y0 = Y(n), x1 = X(h), y1 = Y(h) - (h.hoja ? 24 : 17);
+        var fuerte = marcado(n) && marcado(h);
+        linea(g, x0, y0 + 17, x1, y1, fuerte ? C.oro : "#9AA3B2", fuerte ? 4 : 2);
+        if (op.completo) {
+          var mx = x0 + (x1 - x0) * 0.45, my = y0 + 17 + (y1 - y0 - 17) * 0.45;
+          texto(g, par[1], mx + (par[1] === "0" ? -9 : 9), my, fuerte ? C.guinda : C.azul, 16, "center", "middle", true);
+        }
+        aristas(h);
+      });
+    }
+    raices.forEach(aristas);
+    // nodos
+    function nodos(n) {
+      var x = X(n), y = Y(n), m = marcado(n);
+      if (n.hoja) {
+        var esFinal = op.hojaFinal === n;
+        g.save(); rectRedondo(g, x - 19, y - 24, 38, 50, 7);
+        g.fillStyle = esFinal ? C.oro : (m ? C.oroClaro : C.azulClaro); g.fill();
+        g.lineWidth = m ? 3 : 1.5; g.strokeStyle = m ? C.oro : C.azul; g.stroke(); g.restore();
+        texto(g, ver(n.s), x, y - 2, C.azulOscuro, 21, "center", "alphabetic", true);
+        texto(g, String(n.n), x, y + 19, C.gris, 15, "center", "alphabetic");
+        if (op.codigos) {
+          var cod = op.codigos[n.s], tam = Math.min(15, (slotW - 4) / (cod.length * 0.6));
+          if (tam >= 9) texto(g, cod, x, y + 46, C.guinda, tam, "center", "alphabetic", true, "Consolas, 'Courier New', monospace");
+        }
+      } else {
+        g.save(); g.beginPath(); g.arc(x, y, 17, 0, 2 * Math.PI);
+        g.fillStyle = m ? C.oroClaro : "#fff"; g.fill(); g.lineWidth = m ? 3 : 2; g.strokeStyle = m ? C.oro : C.azul; g.stroke(); g.restore();
+        texto(g, String(n.n), x, y + 1, C.azulOscuro, 15, "center", "middle", true);
+        nodos(n.izq); nodos(n.der);
+      }
+    }
+    raices.forEach(nodos);
+    if (op.completo) texto(g, "raíz", X(raices[0]), Y(raices[0]) - 21, C.gris, 15, "center", "alphabetic", true);
+  }
+
+  // ================================================================== VISTA 1
+  function actualizar1() {
+    var M = E.hojas.length, raices = M > 1 ? bosqueEn(E.k) : [];
+    var nuevo = E.k > 0 ? E.pasos[E.k - 1].p : null, fin = completo();
+    dibujarArbol($("lienzo1"), raices, { completo: fin, nuevo: fin ? null : nuevo, codigos: fin ? E.cods : null, maxH: E.raiz ? E.raiz.h : 0 });
+    $("notaEj").textContent = E.s === "LRLWLRLD" ? "Ocho eventos del registro: L = LOGIN, R = READ, W = WRITE, D = DELETE (frecuencias 0.5, 0.25, 0.125 y 0.125, como en el libro)." : "";
+    $("tituloArbol").textContent = fin ? "El árbol completo: cada código se lee de la raíz a la hoja (n = número de apariciones)"
+                                       : "El bosque de nodos, de menor a mayor frecuencia (n = número de apariciones)";
+    // Lectura del paso
+    var h;
+    if (M < 2) h = "Hace falta un texto con al menos <b>dos símbolos distintos</b>.";
+    else if (E.k === 0) h = "<b>Inicio:</b> " + M + " hojas, una por símbolo, con su número de apariciones n<sub>i</sub> (N = " + E.N + "). Hay que hacer " + (M - 1) + " uniones. ¿Cuáles dos se unen primero? Predice y pulsa \"Siguiente paso\".";
+    else {
+      var q = E.pasos[E.k - 1];
+      h = "<b>Paso " + E.k + " de " + (M - 1) + ":</b> se unen " + nombre(q.a) + " y " + nombre(q.b) + ", los dos de menor frecuencia, en un nodo de n = " + q.a.n + " + " + q.b.n + " = <b>" + q.p.n + "</b>. ";
+      h += fin ? "Queda un solo nodo, la raíz (n = N = " + E.N + "). Ahora cada rama se etiqueta con 0 o 1 y cada código se lee de la raíz a la hoja."
+               : "Quedan " + (M - E.k) + " nodos. ¿Cuáles se unen ahora?";
+    }
+    $("lectPaso").innerHTML = h;
+    tabla();
+    resultados();
+    $("sig").disabled = M < 2 || fin; $("ant").disabled = E.k === 0;
+  }
+  function nombre(n) { return n.hoja ? "\"" + ver(n.s) + "\" (" + n.n + ")" : "el nodo (" + n.n + ")"; }
+  function tabla() {
+    var fin = completo(), nuevo = E.k > 0 && !fin ? descendientes(E.pasos[E.k - 1].p) : [];
+    var h = "<tr><th>Símbolo</th><th>n<sub>i</sub></th><th>p<sub>i</sub> = n<sub>i</sub>/N</th><th>Código</th><th>l<sub>i</sub></th><th>p<sub>i</sub>·l<sub>i</sub></th></tr>";
+    var sumaPL = 0;
+    E.hojas.forEach(function (x) {
+      var p = x.n / E.N, cod = fin ? E.cods[x.s] : null;
+      if (cod) sumaPL += p * cod.length;
+      h += "<tr" + (nuevo.indexOf(x) >= 0 ? " class='nuevo'" : "") + "><td><b>" + ver(x.s) + "</b></td><td>" + x.n + "</td><td>" + num(p, 3) + "</td><td class='mono'>" +
+        (cod || "…") + "</td><td>" + (cod ? cod.length : "…") + "</td><td>" + (cod ? num(p * cod.length, 3) : "…") + "</td></tr>";
+    });
+    h += "<tr class='suma'><td>Σ</td><td>" + E.N + "</td><td>" + num(1, 3) + "</td><td></td><td></td><td>" + (fin ? "<span class='barra'>L</span> = " + num(sumaPL, 3) : "…") + "</td></tr>";
+    $("tabla").innerHTML = E.hojas.length ? h : "";
+  }
+  function resultados() {
+    var M = E.hojas.length;
+    if (!completo()) {
+      $("lectRes").innerHTML = M < 2 ? "Sin resultados todavía." :
+        "Los códigos, su longitud promedio y la comparación con los códigos de longitud fija aparecen al terminar el árbol (" + (M - 1 - E.k) + " pasos más, o \"Construir todo\").";
+      return;
+    }
+    var N = E.N, sumNL = 0, terminos = [], H = 0;
+    E.hojas.forEach(function (x) {
+      var l = E.cods[x.s].length, p = x.n / N;
+      sumNL += x.n * l; H -= p * Math.log(p) / Math.LN2;
+      if (terminos.length < 5) terminos.push(num(p, 3) + "(" + l + ")");
+    });
+    var L = sumNL / N, k = Math.ceil(Math.log(M) / Math.LN2 - 1e-12);
+    var h = "<b>Longitud promedio</b> (Ec. eq:longitud-promedio):<br><span class='formula'><span class='barra'>L</span> = Σ p<sub>i</sub> l<sub>i</sub> = " + terminos.join(" + ") + (M > 5 ? " + …" : "") +
+      "<br>= (Σ n<sub>i</sub> l<sub>i</sub>) / N = " + sumNL + " / " + N + " = <b>" + num(L, 3) + " bits por símbolo</b></span>";
+    h += "<br><b>Contra 8 bits por carácter</b> (como ASCII): <span class='formula'>(8 − " + num(L, 3) + ") / 8 = <b>" + num(100 * (8 - L) / 8, 1) + " %</b></span> de ahorro.";
+    h += "<br><b>Contra el código fijo mínimo</b>: <span class='formula'>⌈log₂ M⌉ = ⌈log₂ " + M + "⌉ = ⌈" + num(Math.log(M) / Math.LN2, 2) + "⌉ = " + bitsTxt(k) + "</span> → <span class='formula'>(" + k + " − " + num(L, 3) + ") / " + k + " = <b>" + num(100 * (k - L) / k, 1) + " %</b></span> de ahorro.";
+    h += "<br><b>Todo el texto</b> (N = " + N + "): Huffman " + num(sumNL, 0) + " bits · fijo de " + bitsTxt(k) + ": " + num(k * N, 0) + " bits · 8 bits por carácter: " + num(8 * N, 0) + " bits.";
+    h += "<br><span class='nota'>Adelanto (capítulo Transformadas y teoremas): la entropía H = −Σ p<sub>i</sub> log₂ p<sub>i</sub> = " + num(H, 3) + " bits es el mínimo posible: <span class='barra'>L</span> ≥ H.</span>";
+    $("lectRes").innerHTML = h;
+  }
+  $("ejemplo").addEventListener("change", function () {
+    if ($("ejemplo").value) $("texto").value = $("ejemplo").value;
+    else { $("texto").value = ""; $("texto").focus(); }
+    nuevaFuente();
+  });
+  $("texto").addEventListener("input", function () {
+    $("ejemplo").value = Array.prototype.some.call($("ejemplo").options, function (o) { return o.value && o.value === $("texto").value; }) ? $("texto").value : "";
+    nuevaFuente();
+  });
+  $("sig").addEventListener("click", function () { if (E.k < E.pasos.length) { E.k++; actualizar1(); } });
+  $("ant").addEventListener("click", function () { if (E.k > 0) { E.k--; actualizar1(); } });
+  $("todo").addEventListener("click", function () { E.k = E.pasos.length; actualizar1(); });
+  $("reini").addEventListener("click", function () { E.k = 0; actualizar1(); });
+  document.addEventListener("keydown", function (e) {
+    var t = e.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || !$("v1").classList.contains("activo")) return;
+    if (e.key === "ArrowRight") $("sig").click();
+    else if (e.key === "ArrowLeft") $("ant").click();
+  });
+
+  // ================================================================== VISTA 2
+  var dec = { bits: [], orig: "", ruido: {}, i: 0, nodo: null, inicio: 0, ruta: [], salida: [], hojaFinal: null };
+  function prepararV2() {
+    if (E.raiz && !completo()) { E.k = E.pasos.length; actualizar1(); }
+    codificar();
+  }
+  function codificar() {
+    if (!E.raiz) {
+      $("lectCod").innerHTML = "Primero escribe en la otra pestaña un texto con al menos dos símbolos distintos.";
+      $("bitsCod").innerHTML = ""; $("bitsDec").innerHTML = ""; $("lectDec").innerHTML = "";
+      dibujarArbol($("lienzo2"), [], {}); return;
+    }
+    var w = limpiar($("palabra").value), faltan = [], simbolos = [];
+    for (var i = 0; i < w.length; i++) {
+      if (E.cods[w[i]] !== undefined) simbolos.push(w[i]);
+      else if (faltan.indexOf(w[i]) < 0) faltan.push(w[i]);
+    }
+    dec.simbolos = simbolos;
+    dec.orig = simbolos.map(function (c) { return E.cods[c]; }).join("");
+    dec.ruido = {};
+    var M = E.hojas.length, k = Math.ceil(Math.log(M) / Math.LN2 - 1e-12), n = simbolos.length, nb = dec.orig.length;
+    var h = "";
+    if (faltan.length) h += "<span class='mal'>No están en la tabla (se omiten): " + faltan.map(ver).join(" ") + "</span><br>";
+    if (!n) h += "Escribe una palabra con símbolos de la tabla.";
+    else {
+      var unicos = simbolos.filter(function (c, j) { return simbolos.indexOf(c) === j; });
+      h += "<b>" + n + " símbolos</b>; códigos: " + unicos.map(function (c) { return "<span class='mono'>" + ver(c) + "&nbsp;=&nbsp;" + E.cods[c] + "</span>"; }).join(", ") + "<br>";
+      h += "<span class='formula'>Huffman: " + simbolos.map(function (c) { return E.cods[c].length; }).join(" + ") + " = <b>" + nb + " bits</b></span>";
+      h += "<br>Fijo de " + bitsTxt(k) + ": " + n + " × " + k + " = " + n * k + " bits · 8 bits por carácter: " + n + " × 8 = " + n * 8 + " bits.";
+    }
+    $("lectCod").innerHTML = h;
+    reiniciarDec();
+  }
+  function bitsActuales() {
+    return dec.orig.split("").map(function (b, i) { return dec.ruido[i] ? (b === "0" ? "1" : "0") : b; });
+  }
+  function reiniciarDec() {
+    dec.bits = bitsActuales(); dec.i = 0; dec.nodo = E.raiz; dec.inicio = 0; dec.ruta = E.raiz ? [E.raiz] : []; dec.salida = []; dec.hojaFinal = null;
+    pintarV2();
+  }
+  function leerBit() {
+    if (!E.raiz || dec.i >= dec.bits.length) return false;
+    if (dec.hojaFinal) { dec.hojaFinal = null; dec.ruta = [E.raiz]; }
+    var b = dec.bits[dec.i];
+    dec.nodo = b === "0" ? dec.nodo.izq : dec.nodo.der;
+    dec.ruta.push(dec.nodo); dec.i++;
+    if (dec.nodo.hoja) {
+      dec.salida.push({ s: dec.nodo.s, ini: dec.inicio, fin: dec.i });
+      dec.hojaFinal = dec.nodo; dec.nodo = E.raiz; dec.inicio = dec.i;
+    }
+    return true;
+  }
+  function pintarV2() {
+    if (!E.raiz) return;                       // sin árbol: codificar() ya dejó el aviso
+    // bits enviados, agrupados por símbolo; clic = invertir
+    var h = "", pos = 0;
+    (dec.simbolos || []).forEach(function (c, j) {
+      var cod = E.cods[c], g = "";
+      for (var t = 0; t < cod.length; t++, pos++) {
+        g += "<button type='button' class='bit" + (dec.ruido[pos] ? " volteado" : "") + "' data-i='" + pos + "' title='Invertir este bit'>" + dec.bits[pos] + "</button>";
+      }
+      h += "<div class='grupo " + (j % 2 ? "impar" : "par") + "'><div>" + g + "</div><div class='sim'>" + ver(c) + "</div></div>";
+    });
+    $("bitsCod").innerHTML = h || "<span class='nota'>(sin bits)</span>";
+    // lo decodificado
+    var hd = "";
+    dec.salida.forEach(function (o, j) {
+      var bits = dec.bits.slice(o.ini, o.fin).join(""), bien = dec.simbolos[j] === o.s;
+      var tocado = false; for (var t = o.ini; t < o.fin; t++) if (dec.ruido[t]) tocado = true;
+      hd += "<div class='grupo " + (j % 2 ? "impar" : "par") + (bien ? "" : " dano") + "'><div class='mono' style='font-weight:bold;font-size:1.2rem;padding:0 3px'>" + bits + "</div><div class='sim" + (bien ? "" : " mal") + "'>" + ver(o.s) + "</div></div>";
+    });
+    if (dec.i < dec.bits.length || dec.nodo !== E.raiz) {
+      var pend = dec.bits.slice(dec.inicio, dec.i).join("");
+      if (pend) hd += "<div class='grupo'><div class='mono' style='font-weight:bold;font-size:1.2rem;padding:0 3px'>" + pend + "</div><div class='sim'>…</div></div>";
+    }
+    $("bitsDec").innerHTML = hd || "<span class='nota'>(pulsa \"Leer un bit\" o \"Leer todo\")</span>";
+    // marca de lectura en los bits enviados
+    document.querySelectorAll("#bitsCod .bit").forEach(function (el) {
+      var i = Number(el.dataset.i);
+      el.classList.toggle("leido", i < dec.i);
+      el.classList.toggle("actual", i === dec.i - 1);
+    });
+    // lectura de la decodificación
+    var l;
+    if (!E.raiz) l = "";
+    else if (dec.i === 0) l = "El receptor empieza en la raíz. Con cada bit baja por la rama 0 o 1; al llegar a una hoja escribe ese símbolo y vuelve a la raíz.";
+    else {
+      var ult = dec.salida[dec.salida.length - 1];
+      if (dec.hojaFinal && ult) l = "Bits " + dec.bits.slice(ult.ini, ult.fin).join("") + " → llegó a la hoja <b>" + ver(ult.s) + "</b>; vuelve a la raíz.";
+      else l = "Lleva " + dec.bits.slice(dec.inicio, dec.i).join("") + ": está en un nodo intermedio, todavía no es un símbolo.";
+      if (dec.i >= dec.bits.length) {
+        var leido = dec.salida.map(function (o) { return ver(o.s); }).join(""), enviado = (dec.simbolos || []).map(ver).join("");
+        l += "<br><b>Terminó:</b> leyó " + dec.salida.length + " símbolos: <span class='mono'>" + leido + "</span>" +
+          (leido === enviado ? " <span class='ok'>(igual a lo enviado)</span>" : " <span class='mal'>(se envió " + enviado + ")</span>");
+        if (dec.nodo !== E.raiz) l += "<br><span class='mal'>Sobran bits que no llegan a ninguna hoja.</span>";
+      }
+    }
+    var nr = Object.keys(dec.ruido).length;
+    if (nr) l += "<br><span class='mal'>Ruido: " + nr + (nr === 1 ? " bit invertido." : " bits invertidos.") + "</span>";
+    $("lectDec").innerHTML = l;
+    dibujarArbol($("lienzo2"), E.raiz ? [E.raiz] : [], { completo: true, ruta: dec.ruta.length > 1 || dec.hojaFinal ? dec.ruta : [], hojaFinal: dec.hojaFinal, codigos: E.cods });
+  }
+  $("palabra").addEventListener("input", codificar);
+  $("bitsCod").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".bit") : null;
+    if (!b) return;
+    var i = Number(b.dataset.i);
+    if (dec.ruido[i]) delete dec.ruido[i]; else dec.ruido[i] = true;
+    reiniciarDec();
+  });
+  $("bit1").addEventListener("click", function () { leerBit(); pintarV2(); });
+  $("bitTodo").addEventListener("click", function () { while (leerBit()) { /* lee hasta el final */ } pintarV2(); });
+  $("bit0").addEventListener("click", reiniciarDec);
+  $("limpiaRuido").addEventListener("click", function () { dec.ruido = {}; reiniciarDec(); });
+
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) actualizar1();
+    if ($("v2").classList.contains("activo")) pintarV2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  $("texto").value = $("ejemplo").value;
+  nuevaFuente();
+  // Abrir directamente una vista con la URL: semana-07-huffman.html#v2
+  var porHash = Array.prototype.filter.call(document.querySelectorAll("nav.pestanas button"),
+    function (b) { return "#" + b.dataset.vista === location.hash; })[0];
+  if (porHash) { porHash.click(); setTimeout(function () { window.scrollTo(0, 0); }, 30); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-07-huffman.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h1v1h-1zM15 2h2v1h-2zM18 2h1v1h-1zM20 2h1v1h-1zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM13 3h2v1h-2zM16 3h3v1h-3zM23 3h1v1h-1zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM13 4h1v1h-1zM16 4h3v1h-3zM22 4h2v1h-2zM25 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h1v1h-1zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h3v1h-3zM15 6h2v1h-2zM19 6h7v1h-7zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h1v1h-1zM15 7h1v1h-1zM17 7h3v1h-3zM24 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM13 9h3v1h-3zM19 9h3v1h-3zM23 9h1v1h-1zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM13 10h1v1h-1zM18 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM3 11h1v1h-1zM6 11h1v1h-1zM9 11h2v1h-2zM12 11h1v1h-1zM17 11h1v1h-1zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM4 12h2v1h-2zM8 12h3v1h-3zM12 12h1v1h-1zM16 12h3v1h-3zM22 12h3v1h-3zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h2v1h-2zM9 13h5v1h-5zM15 13h1v1h-1zM17 13h1v1h-1zM22 13h3v1h-3zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h3v1h-3zM10 14h2v1h-2zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM4 15h4v1h-4zM11 15h1v1h-1zM13 15h1v1h-1zM18 15h1v1h-1zM20 15h3v1h-3zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM2 16h1v1h-1zM4 16h6v1h-6zM11 16h1v1h-1zM13 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM3 17h1v1h-1zM5 17h1v1h-1zM7 17h1v1h-1zM12 17h1v1h-1zM14 17h2v1h-2zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM4 18h2v1h-2zM8 18h2v1h-2zM11 18h1v1h-1zM14 18h4v1h-4zM20 18h1v1h-1zM24 18h2v1h-2zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h2v1h-2zM9 19h1v1h-1zM12 19h7v1h-7zM21 19h3v1h-3zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h1v1h-1zM6 20h1v1h-1zM8 20h2v1h-2zM13 20h1v1h-1zM15 20h1v1h-1zM19 20h2v1h-2zM26 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM5 21h2v1h-2zM14 21h3v1h-3zM18 21h1v1h-1zM20 21h1v1h-1zM22 21h2v1h-2zM26 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM4 22h5v1h-5zM11 22h1v1h-1zM14 22h1v1h-1zM16 22h1v1h-1zM18 22h2v1h-2zM22 22h1v1h-1zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h1v1h-1zM4 23h4v1h-4zM9 23h2v1h-2zM13 23h1v1h-1zM15 23h2v1h-2zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h4v1h-4zM7 24h2v1h-2zM12 24h2v1h-2zM15 24h1v1h-1zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h2v1h-2zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM6 25h1v1h-1zM10 25h1v1h-1zM12 25h2v1h-2zM15 25h1v1h-1zM17 25h1v1h-1zM19 25h7v1h-7zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h5v1h-5zM8 26h1v1h-1zM12 26h1v1h-1zM14 26h1v1h-1zM17 26h2v1h-2zM21 26h2v1h-2zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h3v1h-3zM6 27h2v1h-2zM10 27h2v1h-2zM13 27h1v1h-1zM16 27h2v1h-2zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM6 28h1v1h-1zM8 28h2v1h-2zM11 28h8v1h-8zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h2v1h-2zM7 29h1v1h-1zM9 29h1v1h-1zM12 29h1v1h-1zM14 29h1v1h-1zM16 29h2v1h-2zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM7 30h2v1h-2zM10 30h4v1h-4zM16 30h4v1h-4zM21 30h1v1h-1zM24 30h14v1h-14zM10 31h2v1h-2zM13 31h1v1h-1zM15 31h2v1h-2zM18 31h1v1h-1zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h2v1h-2zM16 32h3v1h-3zM20 32h1v1h-1zM22 32h1v1h-1zM24 32h1v1h-1zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h3v1h-3zM16 33h3v1h-3zM21 33h3v1h-3zM25 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h1v1h-1zM13 34h1v1h-1zM20 34h2v1h-2zM25 34h3v1h-3zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h2v1h-2zM14 35h1v1h-1zM17 35h2v1h-2zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h2v1h-2zM14 36h1v1h-1zM19 36h2v1h-2zM23 36h1v1h-1zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h5v1h-5zM18 37h1v1h-1zM21 37h5v1h-5zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM15 38h1v1h-1zM19 38h3v1h-3zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-07-huffman.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

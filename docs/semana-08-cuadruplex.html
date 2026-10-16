@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telégrafo cuádruplex</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .fila > .panel { min-width:0; }
+  select, input[type=text] { width:100%; }
+  input[type=text] { font-size:1.1rem; text-transform:uppercase; }
+  textarea { font:inherit; width:100%; border:1px solid var(--borde); border-radius:6px; padding:6px 8px; resize:vertical; }
+  .nota { color:var(--gris); }
+  .aviso { color:var(--guinda); margin-top:4px; }
+  .m1 { color:var(--azul); font-weight:bold; } .m2 { color:var(--guinda); font-weight:bold; }
+  .desliza { overflow-x:auto; }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+  .botonera { display:flex; flex-wrap:wrap; }
+  table.datos { border-collapse:collapse; margin-top:6px; }
+  table.datos th, table.datos td { border:1px solid var(--borde); padding:3px 10px; text-align:center; }
+  table.datos th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  table.datos td.cor { font-weight:bold; font-family:Consolas,"Courier New",monospace; }
+  .ascii { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:2px 14px; margin-top:6px; }
+  .ascii div { display:flex; gap:8px; border-bottom:1px solid var(--gris-claro); }
+  .ascii b { width:1.1em; color:var(--azul-oscuro); }
+  .ascii span { font-family:Consolas,"Courier New",monospace; }
+  .contador { font-size:1.15rem; font-weight:bold; color:var(--azul-oscuro); text-align:center; margin-top:6px; }
+  .leyendaColores { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px; }
+  .leyendaColores span { display:inline-flex; align-items:center; gap:6px; }
+  .muestra { width:20px; height:20px; border-radius:50%; display:inline-block; border:1px solid #1B1F2A; }
+  .dos { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 8 · Telégrafo cuádruplex y multiplexación</div>
+  <h1>El telégrafo cuádruplex: dos mensajes en una sola corriente</h1>
+  <p class="sub">El Mensaje 1 viaja en la intensidad (1 o 3) y el Mensaje 2 en la polaridad (+ o −): cuatro estados de corriente, dos bits por símbolo.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Transmisor</button>
+    <button type="button" data-vista="v2" role="tab">Receptor y reto</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Los dos mensajes</h2>
+        <label for="modo">Formato</label>
+        <select id="modo">
+          <option value="palabras">Palabras (ASCII, 8 bits por letra)</option>
+          <option value="bits">Bits (0 y 1)</option>
+        </select>
+        <label for="msg1"><span class="m1">Mensaje 1</span> <small>(intensidad · relé neutro)</small></label>
+        <input id="msg1" type="text" value="BOT" maxlength="6" autocomplete="off" spellcheck="false">
+        <label for="msg2"><span class="m2">Mensaje 2</span> <small>(polaridad · relé polarizado)</small></label>
+        <input id="msg2" type="text" value="RED" maxlength="6" autocomplete="off" spellcheck="false">
+        <div class="aviso" id="aviso1"></div>
+        <label for="rs">Velocidad r<sub>s</sub> = <span id="rsTxt">2</span> símbolos/s <small>(valor ilustrativo)</small></label>
+        <input id="rs" type="range" min="0.5" max="5" step="0.5" value="2">
+        <div class="botonera">
+          <button type="button" class="accion" id="inicio1">⟲ Inicio</button>
+          <button type="button" class="accion" id="atras1">◀</button>
+          <button type="button" class="accion" id="paso1">▶ Un símbolo</button>
+          <button type="button" class="accion" id="play1">▶▶ Reproducir</button>
+          <button type="button" class="accion" id="todo1">Ver todo</button>
+        </div>
+        <label>Ruido en el símbolo actual <small>(el receptor lee un nivel vecino)</small></label>
+        <div class="botonera">
+          <button type="button" class="accion" id="ruidoArr">▲ un nivel arriba</button>
+          <button type="button" class="accion" id="ruidoAba">▼ un nivel abajo</button>
+          <button type="button" class="accion" id="ruidoNo">Quitar ruido</button>
+        </div>
+        <label for="intruso">Intruso conectado a la línea</label>
+        <select id="intruso">
+          <option value="no">Ninguno</option>
+          <option value="pol">Solo mide la polaridad (signo)</option>
+          <option value="int">Solo mide la intensidad (magnitud)</option>
+        </select>
+        <h2 style="margin-top:14px">Tabla del libro</h2>
+        <table class="datos">
+          <tr><th>Corriente</th><th class="m1">Mensaje 1</th><th class="m2">Mensaje 2</th></tr>
+          <tr><td class="cor">+3</td><td>1</td><td>1</td></tr>
+          <tr><td class="cor">+1</td><td>0</td><td>1</td></tr>
+          <tr><td class="cor">−1</td><td>0</td><td>0</td></tr>
+          <tr><td class="cor">−3</td><td>1</td><td>0</td></tr>
+        </table>
+        <p class="nota">Magnitud → Mensaje 1 (3 → 1, 1 → 0). Signo → Mensaje 2 (+ → 1, − → 0), como en el telégrafo de dos corrientes, donde la corriente positiva es la marca.</p>
+      </div>
+      <div class="panel">
+        <h2>Corriente en la línea, símbolo por símbolo</h2>
+        <div class="desliza"><canvas id="lienzo1" aria-label="Gráfica escalonada de la corriente en la línea con los bits de cada mensaje"></canvas></div>
+        <h2 style="margin-top:12px">Lo que lee cada relé del receptor</h2>
+        <canvas id="lienzo2" aria-label="Medidor de corriente, relé neutro y relé polarizado"></canvas>
+        <div class="lectura" id="lect1"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si el Mensaje 2 fuera todo ceros, ¿qué signo tendría siempre la corriente? ¿Y si el Mensaje 1 fuera todo ceros? Compruébalo en modo "Bits".</li>
+            <li>Pon ruido en un símbolo (un nivel arriba o abajo). ¿Cuántos de los dos mensajes se dañan? ¿Pasa lo mismo en cualquier símbolo y en cualquier dirección?</li>
+            <li>Conecta el intruso que solo mide la polaridad. ¿Qué recupera? ¿Qué enseña esto sobre multiplexar frente a cifrar?</li>
+            <li>Con la misma velocidad de símbolos, ¿cuántos bps lleva esta línea comparada con un telégrafo simple de dos estados? ¿De dónde sale la diferencia?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> Multiplexar se adopta por eficiencia, pero quien intercepta el medio compartido intercepta todas las señales a la vez. Un auditor no solo debe preguntar qué mensajes viajan por un canal, sino cuántos estados distinguibles tiene y si todos se están monitoreando: un estado que nadie revisa puede esconder un canal encubierto.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>La línea interceptada</h2>
+        <label for="modo2">Instrumento</label>
+        <select id="modo2">
+          <option value="medidor">Medidor de corriente</option>
+          <option value="lampara">Lámpara de colores (como en el taller)</option>
+        </select>
+        <canvas id="lienzo3" style="margin-top:8px" aria-label="Instrumento del receptor: medidor de corriente o lámpara de colores"></canvas>
+        <div class="contador" id="contador2">Pulsa "Nuevo reto"</div>
+        <div class="botonera">
+          <button type="button" class="accion" id="nuevo2">Nuevo reto</button>
+          <button type="button" class="accion" id="play2">▶▶ Reproducir</button>
+          <button type="button" class="accion" id="inicio2">⟲ Desde el inicio</button>
+          <button type="button" class="accion" id="atras2">◀</button>
+          <button type="button" class="accion" id="paso2">▶</button>
+        </div>
+        <label for="dur2">Duración de cada símbolo: <span id="dur2Txt">1.5</span> s <small>(valor ilustrativo)</small></label>
+        <input id="dur2" type="range" min="0.6" max="4" step="0.1" value="1.5">
+        <button type="button" class="accion" id="pista2">Pista: código de colores</button>
+        <div class="leyendaColores" id="leyenda2" hidden></div>
+        <label for="registro2">Tu registro de corrientes <small>(opcional, por ejemplo: −1 +3 −1 …)</small></label>
+        <textarea id="registro2" rows="2" spellcheck="false"></textarea>
+        <button type="button" class="accion" id="revisa2">Revisar mi registro</button>
+        <div class="dos">
+          <div><label for="r1"><span class="m1">Mensaje 1</span></label><input id="r1" type="text" maxlength="8" autocomplete="off" spellcheck="false"></div>
+          <div><label for="r2"><span class="m2">Mensaje 2</span></label><input id="r2" type="text" maxlength="8" autocomplete="off" spellcheck="false"></div>
+        </div>
+        <button type="button" class="accion" id="verif2">Verificar</button>
+        <button type="button" class="accion" id="sol2">Ver la solución</button>
+        <div class="lectura" id="lect2">Cada reto son dos palabras de 3 letras en mayúsculas (ASCII): 24 símbolos.</div>
+      </div>
+      <div class="panel">
+        <h2>Tablas para decodificar</h2>
+        <table class="datos">
+          <tr><th>Corriente</th><th class="m1">Mensaje 1</th><th class="m2">Mensaje 2</th></tr>
+          <tr><td class="cor">+3</td><td>1</td><td>1</td></tr>
+          <tr><td class="cor">+1</td><td>0</td><td>1</td></tr>
+          <tr><td class="cor">−1</td><td>0</td><td>0</td></tr>
+          <tr><td class="cor">−3</td><td>1</td><td>0</td></tr>
+        </table>
+        <h2 style="margin-top:12px">ASCII: letras mayúsculas (8 bits)</h2>
+        <div class="ascii" id="ascii"></div>
+        <p class="nota">Pasos: anota cada símbolo → corriente → par (M1, M2) → junta 8 bits de cada mensaje → letra. El cuádruplex histórico transportaba Morse en cada canal; aquí se usa ASCII, como en el taller.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Toda mayúscula ASCII empieza con 010. ¿Con qué tres corrientes empieza, entonces, cada letra de la línea? Úsalo para saber dónde empieza cada byte.</li>
+            <li>En modo lámpara: si solo distinguieras los colores y no el brillo, ¿cuál de los dos mensajes podrías leer? ¿Y con solo el brillo?</li>
+            <li>¿Qué tasa en bps tiene esta línea con la duración de símbolo elegida? ¿Cuánto tardaría lo mismo un telégrafo simple al mismo ritmo de símbolos?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> Acabas de recuperar dos mensajes de una sola línea sin conocer ninguna clave: multiplexar separa señales, pero no las oculta. La confidencialidad exige cifrado; multiplexar, además, concentra el riesgo en un solo medio.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas y tabla: fase2/cap01_evolucion_comunicacion.tex, subsección El telégrafo cuádruplex y la multiplexación (tabla de corrientes y código Gray; Ecuación eq:bits-por-simbolo, R = r<sub>s</sub> log₂ M; Definición def:multiplexacion). ASCII, colores de la lámpara y velocidades: convenciones de este simulador. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      pausar1(); pausar2();
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita, fuente) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + (fuente || "Calibri, 'Segoe UI', sans-serif");
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function circulo(g, x, y, r, relleno, borde, ancho) {
+    g.save(); g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI);
+    if (relleno) { g.fillStyle = relleno; g.fill(); }
+    if (borde) { g.strokeStyle = borde; g.lineWidth = ancho || 2; g.stroke(); }
+    g.restore();
+  }
+  function rectRedondo(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function signo(v) { return (v > 0 ? "+" : "−") + Math.abs(v); }
+
+  // ------------------------------------------------------------------ cuádruplex (tabla del libro)
+  var NIVELES = [-3, -1, 1, 3];
+  function corriente(b1, b2) {            // (M1, M2) → corriente
+    if (b1 === 1 && b2 === 1) return 3;
+    if (b1 === 0 && b2 === 1) return 1;
+    if (b1 === 0 && b2 === 0) return -1;
+    return -3;                             // (1, 0)
+  }
+  function releNeutro(v) { return Math.abs(v) === 3 ? 1 : 0; }      // intensidad → Mensaje 1
+  function relePolarizado(v) { return v > 0 ? 1 : 0; }               // polaridad → Mensaje 2
+  function aBits(palabra) {
+    return palabra.split("").map(function (c) { return ("00000000" + c.charCodeAt(0).toString(2)).slice(-8); }).join("");
+  }
+  function letraDe(bits8) {
+    var n = parseInt(bits8, 2);
+    return n >= 32 && n <= 126 ? (n === 32 ? "␣" : String.fromCharCode(n)) : "[" + n + "]";   // [n]: código no imprimible
+  }
+  function agrupar(bits) { return bits.replace(/(.{8})(?=.)/g, "$1 "); }
+
+  // ================================================================== VISTA 1: TRANSMISOR
+  var T = { m1: "", m2: "", b1: "", b2: "", sec: [], k: 0, ruido: {}, palabras: true, timer: null };
+  function limpiarPalabra(t, avisos, cual) {
+    var s = String(t).toUpperCase(), orig = s;
+    if (s.normalize) s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (s !== orig) avisos.push(cual + ": acentos y Ñ se envían como su letra base.");
+    var ok = "";
+    for (var i = 0; i < s.length; i++) { var n = s.charCodeAt(i); if (n >= 32 && n <= 126) ok += s[i]; }
+    if (ok.length < s.length) avisos.push(cual + ": se omiten caracteres que no son ASCII.");
+    return ok.slice(0, 6);
+  }
+  function planear1() {
+    var avisos = [];
+    T.palabras = $("modo").value === "palabras";
+    if (T.palabras) {
+      var a = limpiarPalabra($("msg1").value, avisos, "Mensaje 1"), b = limpiarPalabra($("msg2").value, avisos, "Mensaje 2");
+      if (a.length !== b.length) {
+        avisos.push("El mensaje más corto se completa con espacios (␣ = 00100000) para que ambos midan lo mismo.");
+        while (a.length < b.length) a += " "; while (b.length < a.length) b += " ";
+      }
+      T.m1 = a; T.m2 = b; T.b1 = aBits(a); T.b2 = aBits(b);
+    } else {
+      var x = $("msg1").value.replace(/[^01]/g, "").slice(0, 32), y = $("msg2").value.replace(/[^01]/g, "").slice(0, 32);
+      if (/[^01\s]/.test($("msg1").value + $("msg2").value)) avisos.push("En modo Bits solo cuentan los 0 y 1.");
+      if (x.length !== y.length) {
+        avisos.push("El mensaje más corto se completa con ceros.");
+        while (x.length < y.length) x += "0"; while (y.length < x.length) y += "0";
+      }
+      T.m1 = x; T.m2 = y; T.b1 = x; T.b2 = y;
+    }
+    T.sec = [];
+    for (var i = 0; i < T.b1.length; i++) T.sec.push(corriente(Number(T.b1[i]), Number(T.b2[i])));
+    T.k = Math.min(T.k, T.sec.length);
+    $("aviso1").innerHTML = avisos.join("<br>");
+  }
+  function recibido(i) {
+    var v = T.sec[i], d = T.ruido[i] || 0;
+    if (!d) return v;
+    var j = Math.max(0, Math.min(3, NIVELES.indexOf(v) + d));
+    return NIVELES[j];
+  }
+
+  function dibujarLinea() {
+    var cv = $("lienzo1"), N = T.sec.length, cont = cv.parentNode.clientWidth || 600;
+    var izq = 58, der = 12, minCol = 17;
+    var necesario = izq + der + N * minCol;
+    cv.style.minWidth = necesario > cont ? necesario + "px" : "0";
+    var w = cv.clientWidth || cont, alto = T.palabras ? 330 : 300;
+    var d = preparar(cv, alto / w), g = d.g;
+    if (!N) { texto(g, "Escribe los dos mensajes.", w / 2, alto / 2, C.gris, 17, "center", "middle"); return; }
+    var col = (w - izq - der) / N;
+    var yLet = 22, yM1 = T.palabras ? 50 : 26, yM2 = yM1 + 26, arr = yM2 + 22, abj = alto - 16;
+    var mid = (arr + abj) / 2, esc = (abj - arr) / 2 / 3.5;
+    function X(i) { return izq + i * col; }
+    function Y(v) { return mid - v * esc; }
+    // símbolo actual
+    if (T.k > 0) { g.fillStyle = C.oroClaro; g.fillRect(X(T.k - 1), yLet - 16, col, abj - yLet + 16); }
+    // cuadrícula de niveles
+    [3, 1, -1, -3].forEach(function (v) {
+      linea(g, izq, Y(v), w - der, Y(v), "#E3E7EE", 1);
+      texto(g, signo(v), izq - 10, Y(v) + 5, C.azulOscuro, 15, "right", "alphabetic", true);
+    });
+    linea(g, izq, Y(0), w - der, Y(0), C.gris, 1.2);
+    texto(g, "0", izq - 10, Y(0) + 5, C.gris, 14, "right");
+    texto(g, "M1", izq - 10, yM1 + 5, C.azul, 15, "right", "alphabetic", true);
+    texto(g, "M2", izq - 10, yM2 + 5, C.guinda, 15, "right", "alphabetic", true);
+    // separadores de bytes y letras
+    if (T.palabras) {
+      for (var b = 0; b * 8 < N; b++) {
+        if (b) linea(g, X(8 * b), yLet - 14, X(8 * b), abj, C.oro, 1.5, [5, 4]);
+        var xc = X(8 * b + 4);
+        texto(g, T.m1[b] === " " ? "␣" : T.m1[b], xc - 10, yLet, C.azul, 18, "right", "alphabetic", true);
+        texto(g, "/", xc, yLet, C.gris, 16, "center");
+        texto(g, T.m2[b] === " " ? "␣" : T.m2[b], xc + 10, yLet, C.guinda, 18, "left", "alphabetic", true);
+      }
+    }
+    // bits
+    var tamBit = Math.max(11, Math.min(18, col * 0.75));
+    for (var i = 0; i < N; i++) {
+      var pasado = i < T.k, xc2 = X(i + 0.5);
+      texto(g, T.b1[i], xc2, yM1 + 5, pasado ? C.azul : "#B5BCC8", tamBit, "center", "alphabetic", true, "Consolas, monospace");
+      texto(g, T.b2[i], xc2, yM2 + 5, pasado ? C.guinda : "#B5BCC8", tamBit, "center", "alphabetic", true, "Consolas, monospace");
+    }
+    // corriente: lo transmitido (sólido) y lo que falta (punteado)
+    function tramo(desde, hasta, color, ancho, guiones) {
+      if (hasta <= desde) return;
+      g.save(); g.strokeStyle = color; g.lineWidth = ancho; if (guiones) g.setLineDash(guiones);
+      g.beginPath(); g.moveTo(X(desde), Y(desde > 0 ? T.sec[desde - 1] : 0)); g.lineTo(X(desde), Y(T.sec[desde]));
+      for (var j = desde; j < hasta; j++) {
+        if (j > desde) g.lineTo(X(j), Y(T.sec[j]));
+        g.lineTo(X(j + 1), Y(T.sec[j]));
+      }
+      g.stroke(); g.restore();
+    }
+    tramo(T.k, N, "#B5BCC8", 2, [6, 5]);
+    tramo(0, T.k, C.azulOscuro, 3.5);
+    // ruido: nivel leído por el receptor
+    Object.keys(T.ruido).forEach(function (s) {
+      var i = Number(s);
+      if (i >= T.k || !T.ruido[i]) return;
+      var v = recibido(i);
+      linea(g, X(i) + 2, Y(v), X(i + 1) - 2, Y(v), C.guinda, 4, [4, 3]);
+      texto(g, "ruido", X(i + 0.5), Math.min(abj - 2, Y(v) + 18), C.guinda, 14, "center", "alphabetic", true);
+    });
+  }
+
+  // Medidor de aguja: v en [-3.5, 3.5] o null (sin corriente)
+  function dibujarMedidor(g, cx, cy, r, v) {
+    g.save(); g.beginPath(); g.arc(cx, cy, r, Math.PI, 2 * Math.PI); g.lineWidth = 3; g.strokeStyle = C.azulOscuro; g.stroke(); g.restore();
+    [-3, -1, 0, 1, 3].forEach(function (t) {
+      var a = Math.PI + (t + 3.5) / 7 * Math.PI, c = Math.cos(a), s = Math.sin(a);
+      linea(g, cx + c * r * 0.86, cy + s * r * 0.86, cx + c * r, cy + s * r, C.azulOscuro, 2);
+      texto(g, t === 0 ? "0" : signo(t), cx + c * r * 0.68, cy + s * r * 0.68 + 5, t > 0 ? C.oroTexto : (t < 0 ? C.azul : C.gris), Math.max(13, r * 0.17), "center", "alphabetic", true);
+    });
+    var val = v === null ? 0 : v, a2 = Math.PI + (val + 3.5) / 7 * Math.PI;
+    linea(g, cx, cy, cx + Math.cos(a2) * r * 0.92, cy + Math.sin(a2) * r * 0.92, C.guinda, 4);
+    circulo(g, cx, cy, 7, C.azulOscuro);
+  }
+  // Relé dibujado: título, bobina, armadura (cerrada/abierta o inclinada) y foco
+  function dibujarReles() {
+    var cv = $("lienzo2"), w = cv.clientWidth || 600, angosto = w < 560;
+    var altoPanel = angosto ? 170 : 200, alto = angosto ? altoPanel * 3 : altoPanel;
+    var d = preparar(cv, alto / w), g = d.g;
+    var pw = angosto ? w : w / 3;
+    function origen(n) { return angosto ? { x: 0, y: n * altoPanel } : { x: n * pw, y: 0 }; }
+    var k = T.k, v = k > 0 ? recibido(k - 1) : null, enviado = k > 0 ? T.sec[k - 1] : null;
+    // 1. medidor
+    var o = origen(0);
+    texto(g, "Corriente en la línea", o.x + pw / 2, o.y + 22, C.azulOscuro, 16, "center", "alphabetic", true);
+    var r = Math.min(pw * 0.36, altoPanel * 0.52);
+    dibujarMedidor(g, o.x + pw / 2, o.y + altoPanel - 40, r, v);
+    texto(g, v === null ? "I = 0 (sin símbolo)" : "I = " + signo(v) + (v !== enviado ? " (se envió " + signo(enviado) + ")" : ""), o.x + pw / 2, o.y + altoPanel - 12,
+      v !== enviado ? C.guinda : C.azulOscuro, 16, "center", "alphabetic", true);
+    // 2. relé neutro
+    o = origen(1);
+    var b1 = v === null ? null : releNeutro(v);
+    rele(g, o.x, o.y, pw, altoPanel, "Relé neutro", "lee la intensidad |I|", b1, C.azul,
+      v === null ? "sin corriente" : "|I| = " + Math.abs(v) + " → M1 = " + b1, false, v);
+    // 3. relé polarizado
+    o = origen(2);
+    var b2 = v === null ? null : relePolarizado(v);
+    rele(g, o.x, o.y, pw, altoPanel, "Relé polarizado", "lee el signo de I", b2, C.guinda,
+      v === null ? "sin corriente" : "signo " + (v > 0 ? "+" : "−") + " → M2 = " + b2, true, v);
+    if (!angosto) { linea(g, pw, 12, pw, alto - 12, C.borde, 1); linea(g, 2 * pw, 12, 2 * pw, alto - 12, C.borde, 1); }
+    else { linea(g, 12, altoPanel, w - 12, altoPanel, C.borde, 1); linea(g, 12, 2 * altoPanel, w - 12, 2 * altoPanel, C.borde, 1); }
+  }
+  function rele(g, x, y, pw, ph, titulo, subtitulo, bit, color, leyenda, polarizado, v) {
+    texto(g, titulo, x + pw / 2, y + 22, color, 16, "center", "alphabetic", true);
+    texto(g, subtitulo, x + pw / 2, y + 42, C.gris, 15, "center");
+    var cx = x + pw / 2, cy = y + ph / 2 + 12;
+    // bobina
+    var bx = cx - 70, by = cy - 26;
+    g.save(); rectRedondo(g, bx, by, 34, 52, 5); g.fillStyle = "#EEF0F4"; g.fill(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.stroke(); g.restore();
+    for (var e = 0; e < 6; e++) linea(g, bx, by + 6 + e * 8, bx + 34, by + 10 + e * 8, C.oro, 2);
+    // armadura: pivote a la derecha de la bobina
+    var px = bx + 46, py = cy + 26, largo = 54, ang;
+    // Relé neutro: con |I| = 3 la bobina atrae la armadura; con |I| = 1 la suelta el resorte.
+    // Relé polarizado: la armadura se inclina hacia un lado u otro según el signo de I.
+    if (!polarizado) ang = (v !== null && Math.abs(v) === 3) ? -Math.PI / 2 - 0.3 : -Math.PI / 2 + 0.4;
+    else ang = v === null ? -Math.PI / 2 : (v > 0 ? -Math.PI / 2 + 0.4 : -Math.PI / 2 - 0.3);
+    var ax = px + Math.cos(ang) * largo, ay = py + Math.sin(ang) * largo;
+    linea(g, px, py, ax, ay, C.azulOscuro, 5);
+    circulo(g, px, py, 5, C.azulOscuro);
+    // contacto y foco
+    var fx = cx + 52, fy = cy - 6, encendido = bit === 1;
+    if (encendido) circulo(g, fx, fy, 30, "rgba(184,151,90,.25)");
+    circulo(g, fx, fy, 20, encendido ? color : "#fff", color, 3);
+    texto(g, bit === null ? "–" : String(bit), fx, fy + 7, encendido ? "#fff" : color, 20, "center", "alphabetic", true);
+    texto(g, leyenda, cx, y + ph - 12, color, 16, "center", "alphabetic", true);
+  }
+
+  function actualizar1() {
+    dibujarLinea(); dibujarReles();
+    var N = T.sec.length, k = T.k, rs = Number($("rs").value), h = "";
+    $("rsTxt").textContent = num(rs, rs % 1 ? 1 : 0);
+    if (!N) { $("lect1").innerHTML = "Escribe los dos mensajes."; return; }
+    if (k === 0) h += "<b>Listo para transmitir " + N + " símbolos.</b> Predice la primera corriente y pulsa \"▶ Un símbolo\".";
+    else {
+      var i = k - 1, b1 = Number(T.b1[i]), b2 = Number(T.b2[i]), v = T.sec[i], rv = recibido(i);
+      h += "<b>Símbolo " + k + " de " + N + ":</b> <span class='m1'>M1 = " + b1 + "</span>, <span class='m2'>M2 = " + b2 + "</span> → par (" + b1 + ", " + b2 + ") → corriente <b>" + signo(v) + "</b> (tabla del libro).";
+      h += "<br>Relé neutro: |" + signo(rv) + "| = " + Math.abs(rv) + " → <span class='m1'>M1 = " + releNeutro(rv) + "</span> · Relé polarizado: signo " + (rv > 0 ? "+" : "−") + " → <span class='m2'>M2 = " + relePolarizado(rv) + "</span>.";
+      if (rv !== v) {
+        var dano = releNeutro(rv) !== b1 ? "<span class='m1'>Mensaje 1</span>" : "<span class='m2'>Mensaje 2</span>";
+        var ambos = releNeutro(rv) !== b1 && relePolarizado(rv) !== b2;
+        h += "<br><span class='mal'>Ruido:</span> se leyó " + signo(rv) + " en vez de " + signo(v) + ": " + (ambos ? "cambiaron los dos bits." : "cambió solo el bit del " + dano + ".");
+      }
+    }
+    // Lo recibido hasta ahora
+    if (k > 0) {
+      var r1 = "", r2 = "";
+      for (var j = 0; j < k; j++) { var rr = recibido(j); r1 += releNeutro(rr); r2 += relePolarizado(rr); }
+      h += "<br><b>Recibido:</b> <span class='m1 mono'>M1 = " + agrupar(r1) + "</span> · <span class='m2 mono'>M2 = " + agrupar(r2) + "</span>";
+      if (T.palabras && k >= 8) {
+        var l1 = "", l2 = "";
+        for (var q = 0; q + 8 <= k; q += 8) {
+          var c1 = letraDe(r1.substr(q, 8)), c2 = letraDe(r2.substr(q, 8)), e1 = r1.substr(q, 8) !== T.b1.substr(q, 8), e2 = r2.substr(q, 8) !== T.b2.substr(q, 8);
+          l1 += e1 ? "<span class='mal'>" + c1 + "</span>" : c1; l2 += e2 ? "<span class='mal'>" + c2 + "</span>" : c2;
+        }
+        h += "<br>En letras (ASCII): <span class='m1'>" + l1 + "</span> / <span class='m2'>" + l2 + "</span>";
+      }
+      var intruso = $("intruso").value;
+      if (intruso !== "no") {
+        var rec = intruso === "pol" ? r2 : r1, nombre = intruso === "pol" ? "la polaridad" : "la intensidad";
+        var txt = T.palabras && k >= 8 ? " = " + rec.match(/.{8}/g).map(letraDe).join("") : "";
+        h += "<br><span class='mal'>Intruso que solo mide " + nombre + ":</span> obtiene <span class='mono'>" + agrupar(rec) + "</span>" + txt + ".";
+      }
+    }
+    var R = rs * 2, Rs = rs * 1;
+    h += "<br><b>Tasa</b> (Ec. eq:bits-por-simbolo): <span class='formula'>R = r<sub>s</sub> log₂ M = " + num(rs, rs % 1 ? 1 : 0) + " × log₂ 4 = " + num(rs, rs % 1 ? 1 : 0) + " × 2 = <b>" + num(R, R % 1 ? 1 : 0) + " bps</b></span> (" + num(rs, rs % 1 ? 1 : 0) + " bps por mensaje). Telégrafo simple (M = 2): " + num(rs, rs % 1 ? 1 : 0) + " × 1 = " + num(Rs, Rs % 1 ? 1 : 0) + " bps.";
+    h += "<br><b>Duración:</b> " + N + " símbolos / " + num(rs, rs % 1 ? 1 : 0) + " símbolos/s = " + num(N / rs, 1) + " s; un telégrafo simple necesitaría " + 2 * N + " símbolos: " + num(2 * N / rs, 1) + " s.";
+    $("lect1").innerHTML = h;
+    $("atras1").disabled = k === 0; $("paso1").disabled = k >= N;
+  }
+  function pausar1() { if (T.timer) { clearInterval(T.timer); T.timer = null; $("play1").textContent = "▶▶ Reproducir"; } }
+  function reproducir1() {
+    if (T.timer) { pausar1(); return; }
+    if (T.k >= T.sec.length) T.k = 0;
+    $("play1").textContent = "❚❚ Pausa";
+    T.timer = setInterval(function () {
+      if (T.k >= T.sec.length) { pausar1(); return; }
+      T.k++; actualizar1();
+    }, 1000 / Number($("rs").value));
+  }
+  function cambioMensajes() { pausar1(); T.ruido = {}; planear1(); actualizar1(); }
+  $("modo").addEventListener("change", function () {
+    if ($("modo").value === "bits") { $("msg1").value = "1100"; $("msg2").value = "1010"; $("msg1").maxLength = 32; $("msg2").maxLength = 32; }
+    else { $("msg1").value = "BOT"; $("msg2").value = "RED"; $("msg1").maxLength = 6; $("msg2").maxLength = 6; }
+    T.k = 0; cambioMensajes();
+  });
+  $("msg1").addEventListener("input", cambioMensajes);
+  $("msg2").addEventListener("input", cambioMensajes);
+  $("rs").addEventListener("input", function () { var corre = !!T.timer; pausar1(); actualizar1(); if (corre) reproducir1(); });
+  $("inicio1").addEventListener("click", function () { pausar1(); T.k = 0; actualizar1(); });
+  $("atras1").addEventListener("click", function () { pausar1(); if (T.k > 0) T.k--; actualizar1(); });
+  $("paso1").addEventListener("click", function () { pausar1(); if (T.k < T.sec.length) T.k++; actualizar1(); });
+  $("todo1").addEventListener("click", function () { pausar1(); T.k = T.sec.length; actualizar1(); });
+  $("play1").addEventListener("click", reproducir1);
+  function ponerRuido(d) {
+    if (T.k === 0) { $("lect1").innerHTML = "Primero transmite al menos un símbolo; el ruido se aplica al símbolo actual."; return; }
+    var i = T.k - 1, j = NIVELES.indexOf(T.sec[i]) + d;
+    if (j < 0 || j > 3) { T.ruido[i] = 0; actualizar1(); $("lect1").innerHTML = "No hay un nivel " + (d > 0 ? "arriba de +3" : "abajo de −3") + ": prueba en la otra dirección.<br>" + $("lect1").innerHTML; return; }
+    T.ruido[i] = d; actualizar1();
+  }
+  $("ruidoArr").addEventListener("click", function () { pausar1(); ponerRuido(1); });
+  $("ruidoAba").addEventListener("click", function () { pausar1(); ponerRuido(-1); });
+  $("ruidoNo").addEventListener("click", function () { pausar1(); T.ruido = {}; actualizar1(); });
+  $("intruso").addEventListener("change", actualizar1);
+
+  // ================================================================== VISTA 2: RECEPTOR Y RETO
+  var RETOS = [["LAN", "WAN"], ["SSH", "TLS"], ["CPU", "RAM"], ["MAC", "ARP"], ["BUG", "FIX"], ["WEB", "APP"], ["DNS", "NTP"], ["BIT", "HEX"]];
+  var COLOR = { pos: { brillante: "#FFB21A", tenue: "#8A6416", nombre: "ámbar" }, neg: { brillante: "#3D8BFF", tenue: "#1E3F75", nombre: "azul" } };
+  var Q = { reto: null, sec: [], k: 0, encendido: false, timer: null, corriendo: false, resuelto: false };
+  (function llenarAscii() {
+    var h = "";
+    for (var c = 65; c <= 90; c++) h += "<div><b>" + String.fromCharCode(c) + "</b><span>" + ("0" + c.toString(2)).slice(-8) + "</span></div>";
+    $("ascii").innerHTML = h;
+    $("leyenda2").innerHTML = [[3, "pos", "brillante"], [1, "pos", "tenue"], [-1, "neg", "tenue"], [-3, "neg", "brillante"]].map(function (x) {
+      return "<span><i class='muestra' style='background:" + COLOR[x[1]][x[2]] + "'></i>" + COLOR[x[1]].nombre + " " + x[2] + " = " + signo(x[0]) + "</span>";
+    }).join("");
+  })();
+  function dibujarReceptor() {
+    var cv = $("lienzo3"), d = preparar(cv, 0.62), g = d.g, w = d.w, h = d.h;
+    var v = Q.reto && Q.encendido ? Q.sec[Q.k] : null;
+    if ($("modo2").value === "medidor") {
+      var r = Math.min(w * 0.42, h * 0.8);
+      dibujarMedidor(g, w / 2, h - 22, r, v);
+    } else {
+      var R = Math.min(w, h) * 0.36, cx = w / 2, cy = h / 2;
+      if (v === null) circulo(g, cx, cy, R, "#3A3F4A", "#1B1F2A", 3);
+      else {
+        var p = v > 0 ? COLOR.pos : COLOR.neg, fuerte = Math.abs(v) === 3;
+        if (fuerte) {
+          var grad = g.createRadialGradient(cx, cy, R * 0.6, cx, cy, R * 1.45);
+          grad.addColorStop(0, p.brillante); grad.addColorStop(1, "rgba(255,255,255,0)");
+          circulo(g, cx, cy, R * 1.45, grad);
+          var grad2 = g.createRadialGradient(cx - R * 0.25, cy - R * 0.3, R * 0.05, cx, cy, R);
+          grad2.addColorStop(0, "#FFFFFF"); grad2.addColorStop(0.35, p.brillante); grad2.addColorStop(1, p.brillante);
+          circulo(g, cx, cy, R, grad2, "#1B1F2A", 3);
+        } else circulo(g, cx, cy, R, p.tenue, "#1B1F2A", 3);
+      }
+    }
+  }
+  function contador2() {
+    if (!Q.reto) { $("contador2").textContent = "Pulsa \"Nuevo reto\""; return; }
+    $("contador2").textContent = "Símbolo " + (Q.k + 1) + " de " + Q.sec.length + (Q.corriendo ? "" : " (en pausa)");
+  }
+  function pausar2() {
+    if (Q.timer) clearTimeout(Q.timer);
+    Q.timer = null; Q.corriendo = false; $("play2").textContent = "▶▶ Reproducir";
+    if (Q.reto) { Q.encendido = true; dibujarReceptor(); contador2(); }
+  }
+  function ciclo() {             // símbolo encendido 80 % del tiempo y apagado 20 %; al final, pausa larga y repite
+    if (!Q.corriendo) return;
+    var T0 = Number($("dur2").value) * 1000;
+    Q.encendido = true; dibujarReceptor(); contador2();
+    Q.timer = setTimeout(function () {
+      Q.encendido = false; dibujarReceptor();
+      var ultimo = Q.k >= Q.sec.length - 1;
+      if (ultimo) $("contador2").textContent = "Fin de la secuencia: vuelve a empezar…";
+      Q.timer = setTimeout(function () { Q.k = ultimo ? 0 : Q.k + 1; ciclo(); }, ultimo ? 3 * T0 : 0.2 * T0);
+    }, 0.8 * T0);
+  }
+  function reproducir2() {
+    if (!Q.reto) { nuevoReto(); return; }
+    if (Q.corriendo) { pausar2(); return; }
+    Q.corriendo = true; $("play2").textContent = "❚❚ Pausa"; ciclo();
+  }
+  function nuevoReto() {
+    pausar2();
+    var opciones = RETOS.filter(function (r) { return r !== Q.reto; });
+    Q.reto = opciones[Math.floor(Math.random() * opciones.length)];
+    var b1 = aBits(Q.reto[0]), b2 = aBits(Q.reto[1]);
+    Q.sec = []; for (var i = 0; i < b1.length; i++) Q.sec.push(corriente(Number(b1[i]), Number(b2[i])));
+    Q.k = 0; Q.resuelto = false;
+    $("r1").value = ""; $("r2").value = ""; $("registro2").value = "";
+    tasa2("Reto nuevo: 24 símbolos. Registra cada uno en orden.");
+    reproducir2();
+  }
+  function tasa2(prefijo) {
+    var Ts = Number($("dur2").value), rs = 1 / Ts, N = Q.sec.length || 24;
+    $("lect2").innerHTML = (prefijo ? prefijo + "<br>" : "") + "<b>Tasa:</b> <span class='formula'>r<sub>s</sub> = 1 / " + num(Ts, 1) + " s = " + num(rs, 2) + " símbolos/s → R = " + num(rs, 2) + " × log₂ 4 = " + num(2 * rs, 2) + " bps</span>; " + N + " símbolos tardan " + num(N * Ts, 1) + " s.";
+  }
+  function solucion() {
+    var b1 = aBits(Q.reto[0]), b2 = aBits(Q.reto[1]), h = "";
+    for (var q = 0; q < 3; q++) {
+      h += "<br><span class='mono'>#" + (8 * q + 1) + "-" + (8 * q + 8) + ": " + Q.sec.slice(8 * q, 8 * q + 8).map(signo).join(" ") + "</span> → <span class='m1 mono'>" + b1.substr(8 * q, 8) + " = " + Q.reto[0][q] + "</span> · <span class='m2 mono'>" + b2.substr(8 * q, 8) + " = " + Q.reto[1][q] + "</span>";
+    }
+    return h;
+  }
+  $("nuevo2").addEventListener("click", nuevoReto);
+  $("play2").addEventListener("click", reproducir2);
+  $("inicio2").addEventListener("click", function () { if (!Q.reto) return; var c = Q.corriendo; pausar2(); Q.k = 0; if (c) reproducir2(); else { dibujarReceptor(); contador2(); } });
+  $("atras2").addEventListener("click", function () { if (!Q.reto) return; pausar2(); Q.k = Math.max(0, Q.k - 1); dibujarReceptor(); contador2(); });
+  $("paso2").addEventListener("click", function () { if (!Q.reto) return; pausar2(); Q.k = Math.min(Q.sec.length - 1, Q.k + 1); dibujarReceptor(); contador2(); });
+  $("dur2").addEventListener("input", function () { $("dur2Txt").textContent = num(Number($("dur2").value), 1); if (Q.reto) tasa2(""); });
+  $("modo2").addEventListener("change", dibujarReceptor);
+  $("pista2").addEventListener("click", function () { $("leyenda2").hidden = !$("leyenda2").hidden; });
+  $("revisa2").addEventListener("click", function () {
+    if (!Q.reto) return;
+    var fichas = $("registro2").value.replace(/−/g, "-").match(/[+-]\s*[13]/g) || [];
+    var lista = fichas.map(function (f) { return Number(f.replace(/\s/g, "")); });
+    if (!lista.length) { $("lect2").innerHTML = "Escribe tus corrientes con signo, por ejemplo: −1 +3 −1 +1"; return; }
+    var bien = 0, primero = -1;
+    for (var i = 0; i < Math.min(lista.length, Q.sec.length); i++) { if (lista[i] === Q.sec[i]) bien++; else if (primero < 0) primero = i; }
+    var h = "Revisaste " + lista.length + " de " + Q.sec.length + " símbolos: <b>" + bien + " coinciden</b>.";
+    if (primero >= 0) h += " <span class='mal'>El primero distinto es el símbolo " + (primero + 1) + ".</span>";
+    else if (lista.length < Q.sec.length) h += " Hasta ahí, todo bien; sigue registrando.";
+    else h += " <span class='ok'>Registro completo y correcto.</span> Ahora conviértelo en pares y en letras.";
+    if (lista.length > Q.sec.length) h += " (Anotaste de más: la secuencia tiene " + Q.sec.length + " símbolos.)";
+    $("lect2").innerHTML = h;
+  });
+  $("verif2").addEventListener("click", function () {
+    if (!Q.reto) { $("lect2").innerHTML = "Primero pulsa \"Nuevo reto\"."; return; }
+    var a = $("r1").value.toUpperCase().trim(), b = $("r2").value.toUpperCase().trim();
+    var ok1 = a === Q.reto[0], ok2 = b === Q.reto[1];
+    var h = (ok1 ? "<span class='ok'>Mensaje 1 correcto.</span>" : "<span class='mal'>Mensaje 1: todavía no.</span>") + " " +
+            (ok2 ? "<span class='ok'>Mensaje 2 correcto.</span>" : "<span class='mal'>Mensaje 2: todavía no.</span>");
+    if (ok1 && ok2) { h += solucion(); Q.resuelto = true; }
+    else h += "<br>Revisa tu registro con el botón de arriba y recuerda: magnitud → M1, signo → M2.";
+    $("lect2").innerHTML = h;
+  });
+  $("sol2").addEventListener("click", function () {
+    if (!Q.reto) return;
+    $("lect2").innerHTML = "<b>Solución:</b> Mensaje 1 = <span class='m1'>" + Q.reto[0] + "</span>, Mensaje 2 = <span class='m2'>" + Q.reto[1] + "</span>." + solucion();
+  });
+
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) actualizar1();
+    if ($("v2").classList.contains("activo")) { dibujarReceptor(); contador2(); }
+  }
+  window.addEventListener("resize", dibujarTodo);
+  planear1(); actualizar1(); dibujarReceptor();
+  // Abrir directamente una vista con la URL: semana-08-cuadruplex.html#v2
+  var porHash = Array.prototype.filter.call(document.querySelectorAll("nav.pestanas button"),
+    function (b) { return "#" + b.dataset.vista === location.hash; })[0];
+  if (porHash) { porHash.click(); setTimeout(function () { window.scrollTo(0, 0); }, 30); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-08-cuadruplex.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM14 2h1v1h-1zM17 2h1v1h-1zM21 2h2v1h-2zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h1v1h-1zM14 3h2v1h-2zM23 3h1v1h-1zM27 3h1v1h-1zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM15 4h1v1h-1zM17 4h1v1h-1zM23 4h1v1h-1zM26 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM17 5h1v1h-1zM19 5h1v1h-1zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h2v1h-2zM16 6h1v1h-1zM20 6h6v1h-6zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h6v1h-6zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM14 9h3v1h-3zM18 9h1v1h-1zM20 9h2v1h-2zM23 9h1v1h-1zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h5v1h-5zM17 10h1v1h-1zM19 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM2 11h1v1h-1zM4 11h4v1h-4zM9 11h1v1h-1zM12 11h1v1h-1zM14 11h2v1h-2zM17 11h2v1h-2zM20 11h6v1h-6zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h2v1h-2zM8 12h2v1h-2zM12 12h1v1h-1zM15 12h2v1h-2zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h2v1h-2zM7 13h1v1h-1zM9 13h5v1h-5zM15 13h1v1h-1zM18 13h1v1h-1zM21 13h4v1h-4zM29 13h6v1h-6zM38 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM7 14h3v1h-3zM12 14h1v1h-1zM15 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM6 15h2v1h-2zM11 15h2v1h-2zM14 15h1v1h-1zM18 15h6v1h-6zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM3 16h1v1h-1zM8 16h2v1h-2zM14 16h1v1h-1zM16 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM4 17h1v1h-1zM9 17h1v1h-1zM13 17h1v1h-1zM15 17h2v1h-2zM23 17h1v1h-1zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM4 18h1v1h-1zM6 18h4v1h-4zM12 18h3v1h-3zM17 18h3v1h-3zM24 18h2v1h-2zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM4 19h2v1h-2zM7 19h1v1h-1zM10 19h3v1h-3zM14 19h1v1h-1zM17 19h1v1h-1zM20 19h2v1h-2zM23 19h3v1h-3zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h3v1h-3zM6 20h6v1h-6zM13 20h1v1h-1zM15 20h6v1h-6zM28 20h8v1h-8zM37 20h2v1h-2zM2 21h1v1h-1zM5 21h3v1h-3zM9 21h2v1h-2zM13 21h1v1h-1zM15 21h3v1h-3zM20 21h1v1h-1zM23 21h1v1h-1zM25 21h2v1h-2zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h1v1h-1zM4 22h3v1h-3zM8 22h5v1h-5zM14 22h1v1h-1zM17 22h3v1h-3zM21 22h2v1h-2zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM3 23h1v1h-1zM5 23h1v1h-1zM7 23h1v1h-1zM10 23h2v1h-2zM13 23h2v1h-2zM16 23h1v1h-1zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h2v1h-2zM5 24h4v1h-4zM12 24h2v1h-2zM16 24h2v1h-2zM22 24h3v1h-3zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h1v1h-1zM5 25h3v1h-3zM9 25h4v1h-4zM14 25h2v1h-2zM17 25h1v1h-1zM20 25h6v1h-6zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM5 26h5v1h-5zM11 26h2v1h-2zM14 26h1v1h-1zM17 26h1v1h-1zM20 26h3v1h-3zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h3v1h-3zM6 27h1v1h-1zM11 27h1v1h-1zM15 27h1v1h-1zM17 27h2v1h-2zM20 27h3v1h-3zM24 27h2v1h-2zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM8 28h1v1h-1zM11 28h5v1h-5zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM5 29h2v1h-2zM9 29h1v1h-1zM12 29h2v1h-2zM15 29h2v1h-2zM18 29h1v1h-1zM22 29h2v1h-2zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM7 30h2v1h-2zM10 30h1v1h-1zM13 30h2v1h-2zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h14v1h-14zM10 31h1v1h-1zM12 31h1v1h-1zM15 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM15 32h1v1h-1zM17 32h3v1h-3zM22 32h2v1h-2zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h5v1h-5zM16 33h8v1h-8zM25 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h1v1h-1zM14 34h1v1h-1zM18 34h1v1h-1zM21 34h1v1h-1zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h1v1h-1zM14 35h1v1h-1zM16 35h2v1h-2zM20 35h3v1h-3zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h3v1h-3zM15 36h1v1h-1zM17 36h4v1h-4zM23 36h1v1h-1zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM17 37h1v1h-1zM22 37h3v1h-3zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM13 38h5v1h-5zM19 38h3v1h-3zM24 38h4v1h-4zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-08-cuadruplex.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electricidad estática y ESD</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  select { width:100%; margin-top:4px; }
+  .valor { float:right; font-weight:bold; color:var(--guinda); }
+  .botonera { display:flex; flex-wrap:wrap; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:10px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; flex:none; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .formula { display:block; margin:2px 0 4px; }
+  .lectura .renglon { margin:0 0 8px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:4px 10px 10px; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  button.eleccion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 14px; margin:8px 6px 0 0;
+                    border:2px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.eleccion[aria-pressed="true"] { background:var(--azul); color:#fff; }
+  button.eleccion:focus-visible { outline:2px solid var(--oro); outline-offset:2px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .resultado { margin-top:10px; min-height:1.4em; overflow-wrap:anywhere; }
+  .resultado .formula { display:block; margin:2px 0; }
+  canvas + canvas { margin-top:12px; }
+  #lienzo2 { touch-action:pan-y; cursor:ew-resize; }
+  [hidden] { display:none !important; }
+  .nw { white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 1 · Carga, voltaje y descarga electrostática</div>
+  <h1>Descarga electrostática: de la alfombra a la chispa</h1>
+  <p class="sub">Acumula carga al caminar, calcula el voltaje de tu cuerpo, predice si saltará la chispa hacia un conector y compara la descarga con lo que daña un componente.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Cargarse al caminar</button>
+    <button type="button" data-vista="v2" role="tab">2. ¿Saltará la chispa?</button>
+    <button type="button" data-vista="v3" role="tab">3. La descarga y el daño</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <div class="botonera">
+          <button type="button" class="accion" id="paso">Dar un paso</button>
+          <button type="button" class="accion" id="diez">Caminar 10 pasos</button>
+          <button type="button" class="accion" id="descargar">Empezar descargado</button>
+        </div>
+        <label for="ambiente">Ambiente</label>
+        <select id="ambiente">
+          <option value="seco" selected>Aire seco</option>
+          <option value="humedo">Aire húmedo (modelo ilustrativo)</option>
+        </select>
+        <label for="carga">Carga acumulada |Q| <small>(μC; también puedes moverla a mano)</small> <span class="valor" id="cargaVal"></span></label>
+        <input id="carga" type="range" min="0" max="2.5" step="0.005" value="0.5">
+        <p class="nota">Valores ilustrativos: cada paso sobre la alfombra le pasa 0.05 μC a tu cuerpo; con aire húmedo se pierde una parte en cada paso.</p>
+        <div class="lectura" id="lectura1"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Una persona camina sobre una alfombra hacia un rack; los electrones en exceso se dibujan sobre su cuerpo y abajo un medidor muestra el voltaje del cuerpo en escala logarítmica"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Empieza descargado. Antes de caminar, predice: ¿cuántos pasos hacen falta para rebasar los 100 V que ya pueden dañar un componente susceptible? Compruébalo.</li>
+            <li>Calcula a mano cuántos electrones en exceso te dejan 10 pasos y compruébalo en la lectura. ¿Qué fracción de un coulomb es esa carga?</li>
+            <li>Cambia a aire húmedo y camina 30 pasos. ¿Hasta qué voltaje llegas? ¿Basta la humedad para manipular un módulo de memoria sin pulsera?</li>
+            <li>Si duplicas la carga, ¿qué le pasa al voltaje de tu cuerpo? ¿Por qué?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> La carga estática aparece cuando un material gana o pierde electrones (al caminar o al frotar ropa y zapatos) y puede dañar un componente al descargarse de golpe. El libro recomienda alfombrillas y pulseras antiestáticas al manipular hardware, sobre todo en ambientes de baja humedad relativa, y el estándar ANSI/ESD S20.20 exige procedimientos de puesta a tierra, superficies de trabajo disipativas y capacitación del personal para proteger componentes susceptibles a descargas de 100 V o más. Para la seguridad de la información, la ESD es ante todo un riesgo para la <b>disponibilidad</b>.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="objetivo">¿Qué vas a tocar?</label>
+        <select id="objetivo">
+          <option value="usb" selected>Conector USB de un equipo (0 V, tierra)</option>
+          <option value="modulo">Contactos de un módulo de memoria</option>
+        </select>
+        <label for="volt2">Voltaje de tu cuerpo V <small>(kV; es la carga de la pestaña 1)</small> <span class="valor" id="volt2Val"></span></label>
+        <input id="volt2" type="range" min="0" max="25" step="0.05" value="5">
+        <label for="dist">Distancia del dedo al metal d <small>(mm)</small> <span class="valor" id="distVal"></span></label>
+        <input id="dist" type="range" min="0.2" max="10" step="0.05" value="4.5">
+        <label class="casilla"><input type="checkbox" id="pulsera2"> Pulsera antiestática conectada a tierra</label>
+        <fieldset>
+          <legend>¿Saltará la chispa a esta distancia?</legend>
+          <div class="botonera">
+            <button type="button" class="eleccion" id="predSi" aria-pressed="false">Sí salta</button>
+            <button type="button" class="eleccion" id="predNo" aria-pressed="false">No salta</button>
+          </div>
+          <div class="botonera">
+            <button type="button" class="accion" id="comprobar">Comprobar a esta distancia</button>
+            <button type="button" class="accion" id="acercar">Acercar el dedo poco a poco</button>
+            <button type="button" class="accion" id="recargar">Volver a cargar</button>
+          </div>
+          <div class="resultado" id="resultado2" aria-live="polite"></div>
+        </fieldset>
+        <label class="casilla"><input type="checkbox" id="siempre2"> Mostrar los cálculos sin predecir</label>
+        <div class="lectura" id="lectura2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Un dedo cargado frente a un conector metálico; entre ellos, el hueco de aire con las líneas del campo eléctrico y, si el campo supera la rigidez del aire, la chispa"></canvas>
+        <p class="nota">También puedes arrastrar el dedo en el dibujo para acercarlo o alejarlo.</p>
+        <label class="casilla"><input type="checkbox" id="verGrafica"> Mostrar la gráfica E contra d (después de predecir)</label>
+        <canvas id="grafica2" hidden aria-label="Gráfica del campo eléctrico E = V/d contra la distancia d, con la rigidez dieléctrica del aire y la zona en la que salta la chispa"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con tu carga actual, predice: ¿saltará la chispa a esta distancia? Comprueba y explica tu resultado con E = V/d.</li>
+            <li>Acerca el dedo poco a poco. ¿A qué distancia saltó la chispa? Compárala con el cociente V/(3×10⁶ V/m).</li>
+            <li>Vuelve a cargar y duplica el voltaje. ¿Desde qué distancia salta ahora la chispa?</li>
+            <li>Ponte la pulsera antiestática y acerca otra vez el dedo. ¿Qué cambió y por qué?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> Los puertos expuestos (USB, red, lectores) llevan protecciones contra ESD, y el estándar de inmunidad <span class="nw">IEC 61000-4-2</span> prueba los equipos con descargas de hasta 8 kV por contacto y 15 kV por aire. Un módulo de memoria o una tarjeta fuera del equipo no tiene esa protección: se manipula con pulsera antiestática conectada a tierra, sobre una superficie disipativa, y se transporta en <b>bolsas antiestáticas</b>, que no deben confundirse con las bolsas de Faraday forenses.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="v0">Voltaje de tu cuerpo al tocar V₀ <small>(escala logarítmica)</small> <span class="valor" id="v0Val"></span></label>
+        <input id="v0" type="range" min="0" max="1000" step="1" value="794">
+        <div class="botonera">
+          <button type="button" class="accion" data-v="100">100 V</button>
+          <button type="button" class="accion" data-v="1000">1 kV</button>
+          <button type="button" class="accion" data-v="10000">10 kV</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="pulsera3"> Pulsera antiestática conectada a tierra</label>
+        <p class="nota">Modelo del cuerpo humano (HBM) del libro: tu cuerpo es un capacitor de 100 pF que se descarga a través de 1500 Ω. La descarga RC se estudia en la Semana 3.</p>
+        <div class="lectura" id="lectura3"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo3" aria-label="Esquema del modelo del cuerpo humano y gráfica de la corriente de descarga contra el tiempo, con la constante de tiempo marcada"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Baja el voltaje a 100 V. ¿Desde qué distancia saltaría la chispa? ¿La verías? ¿Puede dañarse un componente susceptible?</li>
+            <li>Usa la gráfica: ¿en cuánto tiempo baja la corriente a la mitad de I₀?</li>
+            <li>Si duplicas V₀, ¿por cuánto se multiplica la energía? ¿Y la corriente inicial?</li>
+            <li>El área bajo la curva es la carga que atraviesa el chip. ¿Qué fracción de esa carga ya pasó a los 150 ns?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Disponibilidad.</b> Según el libro, unos milijoules entregados en fracciones de microsegundo bastan para dañar un componente sensible, por ejemplo perforando la delgada capa de óxido que aísla la compuerta de un transistor. Un módulo dañado deja fuera de servicio al equipo que lo usa. Medidas del libro: pulsera y alfombrilla antiestáticas conectadas a tierra, superficies de trabajo disipativas, capacitación del personal (ANSI/ESD S20.20), bolsas antiestáticas para transportar módulos y tarjetas, y protecciones contra ESD en los puertos expuestos.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap01_electricidad.tex (Ecuaciones eq:cuantizacion, eq:potencial-uniforme, eq:fuerza-campo, eq:capacitancia-def, eq:energia-capacitor, eq:ohm y eq:descarga-rc; modelo del cuerpo humano, ANSI/ESD S20.20 e IEC 61000-4-2 citados en el libro). Valores ilustrativos: carga por paso, fuga con aire húmedo y animaciones. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Datos del libro
+  var E_CARGA = 1.602e-19;        // C, carga elemental
+  var C_CUERPO = 100e-12;         // F, capacitor del modelo del cuerpo humano
+  var R_HBM = 1500;               // Ω, resistencia de descarga del modelo
+  var E_RIGIDEZ = 3e6;            // V/m, rigidez dieléctrica del aire
+  var V_SUSCEPTIBLE = 100;        // V, nivel de referencia de ANSI/ESD S20.20
+  // Valores ilustrativos del simulador
+  var Q_PASO = 0.05e-6;           // C que gana el cuerpo en cada paso
+  var FUGA_HUMEDO = 0.2;          // fracción de la carga que se pierde por paso con aire húmedo
+  var Q_MAX = 2.5e-6;             // C, tope del simulador
+  var D_MAX = 10;                 // mm, distancia máxima del dedo
+  var LOG_MIN = 1, LOG_MAX = Math.log10(25000);   // deslizador logarítmico: de 10 V a 25 kV
+  var POS_MAX = 12;               // posiciones de la persona sobre la alfombra
+  var DUR_PASO = 0.34;            // s por paso en la animación
+  var DUR_CHISPA = 0.9;           // s que dura el dibujo de la chispa
+
+  // ---------------------------------------------------------------- estado
+  var est = {
+    q: 10 * Q_PASO, pasos: 10, aMano: false, humedo: false, pulsera: false, qPrev: 10 * Q_PASO,
+    d: 4.5, objetivo: "usb", pred: null, revelado: false, siempre: false, grafica: false,
+    resultado: null, acercando: false, velAcerca: 2, dInicial: 4.5, predInicial: null, chispa: null
+  };
+  var anim1 = { pend: 0, t: 0, enPaso: false, pos: 10, dir: 1, paridad: 0, parts: [] };
+  function V() { return est.q / C_CUERPO; }
+
+  // ---------------------------------------------------------------- pestañas
+  var vistaActiva = "v1";
+  function activarVista(id) {
+    var b = document.querySelector('nav.pestanas button[data-vista="' + id + '"]');
+    if (!b) return;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+    b.classList.add("activo");
+    $(id).classList.add("activo");
+    vistaActiva = id;
+    dibujarActiva();
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activarVista(b.dataset.vista); });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+
+  // ---------------------------------------------------------------- formato de números
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  // Notación científica del libro: 3.12×10¹²
+  function sci(x, cifras) {
+    if (x === 0) return "0";
+    cifras = cifras || 3;
+    var e = Math.floor(Math.log10(Math.abs(x))), m = (x / Math.pow(10, e)).toFixed(cifras - 1);
+    if (Math.abs(parseFloat(m)) >= 10) { e += 1; m = (x / Math.pow(10, e)).toFixed(cifras - 1); }
+    if (e === 0) return m.replace("-", "−");
+    return m.replace("-", "−") + "×10" + sup(e);
+  }
+  // Cifras significativas con punto decimal: sig(5, 3) = "5.00"
+  function sig(x, cifras) {
+    if (x === 0) return "0";
+    var dec = Math.max(0, cifras - 1 - Math.floor(Math.log10(Math.abs(x)) + 1e-9));
+    return num(x, dec);
+  }
+  function fmtV(v) { return v < 1000 ? num(v, 0) + " V" : sig(v / 1000, 3) + " kV"; }
+  function fmtQ(q) {
+    if (q <= 0) return "0 μC";
+    return q >= 1e-8 ? sig(q * 1e6, 3) + " μC" : sig(q * 1e9, 3) + " nC";
+  }
+  function qSust(q) {               // carga en coulombs para sustituir en las fórmulas
+    if (q <= 0) return "0";
+    return q >= 1e-8 ? sig(q * 1e6, 3) + "×10⁻⁶" : sig(q * 1e9, 3) + "×10⁻⁹";
+  }
+  function fmtU(u) {
+    if (u <= 0) return "0 J";
+    if (u >= 1e-3) return sig(u * 1e3, 3) + " mJ";
+    if (u >= 1e-7) return sig(u * 1e6, 3) + " μJ";
+    return sig(u * 1e9, 3) + " nJ";
+  }
+  function fmtI(i) { return i >= 1 ? sig(i, 3) + " A" : sig(i * 1e3, 3) + " mA"; }
+  function mmTxt(d) { return d <= 0 ? "0 mm" : (d < 0.1 ? num(d, 3) : num(d, 2)) + " mm"; }
+  function dSust(d) { return (d < 0.1 ? num(d, 3) : num(d, 2)) + "×10⁻³"; }
+  function pct(x) { return num(100 * x, 0) + " %"; }
+
+  // ---------------------------------------------------------------- dibujo: utilidades
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  // Texto con fondo blanco para que se lea sobre el dibujo
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones, alfa) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    if (alfa !== undefined) g.globalAlpha = alfa;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function flecha(g, x0, y0, x1, y1, color, ancho, alfa) {
+    var ang = Math.atan2(y1 - y0, x1 - x0), largo = Math.hypot(x1 - x0, y1 - y0);
+    if (largo < 4) return;
+    var p = Math.min(10 + (ancho || 2) * 1.5, largo * 0.5);
+    g.save(); if (alfa !== undefined) g.globalAlpha = alfa;
+    linea(g, x0, y0, x1 - p * 0.7 * Math.cos(ang), y1 - p * 0.7 * Math.sin(ang), color, ancho);
+    g.fillStyle = color; g.beginPath(); g.moveTo(x1, y1);
+    g.lineTo(x1 - p * Math.cos(ang - 0.4), y1 - p * Math.sin(ang - 0.4));
+    g.lineTo(x1 - p * Math.cos(ang + 0.4), y1 - p * Math.sin(ang + 0.4));
+    g.closePath(); g.fill(); g.restore();
+  }
+  function redondeado(g, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.arcTo(x + w, y, x + w, y + r, r);
+    g.lineTo(x + w, y + h - r); g.arcTo(x + w, y + h, x + w - r, y + h, r); g.lineTo(x + r, y + h);
+    g.arcTo(x, y + h, x, y + h - r, r); g.lineTo(x, y + r); g.arcTo(x, y, x + r, y, r); g.closePath();
+  }
+  function circulo(g, x, y, r, relleno, borde, ancho) {
+    g.save(); g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI);
+    if (relleno) { g.fillStyle = relleno; g.fill(); }
+    if (borde) { g.strokeStyle = borde; g.lineWidth = ancho || 2; g.stroke(); }
+    g.restore();
+  }
+  // Símbolo de un electrón (−) y de una carga positiva (+)
+  function electron(g, x, y, r, alfa) {
+    g.save(); if (alfa !== undefined) g.globalAlpha = alfa;
+    circulo(g, x, y, r, C.azul, "#fff", 1);
+    linea(g, x - r * 0.55, y, x + r * 0.55, y, "#fff", Math.max(1.4, r * 0.32));
+    g.restore();
+  }
+  function positivo(g, x, y, r) {
+    circulo(g, x, y, r, C.guinda, "#fff", 1);
+    linea(g, x - r * 0.55, y, x + r * 0.55, y, "#fff", Math.max(1.4, r * 0.32));
+    linea(g, x, y - r * 0.55, x, y + r * 0.55, "#fff", Math.max(1.4, r * 0.32));
+  }
+  function tierra(g, x, y, color) {
+    linea(g, x - 11, y, x + 11, y, color, 2.5);
+    linea(g, x - 7, y + 5, x + 7, y + 5, color, 2.5);
+    linea(g, x - 3, y + 10, x + 3, y + 10, color, 2.5);
+  }
+
+  // ================================================================ estado común
+  function borrarPrediccion() { est.pred = null; est.revelado = false; est.resultado = null; }
+  function ponerCarga(q, origen) {
+    if (est.pulsera) q = 0;
+    est.q = Math.max(0, Math.min(Q_MAX, q));
+    if (origen === "mano") est.aMano = true;
+    // después de una chispa o de un contacto, el dedo regresa a donde estaba antes
+    if (!est.acercando && (est.d < 0.2 || origen === "recarga")) est.d = est.dInicial;
+    borrarPrediccion();
+    actualizar();
+  }
+  function ponerPulsera(activa) {
+    est.pulsera = activa;
+    $("pulsera2").checked = $("pulsera3").checked = activa;
+    if (activa) { if (est.q > 0) est.qPrev = est.q; est.q = 0; anim1.pend = 0; }
+    borrarPrediccion();
+    actualizar();
+  }
+  function sincronizar() {
+    var v = V();
+    $("carga").value = (est.q * 1e6).toFixed(3);
+    $("cargaVal").textContent = fmtQ(est.q);
+    $("volt2").value = (v / 1000).toFixed(2);
+    $("volt2Val").textContent = fmtV(v);
+    $("distVal").textContent = mmTxt(est.d);
+    if (!est.acercando) $("dist").value = Math.max(0.2, est.d).toFixed(2);
+    $("v0").value = v >= 10 ? Math.round((Math.log10(v) - LOG_MIN) / (LOG_MAX - LOG_MIN) * 1000) : 0;
+    $("v0Val").textContent = fmtV(v);
+    ["paso", "diez", "carga", "volt2", "v0"].forEach(function (id) { $(id).disabled = est.pulsera; });
+    document.querySelectorAll("#v3 button[data-v]").forEach(function (b) { b.disabled = est.pulsera; });
+    $("predSi").setAttribute("aria-pressed", est.pred === "si" ? "true" : "false");
+    $("predNo").setAttribute("aria-pressed", est.pred === "no" ? "true" : "false");
+    $("recargar").disabled = est.pulsera || est.qPrev <= 0 || est.q === est.qPrev;
+  }
+  function actualizar() {
+    sincronizar(); lectura1(); lectura2(); lectura3(); textoResultado(); dibujarActiva();
+  }
+
+  // ================================================================ VISTA 1
+  function lectura1() {
+    var q = est.q, v = V(), n = q / E_CARGA, u = 0.5 * C_CUERPO * v * v, h = "";
+    if (est.pulsera) h += "<div class='renglon mal'>Tienes puesta la pulsera antiestática (pestañas 2 y 3): tu cuerpo está conectado a tierra y no acumula carga.</div>";
+    h += "<div class='renglon'><b>Electrones en exceso</b> (q = n·e)<span class='formula'>n = |Q|/e = " + qSust(q) +
+         " / 1.602×10⁻¹⁹ = <b>" + sci(n, 3) + "</b></span></div>";
+    h += "<div class='renglon'><b>Voltaje del cuerpo</b> (C = Q/V, con C = 100 pF)<span class='formula'>V = |Q|/C = " + qSust(q) +
+         " / 100×10⁻¹² = <b>" + fmtV(v) + "</b></span></div>";
+    h += "<div class='renglon'><b>Energía guardada</b> (U = ½CV²)<span class='formula'>U = ½(100×10⁻¹²)(" + num(v, 0) +
+         ")² = <b>" + fmtU(u) + "</b></span></div>";
+    if (v >= V_SUSCEPTIBLE) h += "<div class='renglon'><span class='mal'>V ≥ 100 V:</span> una descarga así ya puede dañar un componente susceptible (" + num(v / V_SUSCEPTIBLE, v < 1000 ? 1 : 0) + " veces el nivel de referencia de ANSI/ESD S20.20).</div>";
+    else h += "<div class='renglon'><span class='ok'>V &lt; 100 V</span>, por debajo del nivel de referencia de ANSI/ESD S20.20.</div>";
+    h += "<div class='renglon nota'>Pasos dados: " + est.pasos + (est.aMano ? " (después ajustaste la carga a mano)" : "") +
+         (est.humedo ? ". Aire húmedo: se pierde el 20 % de la carga en cada paso (ilustrativo)." : ". Aire seco: cada paso suma 0.05 μC (ilustrativo).") + "</div>";
+    $("lectura1").innerHTML = h;
+  }
+
+  // Posiciones de los electrones dibujados (torso y cabeza), en un orden revuelto fijo
+  function posicionesCarga(cx, cyCab, r, tx, ty, tw, th, sep) {
+    var pts = [], cols = Math.max(1, Math.floor((tw - 4) / sep)), filas = Math.max(1, Math.floor((th - 4) / sep));
+    var ox = tx + (tw - cols * sep) / 2 + sep / 2, oy = ty + (th - filas * sep) / 2 + sep / 2, a, b, k;
+    for (a = 0; a < filas; a++) for (b = 0; b < cols; b++) pts.push([ox + b * sep, oy + a * sep]);
+    var anillo = Math.max(3, Math.floor(2 * Math.PI * r * 0.55 / sep));
+    for (k = 0; k < anillo; k++) pts.push([cx + 0.55 * r * Math.cos(2 * Math.PI * k / anillo), cyCab + 0.55 * r * Math.sin(2 * Math.PI * k / anillo)]);
+    if (r > sep) pts.push([cx, cyCab]);
+    var s = 11;
+    for (k = pts.length - 1; k > 0; k--) {
+      s = (s * 9301 + 49297) % 233280;
+      var j = Math.floor(s / 233280 * (k + 1)), t = pts[k]; pts[k] = pts[j]; pts[j] = t;
+    }
+    return pts;
+  }
+  function extremidad(g, x0, y0, ang, largo, grosor) {
+    var x1 = x0 + largo * Math.sin(ang), y1 = y0 + largo * Math.cos(ang);
+    g.save(); g.lineCap = "round";
+    g.strokeStyle = C.azulOscuro; g.lineWidth = grosor; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.strokeStyle = C.azulClaro; g.lineWidth = Math.max(2, grosor - 5); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.restore();
+    return [x1, y1];
+  }
+  function persona(g, x, yPiso, H, fase, q) {
+    var r = 0.085 * H, yTop = yPiso - H, cyCab = yTop + r;
+    var tw = 0.30 * H, th = 0.38 * H, ty = yTop + 2 * r + 0.02 * H, yCad = ty + th - 0.03 * H;
+    var piernaL = yPiso - yCad - 4, brazoL = 0.36 * H, grosor = Math.max(9, 0.075 * H), ang = 0.42 * fase;
+    var pie1 = extremidad(g, x - 0.06 * H, yCad, ang, piernaL, grosor);
+    var pie2 = extremidad(g, x + 0.06 * H, yCad, -ang, piernaL, grosor);
+    [pie1, pie2].forEach(function (p) {
+      g.save(); g.fillStyle = C.azulOscuro; g.beginPath(); g.ellipse(p[0] + 4, yPiso - 3, grosor * 0.9, 4, 0, 0, 2 * Math.PI); g.fill(); g.restore();
+    });
+    extremidad(g, x - tw / 2 + grosor * 0.35, ty + 0.04 * H, -ang * 0.8, brazoL, grosor * 0.85);
+    extremidad(g, x + tw / 2 - grosor * 0.35, ty + 0.04 * H, ang * 0.8, brazoL, grosor * 0.85);
+    g.save(); redondeado(g, x - tw / 2, ty, tw, th, tw * 0.22); g.fillStyle = C.azulClaro; g.fill();
+    g.lineWidth = 2.5; g.strokeStyle = C.azulOscuro; g.stroke(); g.restore();
+    circulo(g, x, cyCab, r, C.azulClaro, C.azulOscuro, 2.5);
+    var sep = Math.max(8, 0.044 * H), pts = posicionesCarga(x, cyCab, r, x - tw / 2, ty, tw, th, sep);
+    var n = Math.round(q / Q_PASO + 1e-6), rs = sep * 0.4;
+    for (var i = 0; i < Math.min(n, pts.length); i++) electron(g, pts[i][0], pts[i][1], rs);
+    return { pie: ang >= 0 ? pie1 : pie2, tx: x - tw / 2, ty: ty, tw: tw, th: th, rs: rs, sobran: Math.max(0, n - pts.length), yTop: yTop };
+  }
+  function crearParticulas() {
+    anim1.parts = [];
+    for (var k = 0; k < 3; k++) anim1.parts.push({ fx: 0.2 + 0.6 * Math.random(), fy: 0.3 + 0.6 * Math.random(), retraso: k * 0.18 });
+  }
+  function suave(t) { return t * t * (3 - 2 * t); }
+
+  function medidorV(g, x0, x1, yBar, v, angosto) {
+    var L1 = Math.log10(30000);
+    function X(val) { return x0 + (Math.log10(Math.max(val, 10)) - 1) / (L1 - 1) * (x1 - x0); }
+    g.save(); g.fillStyle = C.grisClaro; redondeado(g, x0, yBar - 7, x1 - x0, 14, 7); g.fill(); g.restore();
+    if (v >= 10) { g.save(); g.fillStyle = v >= V_SUSCEPTIBLE ? C.guinda : C.azul; redondeado(g, x0, yBar - 7, Math.max(14, X(v) - x0), 14, 7); g.fill(); g.restore(); }
+    [[10, "10 V"], [100, "100 V"], [1000, "1 kV"], [10000, "10 kV"]].forEach(function (m) {
+      linea(g, X(m[0]), yBar + 7, X(m[0]), yBar + 13, C.gris, 1.5);
+      texto(g, m[1], Math.max(x0 + 14, X(m[0])), yBar + 29, C.gris, 15, "center");
+    });
+    function marca(val, color) {
+      g.save(); g.fillStyle = color; g.beginPath(); g.moveTo(X(val), yBar + 8); g.lineTo(X(val) - 6, yBar + 17); g.lineTo(X(val) + 6, yBar + 17); g.closePath(); g.fill(); g.restore();
+      linea(g, X(val), yBar - 11, X(val), yBar + 8, color, 2.5);
+    }
+    marca(100, C.guinda); marca(8000, C.azulOscuro); marca(15000, C.azulOscuro);
+    function leyenda(y, color, t) {
+      g.save(); g.fillStyle = color; g.beginPath(); g.moveTo(x0 + 6, y - 11); g.lineTo(x0, y - 1); g.lineTo(x0 + 12, y - 1); g.closePath(); g.fill(); g.restore();
+      texto(g, t, x0 + 18, y, color, 15, "left", "alphabetic", true);
+    }
+    leyenda(yBar + 50, C.guinda, angosto ? "100 V: puede dañar (S20.20)" : "100 V: componentes susceptibles a la descarga (ANSI/ESD S20.20)");
+    leyenda(yBar + 70, C.azulOscuro, angosto ? "8 y 15 kV: IEC 61000-4-2" : "8 kV y 15 kV: pruebas de inmunidad de un equipo, por contacto y por aire (IEC 61000-4-2)");
+    var xv = X(v), t = v >= 10 ? "tu cuerpo: " + fmtV(v) : "tu cuerpo: " + fmtV(v) + " (menos de 10 V)";
+    g.save(); g.fillStyle = C.azulOscuro; g.beginPath(); g.moveTo(xv, yBar - 9); g.lineTo(xv - 7, yBar - 19); g.lineTo(xv + 7, yBar - 19); g.closePath(); g.fill(); g.restore();
+    var wt = anchoTexto(t, 16, true);
+    etiqueta(g, t, Math.min(Math.max(xv, x0 + wt / 2), x1 - wt / 2), yBar - 24, C.azulOscuro, 16, "center", true);
+    if (!angosto) texto(g, "(escala logarítmica)", x1, yBar + 50, C.gris, 15, "right");
+  }
+
+  function dibujar1() {
+    var cv = $("lienzo1"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var dd = preparar(cv, angosto ? 1.45 : 0.6), g = dd.g, w = dd.w, h = dd.h;
+    g.clearRect(0, 0, w, h);
+    var altoMed = angosto ? 120 : 106, yPiso = h - altoMed - 22;
+    var rackW = angosto ? 46 : 86, rackX = w - rackW - 10;
+    var H = Math.min(angosto ? 200 : 290, yPiso - (angosto ? 82 : 76));
+    var xL = 14 + 0.22 * H, xR = rackX - 0.22 * H - 4;
+    // aire húmedo: gotitas de fondo
+    if (est.humedo) {
+      for (var k = 0; k < 26; k++) {
+        var gx = (k * 97 % 1000) / 1000 * (rackX - 20) + 10, gy = 80 + (k * 61 % 1000) / 1000 * (yPiso - 100);
+        circulo(g, gx, gy, 3.2, C.azulClaro, C.azul, 1);
+      }
+    }
+    // piso y alfombra
+    linea(g, 0, yPiso, w, yPiso, C.gris, 1.5);
+    g.save(); g.fillStyle = C.oroClaro; g.fillRect(8, yPiso, rackX - 14, 13); g.strokeStyle = C.oro; g.lineWidth = 1.5; g.strokeRect(8, yPiso, rackX - 14, 13);
+    g.beginPath(); g.rect(8, yPiso, rackX - 14, 13); g.clip();
+    for (var xh = 8; xh < rackX; xh += 9) linea(g, xh, yPiso + 13, xh + 9, yPiso, C.oro, 1.2, null, 0.7);
+    g.restore();
+    // rack
+    var rackH = Math.min(H * 0.92, yPiso - 70);
+    g.save(); g.fillStyle = C.azulOscuro; redondeado(g, rackX, yPiso - rackH, rackW, rackH, 4); g.fill(); g.restore();
+    var u = 7;
+    for (var i = 0; i < u; i++) {
+      var yu = yPiso - rackH + 8 + i * (rackH - 16) / u;
+      linea(g, rackX + 6, yu, rackX + rackW - 6, yu, "rgba(255,255,255,0.28)", 1.2);
+      circulo(g, rackX + rackW - 12, yu + (rackH - 16) / u / 2, 2.6, i % 3 === 0 ? C.oro : "#7FA0CF");
+    }
+    texto(g, "rack", rackX + rackW / 2, yPiso - rackH - 8, C.gris, 15, "center");
+    // persona
+    var pos = anim1.pos + (anim1.enPaso ? anim1.dir * suave(Math.min(1, anim1.t)) : 0);
+    var x = xL + (xR - xL) * pos / POS_MAX;
+    var fase = anim1.enPaso ? Math.sin(Math.PI * Math.min(1, anim1.t)) * (anim1.paridad ? 1 : -1) : 0;
+    var p = persona(g, x, yPiso, H, fase, est.q);
+    // electrones que pasan de la alfombra al cuerpo durante el paso
+    if (anim1.enPaso && !est.pulsera) {
+      anim1.parts.forEach(function (pt) {
+        var s = Math.max(0, Math.min(1, (anim1.t - pt.retraso) / (1 - pt.retraso)));
+        if (s <= 0 || s >= 1) return;
+        var xa = p.pie[0], ya = yPiso - 2, xb = p.tx + pt.fx * p.tw, yb = p.ty + pt.fy * p.th;
+        electron(g, xa + (xb - xa) * suave(s), ya + (yb - ya) * suave(s), p.rs, 0.9);
+      });
+    }
+    if (p.sobran > 0) etiqueta(g, "+" + p.sobran + " símbolos más", x, p.yTop - 8, C.azul, 15, "center", true);
+    // textos
+    var v = V();
+    texto(g, "|Q| = " + fmtQ(est.q) + " · V = " + fmtV(v), 12, 24, C.azulOscuro, angosto ? 16 : 18, "left", "alphabetic", true);
+    texto(g, "Pasos: " + est.pasos + " · " + (est.humedo ? "aire húmedo" : "aire seco") + (est.aMano ? (angosto ? " · a mano" : " · ajuste a mano") : ""), 12, angosto ? 44 : 46, C.gris, 15);
+    if (est.pulsera) {
+      if (angosto) etiqueta(g, "Pulsera puesta: Q se va a tierra", 12, 66, C.guinda, 15, "left", true);
+      else etiqueta(g, "Pulsera puesta: tu carga se va a tierra", w - 12, 24, C.guinda, 16, "right", true);
+    } else {
+      var yLey = angosto ? 66 : 24, xLey = angosto ? 12 : w - 12 - anchoTexto("= 0.05 μC ≈ 3.1×10¹¹ electrones", 15) - 16;
+      electron(g, xLey + 6, yLey - 5, 6);
+      texto(g, "= 0.05 μC ≈ 3.1×10¹¹ electrones", xLey + 16, yLey, C.gris, 15);
+    }
+    medidorV(g, 14, w - 14, yPiso + 13 + (angosto ? 42 : 40), v, angosto);
+  }
+
+  $("paso").addEventListener("click", function () { if (!est.pulsera) { anim1.pend += 1; arrancar(); } });
+  $("diez").addEventListener("click", function () { if (!est.pulsera) { anim1.pend += 10; arrancar(); } });
+  $("descargar").addEventListener("click", function () {
+    anim1.pend = 0; est.pasos = 0; est.aMano = false; ponerCarga(0, "reinicio");
+  });
+  $("ambiente").addEventListener("change", function () { est.humedo = $("ambiente").value === "humedo"; actualizar(); });
+  $("carga").addEventListener("input", function () { ponerCarga(Number($("carga").value) * 1e-6, "mano"); });
+
+  function terminarPaso() {
+    if (!est.pulsera) {
+      var q = est.q + Q_PASO;
+      if (est.humedo) q *= (1 - FUGA_HUMEDO);
+      est.q = Math.min(q, Q_MAX);
+      est.pasos += 1;
+      borrarPrediccion();
+    }
+    anim1.pos += anim1.dir;
+    if (anim1.pos >= POS_MAX) anim1.dir = -1; else if (anim1.pos <= 0) anim1.dir = 1;
+    anim1.paridad = 1 - anim1.paridad;
+    sincronizar(); lectura1(); lectura2(); lectura3(); textoResultado();
+  }
+
+  // ================================================================ VISTA 2
+  function lectura2() {
+    var v = V(), d = est.d, E = d > 0 ? v / (d * 1e-3) : 0, dc = v / E_RIGIDEZ * 1e3, ver = est.revelado || est.siempre, h = "";
+    h += "<div class='renglon'><b>Tu cuerpo:</b> V = |Q|/C = " + fmtV(v) + (est.pulsera ? " (la pulsera lo mantiene a tierra)" : "") + "</div>";
+    if (d <= 0) {
+      h += "<div class='renglon'><b>Dedo en contacto con el metal</b> (d = 0): ya no hay hueco de aire. " +
+           (v > 0 ? "La carga pasa directo al metal." : "Sin voltaje entre tu dedo y el metal, no pasa carga.") + "</div>";
+      $("lectura2").innerHTML = h; return;
+    }
+    h += "<div class='renglon'><b>Campo en el hueco</b> (campo uniforme, E = ΔV/d)";
+    if (!ver) {
+      h += "<span class='formula'>E = " + num(v, 0) + " / (" + dSust(d) + ") = <b>?</b></span>¿Supera la rigidez dieléctrica del aire, ≈ 3×10⁶ V/m? Elige tu predicción y comprueba.</div>";
+      $("lectura2").innerHTML = h; return;
+    }
+    h += "<span class='formula'>E = " + num(v, 0) + " / (" + dSust(d) + ") = <b>" + sci(E, 3) + " V/m</b></span>";
+    if (v <= 0) h += "Sin carga no hay campo: no puede saltar la chispa.";
+    else if (E >= E_RIGIDEZ) h += "<span class='mal'>" + sci(E, 3) + " V/m ≥ 3×10⁶ V/m:</span> el aire deja de aislar (" + pct(E / E_RIGIDEZ) + " de la rigidez).";
+    else h += "<span class='ok'>" + sci(E, 3) + " V/m &lt; 3×10⁶ V/m:</span> el aire sigue aislando (" + pct(E / E_RIGIDEZ) + " de la rigidez).";
+    h += "</div>";
+    if (v > 0) {
+      h += "<div class='renglon'><b>Distancia de chispa</b> (se despeja d de E = V/d)<span class='formula'>d = V/E<sub>r</sub> = " + num(v, 0) +
+           " / (3×10⁶) = <b>" + mmTxt(dc) + "</b></span>" + (dc < 0.1 ? "Prácticamente al contacto: no se vería chispa." : "A esta distancia o menos, la chispa salta antes del contacto.") + "</div>";
+      h += "<div class='renglon'><b>Fuerza sobre un electrón libre del hueco</b> (F = qE)<span class='formula'>F = eE = (1.602×10⁻¹⁹)(" + sci(E, 3) +
+           ") = <b>" + sci(E_CARGA * E, 3) + " N</b></span>" +
+           (E >= E_RIGIDEZ ? "Entre choque y choque gana energía suficiente para ionizar moléculas; los electrones liberados repiten el proceso en cascada: avalancha." : "") + "</div>";
+    }
+    $("lectura2").innerHTML = h;
+  }
+
+  function textoResultado() {
+    var r = est.resultado, h = "";
+    if (r) {
+      var nombre = est.objetivo === "usb" ? "el conector USB" : "los contactos del módulo";
+      var destino = est.objetivo === "usb" ? "al conector USB" : "a los contactos del módulo";
+      if (r.tipo === "contacto") {
+        h = "Tocaste " + nombre + " <b>sin chispa</b>: " + (est.pulsera ? "la pulsera mantuvo tu cuerpo a tierra (0 V)." : "tu cuerpo estaba a 0 V.");
+      } else {
+        var chispaPred = r.modo === "acercar" ? r.chispaInicial : r.tipo === "chispa";
+        var veredicto = "";
+        if (r.pred) {
+          var acierto = (r.pred === "si") === chispaPred;
+          veredicto = acierto ? "<span class='ok'>✓ Acertaste.</span> " : "<span class='mal'>✗ No era así.</span> ";
+        } else veredicto = "Sin predicción. ";
+        if (r.modo === "acercar") {
+          h = veredicto + "A " + mmTxt(r.dInicial) + (r.chispaInicial ? " ya saltaba la chispa." : " no saltaba.") +
+              " <b>Al acercar el dedo, la chispa saltó a d = " + mmTxt(r.d) + "</b>, donde E alcanzó 3×10⁶ V/m.";
+        } else if (r.tipo === "chispa") {
+          h = veredicto + "<b>Sí salta:</b> E = " + sci(r.E, 3) + " V/m supera la rigidez del aire.";
+        } else {
+          h = veredicto + "<b>No salta:</b> E = " + sci(r.E, 3) + " V/m no alcanza 3×10⁶ V/m.";
+        }
+        if (r.tipo === "chispa") {
+          h += " <span class='formula'>E = V/d = " + num(r.v, 0) + " / (" + dSust(r.d) + ") = " + sci(r.E, 3) + " V/m</span>";
+          h += "Tu carga (" + fmtQ(r.q) + ", " + sci(r.q / E_CARGA, 3) + " electrones) pasó " + destino + " en menos de un microsegundo" +
+               (est.objetivo === "modulo" ? ": un componente susceptible puede dañarse (pestaña 3)." : ".") + " Usa \"Volver a cargar\" para repetir.";
+        }
+      }
+    } else if (!est.pred && !est.siempre) {
+      h = "<span class='nota'>Elige tu predicción y luego comprueba o acerca el dedo.</span>";
+    }
+    $("resultado2").innerHTML = h;
+  }
+
+  function chispa(modo) {
+    var v = V(), E = est.d > 0 ? v / (est.d * 1e-3) : Infinity;
+    est.resultado = { tipo: "chispa", modo: modo, v: v, d: est.d, E: E, q: est.q, pred: modo === "acercar" ? est.predInicial : est.pred,
+                      dInicial: est.dInicial, chispaInicial: est.dInicial <= v / E_RIGIDEZ * 1e3 };
+    est.revelado = true; est.qPrev = est.q;
+    est.chispa = { t0: performance.now(), descargado: false, semilla: 1 };
+    mostrarGrafica();
+    textoResultado(); lectura2(); arrancar();
+  }
+  function mostrarGrafica() { if (!est.grafica) { est.grafica = true; $("verGrafica").checked = true; } }
+  function comprobar() {
+    if (est.acercando || est.chispa) return;
+    var v = V(), E = est.d > 0 ? v / (est.d * 1e-3) : 0;
+    est.revelado = true; est.dInicial = est.d;
+    if (v > 0 && E >= E_RIGIDEZ) { chispa("comprobar"); return; }
+    est.resultado = { tipo: "no", modo: "comprobar", v: v, d: est.d, E: E, q: est.q, pred: est.pred };
+    mostrarGrafica();
+    actualizar();
+  }
+  function acercar() {
+    if (est.acercando || est.chispa) return;
+    var v = V(), dc = v / E_RIGIDEZ * 1e3;
+    est.dInicial = est.d; est.predInicial = est.pred; est.revelado = true; est.resultado = null;
+    if (v > 0 && est.d <= dc) { chispa("acercar"); return; }
+    est.acercando = true; est.velAcerca = Math.max(1.5, est.d / 2.5);
+    actualizar(); arrancar();
+  }
+  $("predSi").addEventListener("click", function () { est.pred = "si"; est.resultado = null; est.revelado = false; actualizar(); });
+  $("predNo").addEventListener("click", function () { est.pred = "no"; est.resultado = null; est.revelado = false; actualizar(); });
+  $("comprobar").addEventListener("click", comprobar);
+  $("acercar").addEventListener("click", acercar);
+  $("recargar").addEventListener("click", function () { if (!est.pulsera && est.qPrev > 0) ponerCarga(est.qPrev, "recarga"); });
+  $("volt2").addEventListener("input", function () { ponerCarga(Number($("volt2").value) * 1000 * C_CUERPO, "mano"); });
+  $("dist").addEventListener("input", function () { if (est.acercando) return; est.d = Number($("dist").value); borrarPrediccion(); actualizar(); });
+  $("objetivo").addEventListener("change", function () { est.objetivo = $("objetivo").value; actualizar(); });
+  $("pulsera2").addEventListener("change", function () { ponerPulsera($("pulsera2").checked); });
+  $("siempre2").addEventListener("change", function () { est.siempre = $("siempre2").checked; if (est.siempre) mostrarGrafica(); actualizar(); });
+  $("verGrafica").addEventListener("change", function () { est.grafica = $("verGrafica").checked; dibujarActiva(); });
+
+  // Arrastrar el dedo en el dibujo (dedo o mouse): al cruzar la distancia de chispa, salta
+  var geo2 = null, arrastre = null, cv2 = $("lienzo2");
+  function posicion(ev) { var r = cv2.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
+  cv2.addEventListener("pointerdown", function (ev) {
+    if (!geo2 || est.acercando || est.chispa) return;
+    var p = posicion(ev);
+    if (p.x > geo2.xPunta + 30 || Math.abs(p.y - geo2.yc) > geo2.T * 1.8) return;
+    arrastre = { dx: geo2.xPunta - p.x, chispa: false };
+    est.dInicial = est.d; est.predInicial = est.pred; est.revelado = true; est.resultado = null;
+    try { cv2.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura del puntero */ }
+    actualizar();
+  });
+  cv2.addEventListener("pointermove", function (ev) {
+    if (!arrastre || !geo2) return;
+    var p = posicion(ev), d = (geo2.xObj - (p.x + arrastre.dx)) / geo2.pxmm, v = V(), dc = v / E_RIGIDEZ * 1e3;
+    if (v > 0 && d <= dc) { est.d = dc; arrastre = null; chispa("acercar"); sincronizar(); return; }
+    est.d = Math.min(D_MAX, Math.max(0.2, d));
+    sincronizar(); lectura2(); dibujarActiva();
+  });
+  function soltar() {
+    if (!arrastre) return;
+    arrastre = null; est.pred = null;     // la predicción era para la distancia anterior
+    actualizar();
+  }
+  cv2.addEventListener("pointerup", soltar);
+  cv2.addEventListener("pointercancel", soltar);
+
+  function dibujarUSB(g, xObj, yc, w, T) {
+    var caja = xObj + 0.08 * w, alto = 2.7 * T;
+    g.save(); g.fillStyle = C.azulOscuro; redondeado(g, caja, yc - alto / 2, w - caja + 20, alto, 10); g.fill(); g.restore();
+    g.save(); g.fillStyle = C.grisClaro; g.strokeStyle = C.gris; g.lineWidth = 2;
+    g.fillRect(xObj, yc - 0.48 * T, caja - xObj + 6, 0.96 * T); g.strokeRect(xObj, yc - 0.48 * T, caja - xObj + 6, 0.96 * T); g.restore();
+    g.save(); g.fillStyle = C.tinta; g.fillRect(xObj + 6, yc - 0.3 * T, caja - xObj - 4, 0.6 * T); g.restore();
+    g.save(); g.fillStyle = C.borde; g.fillRect(xObj + 10, yc - 0.12 * T, caja - xObj - 12, 0.24 * T); g.restore();
+    return { etiqueta: "conector USB · 0 V (tierra)", xc: (xObj + w) / 2, yAbajo: yc + alto / 2 };
+  }
+  function dibujarModulo(g, xObj, yc, w, T, angosto) {
+    var ancho = (angosto ? 0.16 : 0.12) * w, alto = 3.3 * T, x0 = xObj + 9;
+    g.save(); g.fillStyle = C.azulOscuro; redondeado(g, x0, yc - alto / 2, ancho, alto, 5); g.fill(); g.restore();
+    for (var y = yc - alto / 2 + 5; y < yc + alto / 2 - 8; y += 10) { g.save(); g.fillStyle = C.oro; g.fillRect(xObj, y, 9, 6); g.restore(); }
+    for (var k = 0; k < 3; k++) {
+      var yk = yc - alto / 2 + 10 + k * (alto - 20) / 3;
+      g.save(); g.fillStyle = C.tinta; g.fillRect(x0 + ancho * 0.25, yk, ancho * 0.6, (alto - 20) / 3 - 8); g.restore();
+    }
+    return { etiqueta: "contactos de un módulo de memoria", xc: xObj + (ancho + 9) / 2, yAbajo: yc + alto / 2 };
+  }
+
+  function dibujar2() {
+    var cv = $("lienzo2"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var dd = preparar(cv, angosto ? 0.96 : 0.48), g = dd.g, w = dd.w, h = dd.h;
+    g.clearRect(0, 0, w, h);
+    var v = V(), dmm = est.d, E = dmm > 0 ? v / (dmm * 1e-3) : 0, ver = est.revelado || est.siempre;
+    var yc = angosto ? h * 0.5 : h * 0.54, T = angosto ? 36 : Math.min(52, h * 0.13);
+    var xObj = w * (angosto ? 0.68 : 0.64), xMin = w * (angosto ? 0.2 : 0.22);
+    var pxmm = (xObj - xMin) / D_MAX, xPunta = xObj - Math.max(0, dmm) * pxmm;
+    geo2 = { xPunta: xPunta, xObj: xObj, pxmm: pxmm, yc: yc, T: T };
+    // objetivo
+    var obj = est.objetivo === "usb" ? dibujarUSB(g, xObj, yc, w, T) : dibujarModulo(g, xObj, yc, w, T, angosto);
+    // líneas de campo: apuntan del metal (a 0 V) hacia el dedo (negativo)
+    var hueco = xObj - xPunta;
+    if (v > 0 && hueco > 18 && !est.chispa) {
+      var alfa = Math.max(0.12, Math.min(1, E / E_RIGIDEZ));
+      for (var k = -2; k <= 2; k++) flecha(g, xObj - 4, yc + k * T * 0.2, xPunta + 6, yc + k * T * 0.2, C.azul, 2, alfa);
+      if (hueco > 46) etiqueta(g, "E", (xObj + xPunta) / 2, yc - T * 0.55 + 2, C.azul, 16, "center", true);
+    }
+    // cargas: electrones en la punta del dedo y carga positiva inducida en el metal
+    var nq = v <= 0 ? 0 : Math.min(10, Math.max(1, Math.round(v / 1500 + 1)));
+    // mano (puño con los otros dedos doblados) y dedo índice
+    var largoDedo = (angosto ? 0.34 : 0.24) * w, xMano = xPunta - largoDedo;
+    g.save(); g.fillStyle = C.oroClaro; g.strokeStyle = C.oro; g.lineWidth = 3;
+    redondeado(g, xMano - 0.4 * w, yc - 0.55 * T, 0.4 * w + 6, 2.35 * T, 0.45 * T); g.fill(); g.stroke();
+    for (var dd2 = 0; dd2 < 3; dd2++) {
+      redondeado(g, xMano - 0.28 * T, yc + 0.55 * T + dd2 * 0.42 * T, 0.62 * T, 0.46 * T, 0.2 * T); g.fill(); g.stroke();
+    }
+    redondeado(g, xMano - 10, yc - T / 2, largoDedo + 10, T, T / 2); g.fill(); g.stroke(); g.restore();
+    g.save(); g.fillStyle = "#fff"; g.strokeStyle = C.oro; g.lineWidth = 1.5;
+    redondeado(g, xPunta - 1.15 * T, yc - T / 2 + 4, 0.7 * T, 0.32 * T, 5); g.fill(); g.stroke(); g.restore();
+    for (var a = 0; a < nq; a++) {
+      var th = -1.2 + 2.4 * (nq === 1 ? 0.5 : a / (nq - 1));
+      electron(g, xPunta - T / 2 + (T / 2 - 7) * Math.cos(th), yc + (T / 2 - 7) * Math.sin(th), 5.5);
+      positivo(g, xObj + (est.objetivo === "usb" ? 6 : 15), yc + (T * 0.42) * Math.sin(th), 5.5);
+    }
+    // pulsera
+    if (est.pulsera) {
+      var xp = Math.max(18, xMano - 0.4 * w + 26);
+      g.save(); g.fillStyle = C.gris; g.fillRect(xp - 7, yc - 0.6 * T, 14, 2.7 * T); g.restore();
+      g.save(); g.strokeStyle = C.gris; g.lineWidth = 2; g.beginPath();
+      var ys = yc + 2.1 * T, yt = h - 34;
+      g.moveTo(xp, ys);
+      for (var yy = ys; yy < yt; yy += 6) g.lineTo(xp + ((yy - ys) / 6 % 2 < 1 ? 6 : -6), yy);
+      g.lineTo(xp, yt); g.stroke(); g.restore();
+      tierra(g, xp, yt, C.gris);
+      etiqueta(g, "pulsera a tierra", xp + 16, yt + 4, C.gris, 15, "left", true);
+    }
+    // cota de la distancia
+    var yCota = yc - T / 2 - 22;
+    if (hueco > 6) {
+      linea(g, xPunta, yCota - 6, xPunta, yCota + 6, C.gris, 1.5); linea(g, xObj, yCota - 6, xObj, yCota + 6, C.gris, 1.5);
+      linea(g, xPunta, yCota, xObj, yCota, C.gris, 1.5);
+    }
+    var tCota = "d = " + mmTxt(dmm), wc = anchoTexto(tCota, 16, true);
+    etiqueta(g, tCota, Math.min(Math.max((xPunta + xObj) / 2, wc / 2 + 8), xObj - wc / 2 - 2), yCota - 10, C.tinta, 16, "center", true);
+    // chispa y avalancha
+    if (est.chispa) {
+      var edad = (performance.now() - est.chispa.t0) / 1000;
+      if (edad < 0.12) { g.save(); g.fillStyle = "rgba(247,241,230,0.75)"; g.fillRect(0, 0, w, h); g.restore(); }
+      var n = Math.max(4, Math.round(hueco / 12)), pts = [];
+      for (var i = 0; i <= n; i++) {
+        var f = i / n, azar = Math.sin(i * 12.9898 + Math.floor(edad * 18) * 78.233) * 43758.5453;
+        var jit = (i === 0 || i === n) ? 0 : (azar - Math.floor(azar) - 0.5) * T * 0.8;
+        pts.push([xPunta + f * hueco, yc + jit]);
+      }
+      // destellos en los extremos y canal de la chispa (halo, núcleo dorado y centro blanco)
+      g.save(); g.globalAlpha = 0.55; circulo(g, xPunta, yc, 0.5 * T, C.oroClaro); circulo(g, xObj, yc, 0.5 * T, C.oroClaro); g.restore();
+      [[16, "rgba(184,151,90,0.35)"], [7, C.oro], [2.5, "#fff"]].forEach(function (capa) {
+        g.save(); g.strokeStyle = capa[1]; g.lineWidth = capa[0]; g.lineJoin = "round"; g.lineCap = "round"; g.beginPath();
+        pts.forEach(function (pp, j) { if (j === 0) g.moveTo(pp[0], pp[1]); else g.lineTo(pp[0], pp[1]); });
+        g.stroke(); g.restore();
+      });
+      // avalancha: cada electrón libera otro en cada tramo del hueco (1, 2, 4, 8)
+      var tramos = Math.min(4, Math.floor(hueco / 28));
+      for (var gen = 0; gen < tramos; gen++) {
+        var cuantos = Math.pow(2, gen), sepY = Math.min(9, 0.7 * T / cuantos);
+        for (var c = 0; c < cuantos; c++) {
+          var s = ((edad * 1.6 + gen / tramos) % 1), xe = xPunta + (gen + s) / tramos * hueco;
+          electron(g, xe, yc + (c - (cuantos - 1) / 2) * sepY, 3.6, 0.95);
+        }
+      }
+    }
+    // textos
+    texto(g, "V = " + fmtV(v) + " · d = " + mmTxt(dmm), 12, 24, C.azulOscuro, angosto ? 16 : 18, "left", "alphabetic", true);
+    var t2 = ver ? (angosto ? "E = " : "E = V/d = ") + sci(E, 3) + " V/m" + (v > 0 ? " (" + pct(E / E_RIGIDEZ) + " de 3×10⁶)" : "")
+                 : (angosto ? "E = ? (predice y comprueba)" : "E = ? (predice antes de comprobar)");
+    texto(g, t2, 12, angosto ? 44 : 46, ver ? C.tinta : C.gris, 15);
+    var r = est.resultado, estado = null, colorEstado = C.azul;
+    if (est.chispa || (r && r.tipo === "chispa")) { estado = "¡Chispa!"; colorEstado = C.guinda; }
+    else if (r && r.tipo === "no") estado = "No salta";
+    else if (r && r.tipo === "contacto") estado = "Contacto sin chispa";
+    else if (est.acercando) estado = "Acercando…";
+    if (estado) {
+      if (angosto) etiqueta(g, estado, 12, 68, colorEstado, 18, "left", true);
+      else etiqueta(g, estado, w - 14, 26, colorEstado, 20, "right", true);
+    }
+    var wEt = anchoTexto(obj.etiqueta, 15, true);
+    etiqueta(g, obj.etiqueta, Math.min(Math.max(obj.xc, wEt / 2 + 6), w - wEt / 2 - 6), Math.min(h - 10, obj.yAbajo + 22), C.gris, 15, "center", true);
+    if (!est.pulsera) etiqueta(g, v > 0 ? "dedo cargado" : "dedo sin carga", Math.max(70, xPunta - largoDedo / 2), yc + 2.05 * T + 22 > h - 10 ? yc + T / 2 + 20 : yc + 2.05 * T + 22, C.oroTexto, 15, "center", true);
+    if (!angosto) texto(g, "dibujo no a escala", w - 14, h - 10, C.gris, 15, "right");
+  }
+
+  function dibujarGrafica2() {
+    var cv = $("grafica2");
+    cv.hidden = !est.grafica;
+    if (!est.grafica) return;
+    var w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var dd = preparar(cv, angosto ? 0.9 : 0.42), g = dd.g, w = dd.w, h = dd.h;
+    g.clearRect(0, 0, w, h);
+    var izq = angosto ? 44 : 58, der = w - 16, arr = 40, abj = h - 46, EMAX = 10;
+    function X(d) { return izq + d / D_MAX * (der - izq); }
+    function Y(e) { return abj - Math.min(e, EMAX) / EMAX * (abj - arr); }
+    var v = V(), dc = v / E_RIGIDEZ * 1e3;
+    if (v > 0) {
+      g.save(); g.fillStyle = C.guindaClaro; g.fillRect(X(0), arr, X(Math.min(dc, D_MAX)) - X(0), abj - arr); g.restore();
+    }
+    for (var e = 0; e <= EMAX; e += 2) {
+      linea(g, izq, Y(e), der, Y(e), e === 0 ? C.gris : C.grisClaro, e === 0 ? 1.5 : 1);
+      texto(g, String(e), izq - 6, Y(e) + 5, C.gris, 15, "right");
+    }
+    var pasoD = angosto ? 2 : 1;
+    for (var d = 0; d <= D_MAX; d += pasoD) {
+      linea(g, X(d), arr, X(d), abj, d === 0 ? C.gris : C.grisClaro, d === 0 ? 1.5 : 1);
+      texto(g, String(d), X(d), abj + 20, C.gris, 15, "center");
+    }
+    texto(g, "distancia d (mm)", der, abj + 38, C.tinta, 15, "right");
+    texto(g, "E (10⁶ V/m)", izq - 6, arr - 14, C.tinta, 15, "left", "alphabetic", true);
+    linea(g, izq, Y(3), der, Y(3), C.guinda, 2.5, [8, 5]);
+    var tRig = "rigidez del aire ≈ 3×10⁶ V/m", wRig = anchoTexto(tRig, 15, true);
+    etiqueta(g, tRig, der - 4, Y(3) - 8, C.guinda, 15, "right", true);
+    var cajaRig = { x0: der - 4 - wRig - 4, x1: der, y0: Y(3) - 24, y1: Y(3) - 2 };
+    if (v <= 0) { etiqueta(g, "Sin carga: E = 0 para toda d", (izq + der) / 2, (arr + abj) / 2, C.gris, 16, "center", true); return; }
+    g.save(); g.beginPath(); g.rect(izq, arr - 2, der - izq, abj - arr + 4); g.clip();
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    var d0 = Math.max(0.02, v / (EMAX * 1e6) * 1e3 * 0.98), empezado = false;
+    for (var i = 0; i <= 400; i++) {
+      var di = d0 + (D_MAX - d0) * i / 400, ei = v / (di * 1e-3) / 1e6;
+      if (!empezado) { g.moveTo(X(di), Y(ei)); empezado = true; } else g.lineTo(X(di), Y(ei));
+    }
+    g.stroke(); g.restore();
+    if (dc <= D_MAX) {
+      linea(g, X(dc), arr, X(dc), abj, C.guinda, 1.5, [3, 4]);
+      var tdc = "d = V/(3×10⁶) = " + mmTxt(dc), wd = anchoTexto(tdc, 15, true);
+      etiqueta(g, tdc, Math.min(X(dc) + 6, der - wd - 2), arr + 16, C.guinda, 15, "left", true);
+      if (X(dc) - X(0) > 120) etiqueta(g, "salta la chispa", X(dc / 2), abj - 10, C.guinda, 15, "center", true);
+    }
+    var dAct = Math.max(0.02, est.d), eAct = v / (dAct * 1e-3) / 1e6;
+    if (dAct <= D_MAX && eAct <= EMAX) {
+      var px = X(dAct), py = Y(eAct);
+      circulo(g, px, py, 7, C.azul, "#fff", 2);
+      var tp = angosto ? "tu dedo" : "tu dedo: " + sig(eAct, 3) + "×10⁶ V/m", wp = anchoTexto(tp, 15, true);
+      // se prueban varias posiciones hasta que la etiqueta no choque con la de la rigidez ni se salga
+      var opciones = [[px + 10, py - 10], [px - 10 - wp, py - 10], [px + 10, py + 22], [px - 10 - wp, py + 22], [px - wp / 2, py - 18], [px - wp / 2, py + 26]];
+      var elegida = null;
+      for (var o = 0; o < opciones.length && !elegida; o++) {
+        var ox = opciones[o][0], oy = Math.max(arr + 34, Math.min(abj - 6, opciones[o][1]));
+        var choca = ox < cajaRig.x1 && ox + wp > cajaRig.x0 && oy - 15 < cajaRig.y1 && oy + 4 > cajaRig.y0;
+        if (ox >= izq + 2 && ox + wp <= der - 2 && !choca) elegida = [ox, oy];
+      }
+      if (!elegida) elegida = [Math.min(Math.max(izq + 2, px - wp / 2), der - wp - 2), Math.min(abj - 6, py + 22)];
+      etiqueta(g, tp, elegida[0], elegida[1], C.azul, 15, "left", true);
+    }
+  }
+
+  // ================================================================ VISTA 3
+  function renglon(titulo, ley, formula) {
+    return "<div class='renglon'><b>" + titulo + "</b> (" + ley + ")<span class='formula'>" + formula + "</span>";
+  }
+  function lectura3() {
+    var v = V(), h = "";
+    if (v <= 0) {
+      $("lectura3").innerHTML = est.pulsera ? "<b>Con la pulsera</b> tu cuerpo está conectado a tierra (V₀ = 0): al tocar no hay descarga sobre el componente."
+                                            : "<b>V₀ = 0:</b> sin carga no hay descarga. Sube el voltaje aquí o camina en la pestaña 1.";
+      return;
+    }
+    var q = C_CUERPO * v, u = 0.5 * C_CUERPO * v * v, i0 = v / R_HBM, dc = v / E_RIGIDEZ * 1e3;
+    h += renglon("Carga que se descarga", "C = Q/V", "Q = CV₀ = (100×10⁻¹²)(" + num(v, 0) + ") = <b>" + fmtQ(q) + "</b>") + "</div>";
+    h += renglon("Energía", "U = ½CV²", "U = ½(100×10⁻¹²)(" + num(v, 0) + ")² = <b>" + fmtU(u) + "</b>") + "</div>";
+    h += renglon("Corriente inicial", "Ley de Ohm, V = IR", "I₀ = V₀/R = " + num(v, 0) + " / 1 500 = <b>" + fmtI(i0) + "</b>") + "</div>";
+    h += renglon("Duración", "τ = RC", "τ = (1 500)(100×10⁻¹²) = <b>150 ns</b>") +
+         "A los 300 ns (2τ) queda e⁻² ≈ 13.5 % del voltaje: todo ocurre en menos de un microsegundo.</div>";
+    h += renglon("Chispa visible desde", "d = V/E<sub>r</sub>", "d = " + num(v, 0) + " / (3×10⁶) = <b>" + mmTxt(dc) + "</b>") +
+         (dc < 0.1 ? "Prácticamente al contacto: no verías chispa." : "") + "</div>";
+    h += "<div class='renglon'><b>Si tocas un módulo de memoria sin pulsera:</b> " +
+         (v >= V_SUSCEPTIBLE ? "<span class='mal'>V₀ ≥ 100 V, puede dañarse.</span> El programa ANSI/ESD S20.20 protege componentes susceptibles a descargas de 100 V o más."
+                             : "<span class='ok'>V₀ &lt; 100 V</span>, debajo del nivel de referencia de ANSI/ESD S20.20; la pulsera se usa de todos modos.") + "</div>";
+    h += "<div class='renglon'><b>Si tocas el conector USB de un equipo:</b> los puertos expuestos llevan protecciones contra ESD; <span class='nw'>IEC 61000-4-2</span> prueba los equipos con descargas de hasta 8 kV por contacto y 15 kV por aire.</div>";
+    $("lectura3").innerHTML = h;
+  }
+  $("v0").addEventListener("input", function () {
+    var p = Number($("v0").value), v = Math.pow(10, LOG_MIN + (LOG_MAX - LOG_MIN) * p / 1000);
+    ponerCarga(v * C_CUERPO, "mano");
+  });
+  document.querySelectorAll("#v3 button[data-v]").forEach(function (b) {
+    b.addEventListener("click", function () { ponerCarga(Number(b.dataset.v) * C_CUERPO, "mano"); });
+  });
+  $("pulsera3").addEventListener("change", function () { ponerPulsera($("pulsera3").checked); });
+
+  function bonito(x) {
+    var e = Math.pow(10, Math.floor(Math.log10(x))), m = x / e, op = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+    for (var i = 0; i < op.length; i++) if (m <= op[i] + 1e-9) return op[i] * e;
+    return 10 * e;
+  }
+  function dibujar3() {
+    var cv = $("lienzo3"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var dd = preparar(cv, angosto ? 1.22 : 0.56), g = dd.g, w = dd.w, h = dd.h;
+    g.clearRect(0, 0, w, h);
+    var v = V(), i0 = v / R_HBM, tau = 150;
+    // esquema del modelo del cuerpo humano: C en serie con R y el chip, lazo cerrado por tierra
+    var ye = 46, xc = angosto ? 32 : 62, xr0 = xc + (angosto ? 44 : 80), xr1 = xr0 + (angosto ? 60 : 80), xch = xr1 + (angosto ? 28 : 46), wch = angosto ? 70 : 92;
+    var yb = ye + 40, xFin = xch + wch + 12;
+    linea(g, xc - 7, ye - 12, xc - 7, ye + 12, C.azulOscuro, 3); linea(g, xc + 7, ye - 12, xc + 7, ye + 12, C.azulOscuro, 3);
+    linea(g, xc + 7, ye, xr0, ye, C.azulOscuro, 2);
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.beginPath(); g.moveTo(xr0, ye);
+    for (var z = 1; z <= 6; z++) g.lineTo(xr0 + (xr1 - xr0) * z / 6 - (xr1 - xr0) / 12, ye + (z % 2 ? -8 : 8));
+    g.lineTo(xr1, ye); g.stroke(); g.restore();
+    linea(g, xr1, ye, xch, ye, C.azulOscuro, 2);
+    g.save(); g.fillStyle = C.tinta; g.fillRect(xch, ye - 15, wch, 30); g.restore();
+    texto(g, "chip", xch + wch / 2, ye + 5, "#fff", 15, "center", "alphabetic", true);
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.beginPath();
+    g.moveTo(xc - 7, ye); g.lineTo(xc - 19, ye); g.lineTo(xc - 19, yb); g.lineTo(xFin, yb); g.lineTo(xFin, ye); g.lineTo(xch + wch, ye);
+    g.stroke(); g.restore();
+    var xTierra = (xr1 + xch) / 2;
+    linea(g, xTierra, yb, xTierra, yb + 4, C.azulOscuro, 2); tierra(g, xTierra, yb + 4, C.azulOscuro);
+    texto(g, angosto ? "C = 100 pF" : "C = 100 pF (tu cuerpo)", xc - 19, ye - 20, C.tinta, 15, "left", "alphabetic", true);
+    texto(g, "R = 1 500 Ω", (xr0 + xr1) / 2, ye + 30, C.tinta, 15, "center", "alphabetic", true);
+    if (!angosto) texto(g, "Modelo del cuerpo humano (HBM)", w - 12, 22, C.azulOscuro, 15, "right", "alphabetic", true);
+    // gráfica de la corriente
+    var izq = angosto ? 52 : 66, der = w - 18, arr = ye + (angosto ? 92 : 92), abj = h - 48, TMAX = 750;
+    var IMAX = v > 0 ? bonito(i0 * 1.08) : 1;
+    function X(t) { return izq + t / TMAX * (der - izq); }
+    function Y(i) { return abj - i / IMAX * (abj - arr); }
+    for (var k = 0; k <= 5; k++) {
+      var iv = IMAX * k / 5;
+      linea(g, izq, Y(iv), der, Y(iv), k === 0 ? C.gris : C.grisClaro, k === 0 ? 1.5 : 1);
+      texto(g, IMAX >= 5 ? num(iv, 0) : (IMAX >= 0.5 ? num(iv, 1) : num(iv * 1000, 0)), izq - 6, Y(iv) + 5, C.gris, 15, "right");
+    }
+    for (var t = 0; t <= TMAX; t += angosto ? 150 : 75) {
+      linea(g, X(t), arr, X(t), abj, t === 0 ? C.gris : C.grisClaro, t === 0 ? 1.5 : 1);
+      texto(g, String(t), X(t), abj + 20, C.gris, 15, "center");
+    }
+    texto(g, "tiempo t (ns)", der, abj + 38, C.tinta, 15, "right");
+    texto(g, IMAX >= 0.5 ? "corriente I (A)" : "corriente I (mA)", izq - 6, arr - 12, C.tinta, 15, "left", "alphabetic", true);
+    if (v <= 0) {
+      etiqueta(g, est.pulsera ? "Con la pulsera: sin descarga (V₀ = 0)" : "Sin carga: sin descarga", (izq + der) / 2, (arr + abj) / 2, C.gris, 16, "center", true);
+      return;
+    }
+    g.save(); g.beginPath(); g.moveTo(X(0), Y(0));
+    for (var j = 0; j <= 300; j++) { var tj = TMAX * j / 300; g.lineTo(X(tj), Y(i0 * Math.exp(-tj / tau))); }
+    g.lineTo(X(TMAX), Y(0)); g.closePath(); g.fillStyle = "rgba(0,64,143,0.12)"; g.fill();
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    for (j = 0; j <= 300; j++) { tj = TMAX * j / 300; if (j === 0) g.moveTo(X(tj), Y(i0)); else g.lineTo(X(tj), Y(i0 * Math.exp(-tj / tau))); }
+    g.stroke(); g.restore();
+    [[1, "τ", "36.8 %"], [2, "2τ", "13.5 %"], [3, "3τ", "5 %"]].forEach(function (m) {
+      var tm = m[0] * tau, im = i0 * Math.exp(-m[0]);
+      linea(g, X(tm), Y(im), X(tm), abj, C.guinda, 1.5, [3, 4]);
+      circulo(g, X(tm), Y(im), 5, C.guinda, "#fff", 1.5);
+      if (!(angosto && m[0] === 3)) etiqueta(g, m[1] + ": " + m[2], X(tm) + 7, Y(im) - 8, C.guinda, 15, "left", true);
+    });
+    circulo(g, X(0), Y(i0), 5, C.azulOscuro, "#fff", 1.5);
+    etiqueta(g, "I₀ = V₀/R = " + fmtI(i0), der - 4, arr + 18, C.azulOscuro, 15, "right", true);
+    etiqueta(g, (angosto ? "área = Q = " : "área bajo la curva = carga Q = ") + fmtQ(C_CUERPO * v), der - 4, arr + 40, C.azul, 15, "right", true);
+  }
+
+  // ================================================================ animación
+  var corriendo = false, tAnterior = null;
+  function arrancar() { if (!corriendo) { corriendo = true; tAnterior = null; requestAnimationFrame(cuadro); } }
+  function cuadro(t) {
+    var dt = tAnterior === null ? 0 : Math.min(0.1, (t - tAnterior) / 1000), sigue = false;
+    tAnterior = t;
+    if (anim1.enPaso || anim1.pend > 0) {
+      if (!anim1.enPaso) { anim1.enPaso = true; anim1.t = 0; anim1.pend -= 1; crearParticulas(); }
+      anim1.t += dt / DUR_PASO;
+      if (anim1.t >= 1) { anim1.enPaso = false; anim1.t = 0; terminarPaso(); }
+      sigue = true;
+    }
+    if (est.acercando) {
+      var v = V(), dc = v / E_RIGIDEZ * 1e3, dn = est.d - est.velAcerca * dt;
+      if (v > 0 && dn <= dc) { est.d = dc; est.acercando = false; chispa("acercar"); }
+      else if (dn <= 0) {
+        est.d = 0; est.acercando = false;
+        est.resultado = { tipo: "contacto", modo: "acercar", v: v, d: 0, E: 0, q: est.q, pred: est.predInicial };
+        textoResultado();
+      } else est.d = dn;
+      sincronizar(); lectura2();
+      sigue = true;
+    }
+    if (est.chispa) {
+      var edad = (performance.now() - est.chispa.t0) / 1000;
+      if (edad > DUR_CHISPA) {
+        est.chispa = null; est.q = 0;           // al terminar la chispa, el cuerpo quedó descargado
+        sincronizar(); lectura1(); lectura2(); lectura3(); textoResultado();
+      } else sigue = true;
+    }
+    dibujarActiva();
+    if (sigue) requestAnimationFrame(cuadro); else corriendo = false;
+  }
+
+  // ================================================================ general
+  function dibujarActiva() {
+    if (vistaActiva === "v1") dibujar1();
+    else if (vistaActiva === "v2") { dibujar2(); dibujarGrafica2(); }
+    else dibujar3();
+  }
+  var temporizador = null;
+  window.addEventListener("resize", function () { clearTimeout(temporizador); temporizador = setTimeout(dibujarActiva, 80); });
+  actualizar();
+  var ancla = location.hash.replace("#", "");
+  if (/^\d$/.test(ancla)) ancla = "v" + ancla;
+  if (/^v[123]$/.test(ancla)) activarVista(ancla);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-01-electricidad-estatica-esd.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h2v1h-2zM14 2h1v1h-1zM16 2h5v1h-5zM24 2h1v1h-1zM28 2h1v1h-1zM31 2h1v1h-1zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h2v1h-2zM13 3h1v1h-1zM15 3h4v1h-4zM20 3h2v1h-2zM23 3h2v1h-2zM27 3h1v1h-1zM30 3h1v1h-1zM33 3h2v1h-2zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM15 4h1v1h-1zM17 4h2v1h-2zM21 4h2v1h-2zM24 4h4v1h-4zM29 4h1v1h-1zM32 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM11 5h1v1h-1zM14 5h1v1h-1zM18 5h1v1h-1zM20 5h3v1h-3zM28 5h1v1h-1zM31 5h2v1h-2zM34 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM15 6h1v1h-1zM18 6h2v1h-2zM21 6h1v1h-1zM28 6h1v1h-1zM30 6h1v1h-1zM32 6h2v1h-2zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM15 7h1v1h-1zM19 7h1v1h-1zM22 7h5v1h-5zM30 7h2v1h-2zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h4v1h-4zM20 9h1v1h-1zM25 9h1v1h-1zM27 9h1v1h-1zM33 9h1v1h-1zM2 10h1v1h-1zM5 10h7v1h-7zM13 10h1v1h-1zM17 10h1v1h-1zM19 10h1v1h-1zM22 10h1v1h-1zM25 10h1v1h-1zM28 10h4v1h-4zM33 10h1v1h-1zM35 10h1v1h-1zM38 10h1v1h-1zM40 10h3v1h-3zM7 11h1v1h-1zM9 11h1v1h-1zM11 11h4v1h-4zM16 11h6v1h-6zM24 11h2v1h-2zM28 11h2v1h-2zM32 11h2v1h-2zM37 11h2v1h-2zM41 11h1v1h-1zM2 12h1v1h-1zM4 12h7v1h-7zM13 12h1v1h-1zM18 12h1v1h-1zM23 12h3v1h-3zM27 12h4v1h-4zM32 12h1v1h-1zM35 12h1v1h-1zM38 12h1v1h-1zM40 12h1v1h-1zM2 13h2v1h-2zM13 13h2v1h-2zM17 13h4v1h-4zM24 13h2v1h-2zM29 13h11v1h-11zM41 13h2v1h-2zM2 14h5v1h-5zM8 14h2v1h-2zM11 14h1v1h-1zM15 14h2v1h-2zM22 14h1v1h-1zM25 14h1v1h-1zM29 14h2v1h-2zM34 14h3v1h-3zM41 14h2v1h-2zM3 15h1v1h-1zM6 15h1v1h-1zM9 15h3v1h-3zM13 15h1v1h-1zM15 15h3v1h-3zM20 15h2v1h-2zM23 15h1v1h-1zM26 15h5v1h-5zM32 15h1v1h-1zM36 15h3v1h-3zM41 15h2v1h-2zM2 16h4v1h-4zM7 16h3v1h-3zM11 16h1v1h-1zM14 16h2v1h-2zM23 16h2v1h-2zM29 16h1v1h-1zM32 16h6v1h-6zM39 16h2v1h-2zM42 16h1v1h-1zM5 17h1v1h-1zM9 17h2v1h-2zM13 17h2v1h-2zM21 17h1v1h-1zM26 17h1v1h-1zM33 17h3v1h-3zM37 17h1v1h-1zM39 17h3v1h-3zM2 18h1v1h-1zM6 18h1v1h-1zM8 18h2v1h-2zM11 18h1v1h-1zM14 18h1v1h-1zM16 18h2v1h-2zM21 18h2v1h-2zM24 18h4v1h-4zM32 18h1v1h-1zM35 18h1v1h-1zM42 18h1v1h-1zM3 19h1v1h-1zM6 19h2v1h-2zM13 19h1v1h-1zM16 19h2v1h-2zM21 19h1v1h-1zM24 19h1v1h-1zM27 19h3v1h-3zM32 19h2v1h-2zM35 19h1v1h-1zM38 19h1v1h-1zM3 20h1v1h-1zM7 20h2v1h-2zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h2v1h-2zM21 20h5v1h-5zM29 20h2v1h-2zM33 20h1v1h-1zM35 20h4v1h-4zM41 20h2v1h-2zM3 21h3v1h-3zM7 21h1v1h-1zM9 21h1v1h-1zM11 21h1v1h-1zM13 21h1v1h-1zM16 21h2v1h-2zM19 21h3v1h-3zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM30 21h1v1h-1zM32 21h2v1h-2zM38 21h1v1h-1zM40 21h1v1h-1zM42 21h1v1h-1zM2 22h1v1h-1zM6 22h3v1h-3zM10 22h1v1h-1zM12 22h2v1h-2zM15 22h1v1h-1zM21 22h1v1h-1zM23 22h6v1h-6zM31 22h1v1h-1zM36 22h1v1h-1zM39 22h4v1h-4zM4 23h1v1h-1zM7 23h1v1h-1zM12 23h10v1h-10zM25 23h1v1h-1zM27 23h3v1h-3zM32 23h2v1h-2zM35 23h1v1h-1zM37 23h4v1h-4zM2 24h1v1h-1zM4 24h1v1h-1zM8 24h3v1h-3zM12 24h1v1h-1zM14 24h1v1h-1zM17 24h1v1h-1zM19 24h2v1h-2zM24 24h2v1h-2zM27 24h1v1h-1zM29 24h3v1h-3zM36 24h1v1h-1zM40 24h1v1h-1zM2 25h1v1h-1zM5 25h2v1h-2zM11 25h2v1h-2zM15 25h1v1h-1zM17 25h4v1h-4zM25 25h1v1h-1zM31 25h1v1h-1zM34 25h1v1h-1zM37 25h3v1h-3zM3 26h2v1h-2zM8 26h1v1h-1zM10 26h1v1h-1zM12 26h1v1h-1zM18 26h1v1h-1zM22 26h1v1h-1zM24 26h3v1h-3zM33 26h2v1h-2zM36 26h2v1h-2zM39 26h1v1h-1zM2 27h1v1h-1zM7 27h1v1h-1zM9 27h2v1h-2zM13 27h2v1h-2zM16 27h1v1h-1zM25 27h1v1h-1zM27 27h4v1h-4zM32 27h1v1h-1zM34 27h1v1h-1zM36 27h3v1h-3zM40 27h1v1h-1zM42 27h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM8 28h1v1h-1zM11 28h1v1h-1zM15 28h3v1h-3zM21 28h4v1h-4zM26 28h4v1h-4zM32 28h3v1h-3zM37 28h3v1h-3zM42 28h1v1h-1zM2 29h4v1h-4zM9 29h2v1h-2zM12 29h2v1h-2zM21 29h1v1h-1zM26 29h1v1h-1zM29 29h1v1h-1zM33 29h1v1h-1zM35 29h3v1h-3zM39 29h2v1h-2zM42 29h1v1h-1zM2 30h1v1h-1zM4 30h6v1h-6zM11 30h1v1h-1zM13 30h1v1h-1zM24 30h1v1h-1zM26 30h2v1h-2zM33 30h1v1h-1zM37 30h1v1h-1zM39 30h1v1h-1zM2 31h4v1h-4zM9 31h5v1h-5zM15 31h2v1h-2zM18 31h2v1h-2zM24 31h2v1h-2zM28 31h2v1h-2zM33 31h2v1h-2zM37 31h2v1h-2zM40 31h1v1h-1zM2 32h4v1h-4zM8 32h1v1h-1zM11 32h1v1h-1zM13 32h3v1h-3zM18 32h1v1h-1zM20 32h2v1h-2zM23 32h1v1h-1zM26 32h2v1h-2zM29 32h3v1h-3zM33 32h1v1h-1zM35 32h1v1h-1zM40 32h3v1h-3zM2 33h3v1h-3zM9 33h5v1h-5zM16 33h1v1h-1zM18 33h1v1h-1zM21 33h2v1h-2zM25 33h1v1h-1zM27 33h2v1h-2zM30 33h1v1h-1zM33 33h1v1h-1zM36 33h2v1h-2zM40 33h3v1h-3zM2 34h2v1h-2zM5 34h2v1h-2zM8 34h3v1h-3zM12 34h3v1h-3zM17 34h3v1h-3zM21 34h1v1h-1zM25 34h2v1h-2zM28 34h4v1h-4zM33 34h10v1h-10zM10 35h2v1h-2zM14 35h2v1h-2zM21 35h1v1h-1zM23 35h3v1h-3zM29 35h1v1h-1zM31 35h2v1h-2zM34 35h1v1h-1zM38 35h3v1h-3zM2 36h7v1h-7zM10 36h3v1h-3zM14 36h3v1h-3zM19 36h2v1h-2zM24 36h3v1h-3zM28 36h7v1h-7zM36 36h1v1h-1zM38 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h4v1h-4zM15 37h1v1h-1zM17 37h3v1h-3zM23 37h2v1h-2zM26 37h1v1h-1zM28 37h1v1h-1zM31 37h2v1h-2zM34 37h1v1h-1zM38 37h2v1h-2zM41 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h1v1h-1zM12 38h1v1h-1zM15 38h9v1h-9zM25 38h6v1h-6zM33 38h7v1h-7zM42 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h1v1h-1zM12 39h3v1h-3zM17 39h1v1h-1zM19 39h1v1h-1zM23 39h1v1h-1zM25 39h1v1h-1zM27 39h1v1h-1zM29 39h1v1h-1zM31 39h1v1h-1zM34 39h1v1h-1zM37 39h1v1h-1zM39 39h1v1h-1zM41 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM11 40h3v1h-3zM15 40h8v1h-8zM29 40h1v1h-1zM33 40h1v1h-1zM35 40h1v1h-1zM37 40h2v1h-2zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM11 41h1v1h-1zM15 41h1v1h-1zM18 41h1v1h-1zM20 41h3v1h-3zM24 41h3v1h-3zM29 41h2v1h-2zM33 41h1v1h-1zM36 41h1v1h-1zM38 41h3v1h-3zM42 41h1v1h-1zM2 42h7v1h-7zM10 42h1v1h-1zM13 42h1v1h-1zM16 42h1v1h-1zM19 42h2v1h-2zM22 42h1v1h-1zM24 42h4v1h-4zM29 42h1v1h-1zM33 42h4v1h-4zM38 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-01-electricidad-estatica-esd.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

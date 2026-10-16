@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entropía de Shannon</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura { overflow-wrap:anywhere; }
+  textarea { font:inherit; width:100%; padding:6px 8px; border:1px solid var(--borde); border-radius:6px;
+             resize:vertical; min-height:5.5em; }
+  textarea:disabled { background:var(--gris-claro); color:var(--gris); }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:6px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  .lbar { text-decoration:overline; }
+  .linea-f { display:block; padding-left:1.2em; text-indent:-1.2em; }
+  .tabla-scroll { max-height:300px; overflow:auto; margin-top:12px; border:1px solid var(--borde); border-radius:8px; }
+  table { border-collapse:collapse; width:100%; font-size:15px; }
+  th, td { padding:3px 8px; text-align:right; border-bottom:1px solid var(--gris-claro); white-space:nowrap; }
+  th { position:sticky; top:0; background:var(--gris-claro); color:var(--azul-oscuro); }
+  td.sim, th.sim { text-align:center; }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+  .muestra { font-family:Consolas,"Courier New",monospace; font-size:1.05rem; word-break:break-all; background:#fff;
+             border:1px dashed var(--borde); border-radius:6px; padding:6px 8px; margin-top:8px; min-height:2em; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:10px 0 0; padding:4px 10px 8px; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 12 · Shannon, ruido y entropía</div>
+  <h1>Entropía: cuánta información hay de verdad</h1>
+  <p class="sub">Mide la entropía de un mensaje, la fuerza de una contraseña generada al azar y la sorpresa de una moneda cargada.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Entropía de un mensaje</button>
+    <button type="button" data-vista="v2" role="tab">Contraseñas</button>
+    <button type="button" data-vista="v3" role="tab">Moneda cargada</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>El mensaje (la fuente)</h2>
+        <label for="texto">Escribe o pega un texto</label>
+        <textarea id="texto" rows="4" spellcheck="false">La entropía mide cuánta información trae, en promedio, cada símbolo de un mensaje.</textarea>
+        <div>
+          <button type="button" class="accion" data-ej="uno">Un solo símbolo</button>
+          <button type="button" class="accion" data-ej="abab">ABAB…</button>
+          <button type="button" class="accion" data-ej="binaria">Fuente 0.9 / 0.1 (libro)</button>
+          <button type="button" class="accion" data-ej="abcd">A, B, C, D (libro)</button>
+          <button type="button" class="accion" data-ej="espanol">Español</button>
+          <button type="button" class="accion" data-ej="cifrado">Archivo cifrado simulado</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="sinMay"> Ignorar mayúsculas (A = a)</label>
+        <label class="casilla"><input type="checkbox" id="sinEsp"> Ignorar espacios</label>
+        <p class="nota">Cada carácter es un símbolo; pᵢ es la fracción de veces que aparece.</p>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoMsg" aria-label="Barras con la probabilidad de cada símbolo del mensaje, de la más alta a la más baja, y la línea 1/N de una fuente con todos los símbolos igual de probables"></canvas>
+        <div class="lectura" id="lecturaMsg"></div>
+        <div class="tabla-scroll"><table id="tablaMsg"></table></div>
+        <div class="seguridad"><b>Seguridad.</b> Tomando bytes como símbolos, la entropía máxima es log₂(256) = 8 bits por byte. Un texto plano típico ronda entre 4 y 5; un archivo cifrado o comprimido queda muy cerca de 8. Por eso es uno de los primeros indicadores que revisa un analista forense: si muchos archivos de un disco pasan de pronto a casi 8 bits por byte, alguien los está cifrando (<i>ransomware</i>).</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de probar: ¿qué mensaje de 8 caracteres tiene la entropía más baja posible? ¿Y la más alta? ¿Cuánto vale cada una?</li>
+            <li>"ABABABAB…" y una secuencia de A y B lanzadas al azar dan la misma H. ¿Cuál de las dos es más fácil de adivinar? ¿Qué no está midiendo esta cuenta?</li>
+            <li>Con el ejemplo A, B, C, D del libro, compara la <span class='lbar'>L</span> del código de Huffman con H. ¿Puede algún código sin ambigüedad quedar por debajo de H?</li>
+            <li>¿Por qué el archivo cifrado simulado queda tan cerca de 8 bits por byte, pero no exactamente en 8?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Contraseña generada al azar</h2>
+        <fieldset>
+          <legend>Cómo se genera</legend>
+          <label class="casilla"><input type="radio" name="modo" id="modoCar" value="car" checked> Caracteres al azar</label>
+          <label class="casilla"><input type="radio" name="modo" id="modoDice" value="dice"> Palabras al azar (Diceware, lista de 7776)</label>
+        </fieldset>
+        <fieldset id="conjuntos">
+          <legend>Conjunto de caracteres</legend>
+          <label class="casilla"><input type="checkbox" id="cMin" checked> Minúsculas a-z (26)</label>
+          <label class="casilla"><input type="checkbox" id="cMay" checked> Mayúsculas A-Z (26)</label>
+          <label class="casilla"><input type="checkbox" id="cDig" checked> Dígitos 0-9 (10)</label>
+          <label class="casilla"><input type="checkbox" id="cSim" checked> Símbolos del teclado (32)</label>
+        </fieldset>
+        <label for="largo"><span id="largoTxt">Longitud L</span>: <span class="valor" id="largoVal"></span></label>
+        <input id="largo" type="range" min="1" max="24" step="1" value="8">
+        <label for="tasa">Intentos por segundo del atacante: <span class="valor" id="tasaVal"></span></label>
+        <input id="tasa" type="range" min="3" max="14" step="1" value="10">
+        <p class="nota" id="tasaNota"></p>
+        <button type="button" class="accion" id="generar">Generar un ejemplo al azar</button>
+        <div class="muestra" id="muestra" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoPwd" aria-label="Regla de entropía en bits con la contraseña actual, ejemplos del libro y marcas de tiempo de fuerza bruta a la tasa elegida"></canvas>
+        <div class="lectura" id="lecturaPwd"></div>
+        <div class="seguridad"><b>Ojo: "al azar" es esencial.</b> La fórmula H = L·log₂(N) solo vale si cada símbolo se eligió al azar. Las contraseñas que eligen las personas siguen patrones (una palabra con mayúscula inicial, un año, un signo al final) y tienen mucha menos entropía, aunque usen los mismos caracteres. Por eso NIST SP 800-63B privilegia la longitud y el rechazo de contraseñas comunes o filtradas sobre las reglas de composición. Y en un ataque en línea el sistema puede bloquear la cuenta tras pocos intentos, como con el PIN bancario.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con 8 caracteres, ¿qué da más bits: agregar los símbolos (de 62 a 94 caracteres) o, solo con minúsculas, pasar de 8 a 16 caracteres? Predice y comprueba.</li>
+            <li>Si duplicas la longitud de 8 a 16 caracteres imprimibles, ¿se duplica la entropía? ¿Y el tiempo de fuerza bruta?</li>
+            <li>Sube la tasa del atacante de 10¹⁰ a 10¹³ intentos por segundo. ¿Cuántos bits "pierde" la contraseña? Observa cómo se mueven las marcas de tiempo.</li>
+            <li>¿Por qué esta página no puede calcular la entropía de una contraseña que tú inventaste?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Fuente binaria (moneda cargada)</h2>
+        <label for="p0">Probabilidad del símbolo 0: p₀ = <span class="valor" id="p0Val"></span></label>
+        <input id="p0" type="range" min="0" max="1" step="0.01" value="0.5">
+        <p class="nota">El símbolo 1 sale con p₁ = 1 − p₀.</p>
+        <button type="button" class="accion" id="lanzar">Lanzar 100 veces</button>
+        <button type="button" class="accion" id="borrarLanz">Borrar lanzamientos</button>
+        <div class="muestra" id="lanzamientos" aria-live="polite">(sin lanzamientos)</div>
+        <div class="lectura" id="lecturaMoneda"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoMoneda" aria-label="Curva de la entropía de una fuente binaria H en función de p0, con el punto actual"></canvas>
+        <div class="seguridad"><b>Seguridad.</b> Los datos cifrados, o generados por un buen generador de números aleatorios, deben acercarse a la entropía máxima: 1 bit por cada bit. Un generador sesgado produce claves más fáciles de adivinar; por eso las fuentes de entropía (como el ruido térmico) se evalúan con métodos como los de NIST SP 800-90B.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mover el control: ¿con qué p₀ la moneda es más impredecible? ¿Cuánto vale H ahí?</li>
+            <li>¿Por qué H vale lo mismo con p₀ = 0.1 que con p₀ = 0.9?</li>
+            <li>Con p₀ = 0.9, lanza 100 veces varias veces. ¿La H medida coincide con la teórica? ¿Por qué cambia de una tanda a otra?</li>
+            <li>Un generador de claves sesgado produce ceros con p₀ = 0.6. ¿Cuánta entropía tiene en realidad una clave de 128 bits hecha con él?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap02_transformadas_teoremas.tex, sección "Entropía de la información" (Ecuaciones eq:entropia-shannon, eq:entropia-maxima, eq:cota-shannon y eq:entropia-contrasena). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  // Como num, pero sin ceros sobrantes a la derecha: 0.900 → 0.9
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  // Notación científica a partir del log10 del número (para números enormes como 94^24)
+  function sciLog(l10, dec) {
+    var d = dec === undefined ? 2 : dec, e = Math.floor(l10), m = Math.pow(10, l10 - e);
+    if (Number(m.toFixed(d)) >= 10) { m /= 10; e += 1; }
+    return m.toFixed(d) + "×10" + sup(e);
+  }
+  function log2(x) { return Math.log(x) / Math.LN2; }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function escaparHTML(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  // Enteros al azar sin sesgo (crypto si está disponible)
+  function azar(n) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      var lim = Math.floor(4294967296 / n) * n, a = new Uint32Array(1);
+      do { window.crypto.getRandomValues(a); } while (a[0] >= lim);
+      return a[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+
+  // ================================================================ Vista 1: mensaje
+  var EJEMPLOS = {
+    uno: "AAAAAAAAAAAAAAAA",
+    abab: "ABABABABABABABAB",
+    binaria: "0000000001",
+    abcd: "AAAABBBCCD",
+    espanol: "La entropía mide cuánta información trae, en promedio, cada símbolo de un mensaje."
+  };
+  var modoBytes = false, bytesCifrados = null, resMsg = null;
+
+  function huffman(cuentas) {                 // longitudes del código de Huffman (libro)
+    var k = cuentas.length, largos = [], i;
+    for (i = 0; i < k; i++) largos.push(0);
+    if (k === 1) { largos[0] = 1; return largos; }
+    var nodos = cuentas.map(function (c, j) { return { w: c, miembros: [j], orden: j }; }), sig = k;
+    while (nodos.length > 1) {
+      nodos.sort(function (a, b) { return a.w - b.w || a.orden - b.orden; });
+      var a = nodos.shift(), b = nodos.shift(), m = a.miembros.concat(b.miembros);
+      m.forEach(function (j) { largos[j]++; });
+      nodos.push({ w: a.w + b.w, miembros: m, orden: sig++ });
+    }
+    return largos;
+  }
+  function codigosCanonicos(largos) {         // códigos legibles a partir de las longitudes
+    var orden = largos.map(function (l, i) { return i; }).sort(function (a, b) { return largos[a] - largos[b] || a - b; });
+    var cods = [], c = 0, prev = 0;
+    orden.forEach(function (i, n) {
+      if (n === 0) c = 0; else c = (c + 1) * Math.pow(2, largos[i] - prev);
+      prev = largos[i];
+      var s = c.toString(2); while (s.length < largos[i]) s = "0" + s;
+      cods[i] = s;
+    });
+    return cods;
+  }
+  function mostrarSimbolo(s) {
+    if (modoBytes) { var h = s.toString(16).toUpperCase(); return h.length < 2 ? "0" + h : h; }
+    if (s === " ") return "␣";
+    if (s === "\n") return "↵";
+    if (s === "\t") return "⇥";
+    return s;
+  }
+
+  function analizarMensaje() {
+    var simbolos;
+    if (modoBytes) simbolos = Array.prototype.slice.call(bytesCifrados);
+    else {
+      var t = $("texto").value;
+      if ($("sinMay").checked) t = t.toLocaleLowerCase("es");
+      if ($("sinEsp").checked) t = t.replace(/\s/g, "");
+      simbolos = Array.from(t);
+    }
+    var mapa = new Map(), primero = new Map();
+    simbolos.forEach(function (s, i) {
+      mapa.set(s, (mapa.get(s) || 0) + 1);
+      if (!primero.has(s)) primero.set(s, i);
+    });
+    var n = simbolos.length, lista = [];
+    mapa.forEach(function (c, s) { lista.push({ s: s, c: c, p: c / n, ini: primero.get(s) }); });
+    lista.sort(function (a, b) { return b.c - a.c || a.ini - b.ini; });
+    var H = 0;
+    lista.forEach(function (e) { e.sorpresa = -log2(e.p); e.termino = e.p * e.sorpresa; H += e.termino; });
+    if (Math.abs(H) < 1e-12) H = 0;
+    var Lbar = 0;
+    if (lista.length) {
+      var largos = huffman(lista.map(function (e) { return e.c; })), cods = codigosCanonicos(largos);
+      lista.forEach(function (e, i) { e.largo = largos[i]; e.cod = cods[i]; Lbar += e.p * e.largo; });
+    }
+    return { n: n, N: lista.length, lista: lista, H: H, Lbar: Lbar };
+  }
+
+  function lecturaMensaje(r) {
+    var u = modoBytes ? "bits/byte" : "bits/símbolo";
+    if (!r.n) { $("lecturaMsg").innerHTML = "Escribe un mensaje para medir su entropía."; $("tablaMsg").innerHTML = ""; return; }
+    var k = Math.min(4, r.N), t = r.lista.slice(0, k), resto = r.N - k;
+    var l1 = "H = −[" + t.map(function (e) { return corto(e.p, 3) + " log₂(" + corto(e.p, 3) + ")"; }).join(" + ") + (resto ? " + …" : "") + "]";
+    var l2 = "≈ −[" + t.map(function (e) { return corto(e.p, 3) + "(" + num(-e.sorpresa, 3) + ")"; }).join(" + ") + (resto ? " + …" : "") + "]";
+    var l3 = "≈ " + t.map(function (e) { return num(e.termino, 3); }).join(" + ") +
+             (resto ? " + … (" + resto + (resto === 1 ? " término más)" : " términos más)") : "") +
+             " ≈ <b>" + num(r.H, 3) + " " + u + "</b>";
+    if (r.N === 1) { l1 = "H = −[1 log₂(1)] = −[1(0)]"; l2 = ""; l3 = "= <b>0 " + u + "</b>"; }
+    var Hmax = r.N > 1 ? log2(r.N) : 0;
+    var html = "<b>n = " + num(r.n, 0) + "</b> " + (modoBytes ? "bytes en el archivo" : "símbolos en el mensaje") + " · <b>N = " + r.N + "</b> " +
+      (r.N === 1 ? "símbolo distinto" : "símbolos distintos") + "<br>" +
+      "<span class='formula'><span class='linea-f'>" + l1 + "</span>" + (l2 ? "<span class='linea-f'>" + l2 + "</span>" : "") + "<span class='linea-f'>" + l3 + "</span></span>";
+    if (r.N > 1) {
+      html += "Máxima con N = " + r.N + " símbolos igual de probables: H<sub>max</sub> = log₂(" + r.N + ") = <b>" + num(Hmax, 3) + "</b> " + u +
+        " → " + (modoBytes ? "el archivo" : "el mensaje") + " llega al <b>" + num(100 * r.H / Hmax, 0) + " %</b> del máximo.<br>";
+    } else {
+      html += "Con un solo símbolo, H<sub>max</sub> = log₂(1) = 0: no hay ninguna sorpresa.<br>";
+    }
+    html += (modoBytes ? "Sin comprimir, 8 bits por byte: " : "Con un byte por carácter (8 bits, como en ASCII): ") +
+      num(r.n, 0) + " × 8 = <b>" + num(r.n * 8, 0) + " bits</b>. ";
+    html += "Límite de compresión (<span class='lbar'>L</span> ≥ H): ≈ " + num(r.n, 0) + " × " + num(r.H, 3) + " ≈ <b>" + num(r.n * r.H, 0) + " bits</b>, el " +
+      num(100 * r.H / 8, 0) + " % de esos " + num(r.n * 8, 0) + " bits.<br>";
+    html += "Código de Huffman de esta fuente: <span class='lbar'>L</span> = Σ pᵢℓᵢ = <b>" + num(r.Lbar, 3) + "</b> " + u + " ≥ H = " + num(r.H, 3) +
+      " <span class='ok'>✓</span>" + (r.N === 1 ? " (con un solo símbolo hace falta al menos 1 bit)" : "");
+    $("lecturaMsg").innerHTML = html;
+
+    var filas = "<thead><tr><th class='sim'>Símbolo</th><th>Veces</th><th>pᵢ</th><th>−log₂ pᵢ</th><th>−pᵢ log₂ pᵢ</th><th class='sim'>Huffman</th></tr></thead><tbody>";
+    r.lista.forEach(function (e) {
+      filas += "<tr><td class='sim mono'>" + escaparHTML(mostrarSimbolo(e.s)) + "</td><td>" + e.c + "</td><td>" + num(e.p, 3) +
+        "</td><td>" + num(e.sorpresa, 3) + "</td><td>" + num(e.termino, 3) + "</td><td class='sim mono'>" + e.cod + "</td></tr>";
+    });
+    filas += "</tbody><tfoot><tr><th class='sim'>Total</th><th>" + r.n + "</th><th>1</th><th></th><th>H = " + num(r.H, 3) + "</th><th class='sim'><span class='lbar'>L</span> = " + num(r.Lbar, 3) + "</th></tr></tfoot>";
+    $("tablaMsg").innerHTML = filas;
+  }
+
+  function pasoBonito(max, marcas) {
+    var pasos = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25];
+    for (var i = 0; i < pasos.length; i++) if (max / pasos[i] <= marcas) return pasos[i];
+    return 0.25;
+  }
+
+  function dibujarMensaje() {
+    var cv = $("lienzoMsg"), angosto = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, angosto ? 0.95 : 0.42), g = d.g, w = d.w, h = d.h, r = resMsg;
+    g.clearRect(0, 0, w, h);
+    if (!r || !r.n) { texto(g, "Escribe un mensaje", w / 2, h / 2, C.gris, 18, "center", "middle"); return; }
+    var izq = 54, der = w - 12, arr = angosto ? 60 : 36, abj = h - 40;
+    var unif = 1 / r.N, pmax = Math.max(r.lista[0].p, unif), paso = pasoBonito(pmax * 1.12, 5);
+    var ymax = Math.ceil(pmax * 1.12 / paso) * paso;
+    function Y(p) { return abj - (p / ymax) * (abj - arr); }
+    texto(g, angosto ? "Probabilidad pᵢ de cada símbolo" : "Probabilidad pᵢ de cada símbolo (de más a menos frecuente)", 10, 22, C.azulOscuro, 16, "left", "alphabetic", true);
+    for (var v = 0; v <= ymax + 1e-9; v += paso) {
+      linea(g, izq, Y(v), der, Y(v), v === 0 ? C.gris : C.grisClaro, 1);
+      texto(g, corto(v, 3), izq - 6, Y(v) + 5, C.gris, 15, "right");
+    }
+    var ancho = (der - izq) / r.N, barra = Math.max(1, ancho * (ancho > 6 ? 0.72 : 0.9));
+    r.lista.forEach(function (e, i) {
+      var x = izq + i * ancho + (ancho - barra) / 2;
+      g.fillStyle = C.azul; g.fillRect(x, Y(e.p), barra, abj - Y(e.p));
+      if (ancho >= 14) texto(g, mostrarSimbolo(e.s), x + barra / 2, abj + 19, C.tinta, 16, "center");
+      if (ancho >= 40) texto(g, corto(e.p, 2), x + barra / 2, Y(e.p) - 5, C.azulOscuro, 15, "center");
+    });
+    if (ancho < 14) texto(g, r.N + (modoBytes ? " valores de byte (00 a FF)" : " símbolos"), (izq + der) / 2, abj + 19, C.gris, 15, "center");
+    // fuente equiprobable
+    linea(g, izq, Y(unif), der, Y(unif), C.guinda, 2, [7, 5]);
+    var et = "1/N = " + corto(unif, 4) + (angosto ? "" : " (todos igual de probables)");
+    g.save(); g.font = "15px " + FUENTE; var we = g.measureText(et).width; g.restore();
+    g.save(); g.fillStyle = "rgba(255,255,255,0.85)"; g.fillRect(der - we - 8, Y(unif) - 21, we + 6, 18); g.restore();
+    texto(g, et, der - 4, Y(unif) - 7, C.guinda, 15, "right");
+    var etH = "H = " + num(r.H, 3) + (modoBytes ? " bits/byte" : " bits/símbolo");
+    if (angosto) texto(g, etH, 10, 44, C.guinda, 16, "left", "alphabetic", true);
+    else texto(g, etH, der - 4, 22, C.guinda, 16, "right", "alphabetic", true);
+  }
+
+  function actualizarMensaje() { resMsg = analizarMensaje(); lecturaMensaje(resMsg); dibujarMensaje(); }
+
+  function salirBytes() {
+    modoBytes = false; bytesCifrados = null;
+    $("texto").disabled = false; $("sinMay").disabled = false; $("sinEsp").disabled = false;
+  }
+  document.querySelectorAll("[data-ej]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var ej = b.dataset.ej;
+      if (ej === "cifrado") {
+        bytesCifrados = new Uint8Array(4096);
+        if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytesCifrados);
+        else for (var i = 0; i < 4096; i++) bytesCifrados[i] = Math.floor(Math.random() * 256);
+        modoBytes = true;
+        var vista = Array.prototype.slice.call(bytesCifrados, 0, 24).map(function (x) { return mostrarSimbolo(x); }).join(" ");
+        $("texto").value = "[Archivo cifrado simulado: 4096 bytes al azar]\n" + vista + " …\n(Pulsa otro botón o escribe para volver al texto.)";
+        $("texto").disabled = true; $("sinMay").disabled = true; $("sinEsp").disabled = true;
+      } else {
+        salirBytes();
+        $("texto").value = EJEMPLOS[ej];
+      }
+      actualizarMensaje();
+    });
+  });
+  $("texto").addEventListener("input", actualizarMensaje);
+  $("sinMay").addEventListener("change", actualizarMensaje);
+  $("sinEsp").addEventListener("change", actualizarMensaje);
+
+  // ================================================================ Vista 2: contraseñas
+  var CONJ = {
+    cMin: { n: 26, chars: "abcdefghijklmnopqrstuvwxyz" },
+    cMay: { n: 26, chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
+    cDig: { n: 10, chars: "0123456789" },
+    cSim: { n: 32, chars: (function () {            // 32 símbolos imprimibles del ASCII
+      var s = "", r = [[33, 47], [58, 64], [91, 96], [123, 126]];
+      r.forEach(function (x) { for (var c = x[0]; c <= x[1]; c++) s += String.fromCharCode(c); });
+      return s; })() }
+  };
+  var REFERENCIAS = [                                // ejemplos del libro
+    { H: 4 * log2(10), t: "PIN de 4 dígitos" },
+    { H: 8 * log2(26), t: "8 minúsculas" },
+    { H: 4 * log2(7776), t: "Diceware, 4 palabras" },
+    { H: 8 * log2(94), t: "8 imprimibles" },
+    { H: 128, t: "Llave AES-128" }
+  ];
+  var largoCar = 8, largoDice = 4;
+
+  function modoPwd() { return $("modoDice").checked ? "dice" : "car"; }
+  function estadoPwd() {
+    var m = modoPwd(), partes = [], N = 0;
+    if (m === "dice") { N = 7776; partes = ["7776"]; }
+    else ["cMin", "cMay", "cDig", "cSim"].forEach(function (id) { if ($(id).checked) { N += CONJ[id].n; partes.push(String(CONJ[id].n)); } });
+    var L = Number($("largo").value), r = Number($("tasa").value);
+    return { modo: m, N: N, partes: partes, L: L, r: r, H: N > 0 ? L * log2(N) : 0 };
+  }
+
+  function tiempoHumano(l10s) {                      // l10s = log10(segundos)
+    var s = Math.pow(10, l10s), A = 365.25 * 86400;
+    if (l10s < -3) return sciLog(l10s, 1) + " s (instantáneo)";
+    if (s < 1) return num(s * 1000, 1) + " ms";
+    if (s < 60) return num(s, 1) + " s";
+    if (s < 3600) return num(s / 60, 1) + " min";
+    if (s < 86400) return num(s / 3600, 1) + " h";
+    if (s < A) return num(s / 86400, 1) + " días";
+    var la = l10s - Math.log10(A);
+    if (la < 4) return num(Math.pow(10, la), 1) + " años";
+    return sciLog(la, 2) + " años";
+  }
+  function grande(l10, dec) {                        // número entero grande: con espacios o en notación científica
+    if (l10 < 6) return num(Math.round(Math.pow(10, l10)), 0);
+    return sciLog(l10, dec === undefined ? 2 : dec);
+  }
+
+  function lecturaPwd(e) {
+    var tasaTxt = "10" + sup(e.r);
+    $("tasaVal").textContent = tasaTxt + " intentos/s";
+    $("tasaNota").textContent = e.r === 10 ? "10¹⁰ intentos/s es la tasa del ejemplo del libro (un atacante que ya tiene el hash de la contraseña)."
+                                           : "Valor ilustrativo; el ejemplo del libro usa 10¹⁰ intentos/s.";
+    $("largoTxt").textContent = e.modo === "dice" ? "Número de palabras L" : "Longitud L (caracteres)";
+    $("largoVal").textContent = e.L;
+    if (e.N === 0) { $("lecturaPwd").innerHTML = "<span class='mal'>Elige al menos un conjunto de caracteres.</span>"; return; }
+    var l10comb = e.L * Math.log10(e.N) - 1e-12, l10t = l10comb - e.r, ts = Math.pow(10, l10t);
+    var html = "";
+    if (e.modo === "dice") html += "Cada palabra sale al azar de una lista de <b>N = 7776</b> (7776 = 6⁵: cinco tiradas de dado por palabra).<br>";
+    else html += "<b>N = " + (e.partes.length > 1 ? e.partes.join(" + ") + " = " : "") + e.N + "</b> símbolos posibles en cada posición.<br>";
+    html += "<span class='formula'>H = L·log₂(N) = " + e.L + "·log₂(" + e.N + ") = " + e.L + "(" + num(log2(e.N), 3) + ") ≈ <b>" + num(e.H, 1) + " bits</b></span><br>";
+    html += "Combinaciones: N<sup>L</sup> = " + e.N + sup(e.L) + (l10comb < 6 ? " = " : " ≈ ") + "<b>" + grande(l10comb) + "</b> = 2<sup>" + num(e.H, 1) + "</sup> intentos en el peor caso.<br>";
+    var tS = (l10t >= -1 && l10t < 3) ? num(ts, ts < 10 ? 2 : 1) + " s" : sciLog(l10t, 2) + " s";
+    var tH = tiempoHumano(l10t), mismo = /^[0-9.−\s]+ s$/.test(tH) || tH.indexOf("instantáneo") >= 0;
+    html += "<span class='formula'>t = N<sup>L</sup> / tasa = " + grande(l10comb) + " / " + tasaTxt + " ≈ " + tS + "</span>" +
+            (mismo ? (ts < 1e-3 ? ": <b>instantáneo</b>" : "") : " ≈ <b>" + tH + "</b>") + " (peor caso).";
+    $("lecturaPwd").innerHTML = html;
+  }
+
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  // Reparte etiquetas centradas en renglones para que no se encimen; devuelve cuántos renglones usa
+  function repartir(items, minX, maxX) {
+    var finales = [];
+    items.forEach(function (it) {
+      it.wt = anchoTexto(it.t, 15, it.negrita);
+      it.xt = Math.min(Math.max(it.x, minX + it.wt / 2), maxX - it.wt / 2);
+      var x0 = it.xt - it.wt / 2, k = 0;
+      while (k < finales.length && finales[k] > x0 - 10) k++;
+      finales[k] = x0 + it.wt; it.fila = k;
+    });
+    return finales.length;
+  }
+
+  function dibujarPwd() {
+    var cv = $("lienzoPwd"), w = cv.clientWidth || 600, angosto = w < 600, e = estadoPwd();
+    var izq = 18, der = w - 18;
+    var Hmax = Math.max(140, Math.ceil((e.H + 12) / 20) * 20), paso = Hmax > 300 ? 50 : 20;
+    function X(H) { return izq + (H / Hmax) * (der - izq); }
+    // ejemplos del libro (arriba) y marcas de tiempo (abajo)
+    var refs = REFERENCIAS.map(function (r) { return { x: X(r.H), t: r.t + " · " + corto(r.H, 1) }; });
+    var nR = repartir(refs, izq, der);
+    var A = 365.25 * 86400, T = [[1, "1 s"], [60, "1 min"], [3600, "1 h"], [86400, "1 día"], [A, "1 año"],
+      [1e3 * A, "10³ años"], [1e6 * A, "10⁶ años"], [1e9 * A, "10⁹ años"]];
+    var marcas = [];
+    T.forEach(function (t) {
+      var Hx = log2(t[0]) + e.r * log2(10);
+      if (Hx >= 0 && Hx <= Hmax) marcas.push({ x: X(Hx), t: t[1], negrita: true });
+    });
+    var nM = Math.max(1, repartir(marcas, izq, der));
+    var titulo = angosto ? ["Entropía H en bits", "arriba: ejemplos del libro", "abajo: fuerza bruta a 10" + sup(e.r) + " intentos/s", "franja guinda: menos de un año"]
+                         : ["Entropía H en bits", "arriba: ejemplos del libro · abajo: tiempo de fuerza bruta (peor caso) a 10" + sup(e.r) + " intentos/s",
+                            "franja guinda: se rompe en menos de un año"];
+    var top = 8 + titulo.length * 20, eje = top + 40 + nR * 22, yM = eje + 82, alto = yM + (nM - 1) * 21 + 14;
+    var d = preparar(cv, alto / w), g = d.g, h = d.h;
+    g.clearRect(0, 0, w, h);
+    titulo.forEach(function (t, i) {
+      var color = i === 0 ? C.azulOscuro : (i === titulo.length - 1 ? C.guinda : C.gris);
+      texto(g, t, izq, 22 + i * 20, color, i ? 15 : 16, "left", "alphabetic", !i);
+    });
+    // zona "se rompe en menos de un año"
+    var Hano = log2(A) + e.r * log2(10);
+    g.save(); g.fillStyle = C.guindaClaro; g.fillRect(X(0), eje - 7, Math.min(X(Hano), der) - X(0), 14); g.restore();
+    linea(g, izq, eje, der, eje, C.gris, 2);
+    for (var b = 0; b <= Hmax; b += paso) linea(g, X(b), eje - 7, X(b), eje + 7, C.gris, 1.5);
+    refs.forEach(function (r) {
+      var y = eje - 34 - r.fila * 22;
+      linea(g, r.x, eje, r.x, y + 5, C.azul, 1.2, [3, 3]);
+      g.save(); g.fillStyle = C.azul; g.beginPath(); g.arc(r.x, eje, 4.5, 0, 2 * Math.PI); g.fill(); g.restore();
+      texto(g, r.t, r.xt, y, C.azul, 15, "center");
+    });
+    marcas.forEach(function (m) {
+      var y = yM + m.fila * 21;
+      linea(g, m.x, eje + 8, m.x, y - 15, C.oro, 2);
+      texto(g, m.t, m.xt, y, C.oroTexto, 15, "center", "alphabetic", true);
+    });
+    for (b = 0; b <= Hmax; b += paso) {             // números del eje encima de las marcas de tiempo
+      var tb = String(b), wb = anchoTexto(tb, 15);
+      g.save(); g.fillStyle = "#fff"; g.fillRect(X(b) - wb / 2 - 2, eje + 11, wb + 4, 17); g.restore();
+      texto(g, tb, X(b), eje + 24, C.gris, 15, "center");
+    }
+    // contraseña actual
+    if (e.N > 0) {
+      var xc = X(e.H);
+      linea(g, xc, eje - 28, xc, eje + 30, C.guinda, 4);
+      g.save(); g.fillStyle = C.guinda; g.beginPath(); g.moveTo(xc, eje - 10); g.lineTo(xc - 9, eje - 28); g.lineTo(xc + 9, eje - 28); g.closePath(); g.fill(); g.restore();
+      var et = "Tu contraseña: " + num(e.H, 1) + " bits", wt = anchoTexto(et, 16, true);
+      var xe = Math.min(Math.max(xc, izq + wt / 2), der - wt / 2), ye = eje + 52;
+      g.save(); g.fillStyle = "#fff"; g.strokeStyle = C.guinda; g.lineWidth = 1.5;
+      g.fillRect(xe - wt / 2 - 6, ye - 17, wt + 12, 23); g.strokeRect(xe - wt / 2 - 6, ye - 17, wt + 12, 23); g.restore();
+      texto(g, et, xe, ye, C.guinda, 16, "center", "alphabetic", true);
+    }
+  }
+
+  function ajustarModo() {
+    var m = modoPwd(), r = $("largo");
+    $("conjuntos").disabled = m === "dice";
+    if (m === "dice") { r.max = 10; r.value = largoDice; } else { r.max = 24; r.value = largoCar; }
+    $("muestra").textContent = "";
+    actualizarPwd();
+  }
+  function actualizarPwd() {
+    var e = estadoPwd();
+    if (e.modo === "dice") largoDice = e.L; else largoCar = e.L;
+    lecturaPwd(e); dibujarPwd();
+  }
+  $("modoCar").addEventListener("change", ajustarModo);
+  $("modoDice").addEventListener("change", ajustarModo);
+  ["cMin", "cMay", "cDig", "cSim"].forEach(function (id) { $(id).addEventListener("change", function () { $("muestra").textContent = ""; actualizarPwd(); }); });
+  $("largo").addEventListener("input", function () { $("muestra").textContent = ""; actualizarPwd(); });
+  $("tasa").addEventListener("input", actualizarPwd);
+  $("generar").addEventListener("click", function () {
+    var e = estadoPwd(), s = "";
+    if (e.modo === "dice") {
+      var grupos = [];
+      for (var i = 0; i < e.L; i++) { var gtxt = ""; for (var k = 0; k < 5; k++) gtxt += String(1 + azar(6)); grupos.push(gtxt); }
+      s = "Dados: " + grupos.join(" · ") + " → cada grupo de 5 dados elige una palabra de la lista.";
+    } else {
+      var alfabeto = "";
+      ["cMin", "cMay", "cDig", "cSim"].forEach(function (id) { if ($(id).checked) alfabeto += CONJ[id].chars; });
+      if (!alfabeto) { $("muestra").textContent = "Elige al menos un conjunto."; return; }
+      for (var j = 0; j < e.L; j++) s += alfabeto.charAt(azar(alfabeto.length));
+      s = "Ejemplo: " + s + "   (no la uses: ya apareció en pantalla)";
+    }
+    $("muestra").textContent = s;
+  });
+
+  // ================================================================ Vista 3: moneda
+  var lanz = null;                                   // arreglo de 0 y 1
+  function Hb(p) { return (p <= 0 || p >= 1) ? 0 : -(p * log2(p) + (1 - p) * log2(1 - p)); }
+  function termino(p) { return p <= 0 ? 0 : -p * log2(p); }
+  function sustBinaria(p0) {
+    var p1 = 1 - p0, a = corto(p0, 3), b = corto(p1, 3);
+    if (p0 <= 0 || p0 >= 1) {
+      return "H = −[" + a + " log₂(" + a + ") + " + b + " log₂(" + b + ")] = <b>0 bits/símbolo</b> (0·log₂ 0 se toma como 0: un resultado seguro no sorprende).";
+    }
+    return "H = −[" + a + " log₂(" + a + ") + " + b + " log₂(" + b + ")]<br>&nbsp;&nbsp;≈ −[" + a + "(" + num(log2(p0), 3) + ") + " + b + "(" + num(log2(p1), 3) + ")]<br>&nbsp;&nbsp;≈ " +
+      num(termino(p0), 3) + " + " + num(termino(p1), 3) + " ≈ <b>" + num(Hb(p0), 3) + " bits/símbolo</b>";
+  }
+  function lecturaMoneda() {
+    var p0 = Number($("p0").value);
+    $("p0Val").textContent = corto(p0, 2);
+    var html = "p₀ = " + corto(p0, 2) + ", p₁ = 1 − p₀ = " + corto(1 - p0, 2) + "<br><span class='formula'>" + sustBinaria(p0) + "</span><br>" +
+      "Máxima para N = 2: log₂(2) = 1 bit → esta fuente da el <b>" + num(100 * Hb(p0), 1) + " %</b> de lo que podría.";
+    if (lanz) {
+      var ceros = lanz.filter(function (x) { return x === 0; }).length, f0 = ceros / lanz.length;
+      html += "<br><br><b>Medido en " + lanz.length + " lanzamientos:</b> " + ceros + " ceros y " + (lanz.length - ceros) + " unos → p̂₀ = " + corto(f0, 2) +
+        "<br><span class='formula'>" + sustBinaria(f0).replace("H =", "H<sub>medida</sub> =") + "</span>";
+    }
+    $("lecturaMoneda").innerHTML = html;
+  }
+  function dibujarMoneda() {
+    var cv = $("lienzoMoneda"), angosto = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, angosto ? 0.8 : 0.52), g = d.g, w = d.w, h = d.h, p0 = Number($("p0").value);
+    g.clearRect(0, 0, w, h);
+    var izq = 58, der = w - 18, arr = 52, abj = h - 50;
+    function X(p) { return izq + p * (der - izq); }
+    function Y(v) { return abj - (v / 1.1) * (abj - arr); }
+    texto(g, "Entropía de una fuente binaria: H(p₀)", 10, 22, C.azulOscuro, 16, "left", "alphabetic", true);
+    for (var i = 0; i <= 10; i++) {
+      var p = i / 10;
+      linea(g, X(p), arr, X(p), abj, i === 0 ? C.gris : C.grisClaro, 1);
+      if (!angosto || i % 2 === 0) texto(g, corto(p, 1), X(p), abj + 20, C.gris, 15, "center");
+    }
+    for (var v = 0; v <= 1.0001; v += 0.2) {
+      linea(g, izq, Y(v), der, Y(v), v === 0 ? C.gris : C.grisClaro, 1);
+      texto(g, corto(v, 1), izq - 8, Y(v) + 5, C.gris, 15, "right");
+    }
+    texto(g, "p₀ (probabilidad del símbolo 0)", (izq + der) / 2, h - 8, C.tinta, 15, "center");
+    g.save(); g.translate(16, (arr + abj) / 2); g.rotate(-Math.PI / 2); texto(g, "H (bits/símbolo)", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    // curva
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 3.5; g.beginPath();
+    for (var k = 0; k <= 400; k++) { var q = k / 400; if (k === 0) g.moveTo(X(q), Y(Hb(q))); else g.lineTo(X(q), Y(Hb(q))); }
+    g.stroke(); g.restore();
+    // ejemplo del libro
+    if (Math.abs(p0 - 0.9) > 0.015) {
+      g.save(); g.strokeStyle = C.oroTexto; g.lineWidth = 2; g.beginPath(); g.arc(X(0.9), Y(Hb(0.9)), 7, 0, 2 * Math.PI); g.stroke(); g.restore();
+      texto(g, "libro: 0.469", X(0.9) - 10, Y(Hb(0.9)) + 4, C.oroTexto, 15, "right", "middle");
+    }
+    // medido
+    if (lanz) {
+      var f0 = lanz.filter(function (x) { return x === 0; }).length / lanz.length, xm = X(f0), ym = Y(Hb(f0));
+      g.save(); g.fillStyle = C.oro; g.beginPath(); g.moveTo(xm, ym - 9); g.lineTo(xm + 9, ym); g.lineTo(xm, ym + 9); g.lineTo(xm - 9, ym); g.closePath(); g.fill(); g.restore();
+      texto(g, "medida", xm + (f0 > 0.5 ? -12 : 12), ym + 20, C.oroTexto, 15, f0 > 0.5 ? "right" : "left", "middle", true);
+    }
+    // punto actual
+    var xp = X(p0), yp = Y(Hb(p0));
+    linea(g, xp, yp, xp, abj, C.guinda, 1.5, [5, 4]);
+    linea(g, izq, yp, xp, yp, C.guinda, 1.5, [5, 4]);
+    g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xp, yp, 8, 0, 2 * Math.PI); g.fill(); g.restore();
+    var et = "H = " + num(Hb(p0), 3);
+    texto(g, et, xp + (p0 > 0.6 ? -14 : 14), yp < arr + 30 ? yp + 26 : yp - 16, C.guinda, 17, p0 > 0.6 ? "right" : "left", "alphabetic", true);
+  }
+  function actualizarMoneda() { lecturaMoneda(); dibujarMoneda(); }
+  $("p0").addEventListener("input", function () { lanz = null; $("lanzamientos").textContent = "(sin lanzamientos)"; actualizarMoneda(); });
+  $("lanzar").addEventListener("click", function () {
+    var p0 = Number($("p0").value), sec = [];
+    for (var i = 0; i < 100; i++) sec.push(Math.random() < p0 ? 0 : 1);
+    lanz = sec;
+    var txt = "";
+    for (var j = 0; j < 100; j += 10) txt += sec.slice(j, j + 10).join("") + (j < 90 ? " " : "");
+    $("lanzamientos").textContent = txt;
+    actualizarMoneda();
+  });
+  $("borrarLanz").addEventListener("click", function () { lanz = null; $("lanzamientos").textContent = "(sin lanzamientos)"; actualizarMoneda(); });
+
+  // ================================================================ general
+  function dibujarTodo() { dibujarMensaje(); dibujarPwd(); dibujarMoneda(); }
+  window.addEventListener("resize", dibujarTodo);
+  actualizarMensaje(); actualizarPwd(); actualizarMoneda();
+  // Abrir directamente una vista con #v1, #v2 o #v3 al final de la liga (útil desde la presentación)
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) { inicial.click(); window.addEventListener("load", function () { window.scrollTo(0, 0); }); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-12-entropia.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h2v1h-2zM20 2h3v1h-3zM24 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM15 3h1v1h-1zM17 3h4v1h-4zM25 3h1v1h-1zM27 3h2v1h-2zM30 3h1v1h-1zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM15 4h2v1h-2zM18 4h1v1h-1zM20 4h3v1h-3zM24 4h1v1h-1zM26 4h3v1h-3zM30 4h1v1h-1zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h2v1h-2zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM12 6h3v1h-3zM16 6h3v1h-3zM21 6h1v1h-1zM24 6h1v1h-1zM26 6h5v1h-5zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM12 7h2v1h-2zM15 7h2v1h-2zM18 7h1v1h-1zM20 7h2v1h-2zM23 7h2v1h-2zM28 7h1v1h-1zM30 7h1v1h-1zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h3v1h-3zM15 9h1v1h-1zM19 9h1v1h-1zM21 9h2v1h-2zM25 9h2v1h-2zM28 9h3v1h-3zM2 10h1v1h-1zM4 10h2v1h-2zM7 10h3v1h-3zM11 10h3v1h-3zM15 10h2v1h-2zM18 10h1v1h-1zM21 10h1v1h-1zM23 10h1v1h-1zM26 10h1v1h-1zM28 10h3v1h-3zM32 10h1v1h-1zM35 10h1v1h-1zM37 10h2v1h-2zM3 11h4v1h-4zM9 11h1v1h-1zM11 11h3v1h-3zM15 11h4v1h-4zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM2 12h2v1h-2zM7 12h2v1h-2zM17 12h1v1h-1zM19 12h2v1h-2zM22 12h1v1h-1zM24 12h2v1h-2zM28 12h1v1h-1zM30 12h1v1h-1zM32 12h1v1h-1zM36 12h1v1h-1zM5 13h1v1h-1zM9 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM16 13h2v1h-2zM20 13h3v1h-3zM25 13h3v1h-3zM31 13h1v1h-1zM34 13h3v1h-3zM8 14h2v1h-2zM12 14h3v1h-3zM16 14h1v1h-1zM19 14h1v1h-1zM22 14h1v1h-1zM24 14h2v1h-2zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM4 15h2v1h-2zM9 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM17 15h2v1h-2zM21 15h1v1h-1zM23 15h1v1h-1zM26 15h1v1h-1zM28 15h8v1h-8zM37 15h2v1h-2zM2 16h2v1h-2zM5 16h10v1h-10zM18 16h4v1h-4zM23 16h1v1h-1zM26 16h2v1h-2zM31 16h1v1h-1zM34 16h1v1h-1zM36 16h2v1h-2zM2 17h2v1h-2zM6 17h2v1h-2zM11 17h5v1h-5zM19 17h2v1h-2zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM4 18h3v1h-3zM8 18h3v1h-3zM16 18h1v1h-1zM18 18h3v1h-3zM23 18h2v1h-2zM27 18h2v1h-2zM35 18h2v1h-2zM2 19h3v1h-3zM7 19h1v1h-1zM10 19h1v1h-1zM14 19h2v1h-2zM18 19h1v1h-1zM22 19h1v1h-1zM25 19h3v1h-3zM29 19h1v1h-1zM31 19h2v1h-2zM35 19h4v1h-4zM4 20h5v1h-5zM10 20h1v1h-1zM17 20h4v1h-4zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h1v1h-1zM6 21h2v1h-2zM9 21h4v1h-4zM15 21h2v1h-2zM19 21h1v1h-1zM22 21h1v1h-1zM25 21h2v1h-2zM30 21h1v1h-1zM33 21h1v1h-1zM35 21h1v1h-1zM37 21h1v1h-1zM2 22h3v1h-3zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h2v1h-2zM14 22h1v1h-1zM19 22h2v1h-2zM22 22h3v1h-3zM28 22h1v1h-1zM30 22h2v1h-2zM33 22h2v1h-2zM38 22h1v1h-1zM2 23h2v1h-2zM9 23h4v1h-4zM14 23h2v1h-2zM18 23h1v1h-1zM20 23h4v1h-4zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM3 24h1v1h-1zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h3v1h-3zM16 24h1v1h-1zM19 24h1v1h-1zM25 24h2v1h-2zM30 24h2v1h-2zM33 24h1v1h-1zM2 25h2v1h-2zM12 25h2v1h-2zM15 25h1v1h-1zM18 25h1v1h-1zM20 25h1v1h-1zM22 25h1v1h-1zM24 25h9v1h-9zM34 25h5v1h-5zM3 26h2v1h-2zM6 26h3v1h-3zM10 26h1v1h-1zM12 26h6v1h-6zM20 26h2v1h-2zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM3 27h4v1h-4zM9 27h4v1h-4zM16 27h1v1h-1zM18 27h4v1h-4zM23 27h1v1h-1zM26 27h2v1h-2zM29 27h6v1h-6zM37 27h2v1h-2zM3 28h2v1h-2zM8 28h2v1h-2zM11 28h3v1h-3zM17 28h2v1h-2zM21 28h1v1h-1zM23 28h1v1h-1zM26 28h1v1h-1zM31 28h2v1h-2zM35 28h3v1h-3zM2 29h1v1h-1zM5 29h1v1h-1zM9 29h1v1h-1zM16 29h1v1h-1zM18 29h1v1h-1zM21 29h3v1h-3zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h2v1h-2zM4 30h8v1h-8zM14 30h5v1h-5zM20 30h5v1h-5zM27 30h1v1h-1zM30 30h5v1h-5zM36 30h1v1h-1zM38 30h1v1h-1zM10 31h3v1h-3zM14 31h1v1h-1zM17 31h1v1h-1zM19 31h2v1h-2zM23 31h5v1h-5zM29 31h2v1h-2zM34 31h1v1h-1zM36 31h3v1h-3zM2 32h7v1h-7zM10 32h1v1h-1zM12 32h2v1h-2zM15 32h5v1h-5zM22 32h2v1h-2zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h2v1h-2zM14 33h2v1h-2zM18 33h1v1h-1zM21 33h1v1h-1zM24 33h1v1h-1zM26 33h1v1h-1zM29 33h2v1h-2zM34 33h1v1h-1zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM11 34h2v1h-2zM15 34h1v1h-1zM17 34h1v1h-1zM20 34h1v1h-1zM23 34h1v1h-1zM25 34h1v1h-1zM30 34h6v1h-6zM37 34h1v1h-1zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h1v1h-1zM14 35h1v1h-1zM16 35h2v1h-2zM20 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h2v1h-2zM16 36h1v1h-1zM18 36h1v1h-1zM25 36h1v1h-1zM27 36h1v1h-1zM29 36h4v1h-4zM34 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h5v1h-5zM18 37h1v1h-1zM20 37h2v1h-2zM25 37h1v1h-1zM27 37h3v1h-3zM31 37h6v1h-6zM2 38h7v1h-7zM10 38h2v1h-2zM14 38h1v1h-1zM17 38h1v1h-1zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-12-entropia.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

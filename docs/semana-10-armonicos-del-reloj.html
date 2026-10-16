@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Armónicos del reloj</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura, .nota, .preguntas, .seguridad { overflow-wrap:anywhere; }
+  .valor { float:right; color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  .casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  .casilla input { width:18px; height:18px; margin:0; flex:none; }
+  .lectura .formula { display:block; margin:1px 0 5px; }
+  .botonera { display:flex; flex-wrap:wrap; }
+  .botonera button.accion { padding:6px 10px; }
+  select { width:100%; margin-top:4px; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:2px 10px 10px; min-width:0; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  .en-linea { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .en-linea input[type=number] { width:7.5em; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 16px; margin:8px 0 0; color:var(--gris); font-size:.95rem; }
+  .leyenda span::before { content:""; display:inline-block; width:22px; height:0; vertical-align:middle;
+                          margin-right:6px; border-top:3px solid var(--c); }
+  .leyenda span.punteada::before { border-top-style:dashed; }
+  .leyenda span.bloque::before { height:12px; border:none; background:var(--c); }
+  .leyenda span.hueca::before { height:10px; border:2px dashed var(--c); background:#fff; }
+  table.lineas { width:100%; border-collapse:collapse; margin-top:10px; font-size:1rem; }
+  table.lineas th, table.lineas td { border:1px solid var(--borde); padding:4px 6px; text-align:center; }
+  table.lineas th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  table.lineas tr.sintonia td { background:var(--oro-claro); font-weight:bold; }
+  table.lineas td.si { color:var(--azul); font-weight:bold; }
+  table.lineas td.no { color:var(--gris); }
+  #cajaReto[hidden] { display:none; }
+  .resultado { margin-top:8px; min-height:1.4em; }
+  @media (max-width: 480px) {
+    header { padding:10px 12px 4px; }
+    main { padding:8px 10px 20px; }
+    footer { padding:6px 12px 16px; }
+    .panel { padding:10px; }
+    h1 { font-size:1.45rem; }
+    table.lineas th, table.lineas td { padding:4px 3px; }
+  }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 10 · Día 2 · Series de Fourier y emanaciones</div>
+  <h1>Los armónicos de un reloj: de la serie de Fourier a las emanaciones</h1>
+  <p class="sub">Suma senos de frecuencias impares hasta formar la onda cuadrada de un reloj; después sintoniza el receptor de un atacante junto al equipo para descubrir en qué frecuencias "transmite" sin proponérselo y cómo lo contienen el filtrado y el blindaje.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1 · Construye la cuadrada</button>
+    <button type="button" data-vista="v2" role="tab">2 · Las fugas del reloj</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La serie de Fourier del reloj</h2>
+        <p class="nota" style="margin-top:0">Reloj ideal del libro: f₀ = 1 MHz (T = 1 µs), ciclo de trabajo del 50 %, entre +A y −A.</p>
+        <label for="nArm">Armónicos impares sumados <span class="valor" id="nArmTxt"></span></label>
+        <input id="nArm" type="range" min="1" max="40" step="1" value="3">
+        <div class="botonera">
+          <button type="button" class="accion" id="menosArm" aria-label="Quitar un armónico">− armónico</button>
+          <button type="button" class="accion" id="masArm" aria-label="Agregar un armónico">+ armónico</button>
+          <button type="button" class="accion" id="animar">Animar</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="verArm" checked> Ver cada armónico por separado</label>
+        <label class="casilla"><input type="checkbox" id="verIdeal" checked> Ver la cuadrada ideal</label>
+        <label class="casilla"><input type="checkbox" id="dB1"> Espectro en dB (respecto al fundamental)</label>
+        <fieldset>
+          <legend>Flancos reales</legend>
+          <label class="casilla"><input type="checkbox" id="rc1"> Pasar el reloj por un pasa-bajas RC</label>
+          <label for="fc1">Frecuencia de corte f<sub>c</sub> <span class="valor" id="fc1Txt"></span></label>
+          <input id="fc1" type="range" min="2" max="50" step="0.5" value="10" disabled>
+          <p class="nota">Un capacitor no cambia de voltaje al instante: el flanco tarda del orden de τ = RC.</p>
+        </fieldset>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoTiempo" aria-label="Dos periodos del reloj: la suma de los armónicos elegidos, cada armónico por separado y la onda cuadrada ideal"></canvas>
+        <div class="leyenda">
+          <span style="--c:#0A2A57">suma de los armónicos</span>
+          <span class="punteada" style="--c:#5B6472">cuadrada ideal</span>
+          <span style="--c:rgba(0,64,143,0.45)">armónicos por separado</span>
+          <span style="--c:#8C1D35">el último que agregaste</span>
+          <span class="bloque" style="--c:rgba(184,151,90,0.45)">flanco (10 % → 90 % del salto)</span>
+        </div>
+        <canvas id="lienzoEspectro" style="margin-top:12px" aria-label="Espectro del reloj: una barra por armónico, con altura 4A entre n pi; los armónicos pares valen cero"></canvas>
+        <div class="leyenda">
+          <span class="bloque" style="--c:#00408F">armónico sumado</span>
+          <span class="bloque" style="--c:#8C1D35">el último que agregaste</span>
+          <span class="hueca" style="--c:#B8975A">armónico que falta (amplitud ideal)</span>
+        </div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con N = 5, ¿qué tan parecida a la cuadrada es la suma? Agrega armónicos de uno en uno: ¿qué parte de la onda mejora con cada armónico nuevo?</li>
+            <li>Lleva N al máximo. ¿Desaparece el sobretiro de las esquinas? ¿Qué le pasa a su ancho?</li>
+            <li>Activa el pasa-bajas con f<sub>c</sub> = 10 MHz. ¿Qué armónicos casi no cambian y cuáles se reducen más? ¿Qué les pasa al flanco y al sobretiro?</li>
+            <li>¿Por qué un bus que necesita flancos muy rápidos radia en más frecuencias que uno lento?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> Cada armónico que el reloj necesita para tener flancos casi verticales es una frecuencia en la que el equipo puede radiar sin proponérselo: interferencia electromagnética que las normas de compatibilidad limitan. Un analista de seguridad de hardware también la aprovecha al revés, para inferir la frecuencia de reloj de un dispositivo por sus emisiones. Si esas emisiones además llevan información de lo que procesa el equipo (por ejemplo, la imagen de un monitor), son emanaciones comprometedoras (TEMPEST).</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>El equipo</h2>
+        <label for="f0">Frecuencia del reloj f₀ <span class="valor" id="f0Txt"></span></label>
+        <input id="f0" type="range" min="0.5" max="50" step="0.5" value="1">
+        <label for="duty">Ciclo de trabajo D <small>(fracción del periodo en +A)</small> <span class="valor" id="dutyTxt"></span></label>
+        <input id="duty" type="range" min="10" max="90" step="1" value="50">
+        <button type="button" class="accion" id="relojLibro">Reloj del ejemplo del libro (1 MHz, 50 %)</button>
+
+        <h2 style="margin-top:14px">El receptor del atacante</h2>
+        <label for="rango">Rango que se muestra</label>
+        <select id="rango">
+          <option value="10">0 a 10 MHz</option>
+          <option value="30">0 a 30 MHz</option>
+          <option value="100">0 a 100 MHz</option>
+          <option value="300">0 a 300 MHz</option>
+        </select>
+        <label for="fr">Sintonía f<sub>r</sub> <span class="valor" id="frTxt"></span></label>
+        <input id="fr" type="range" min="0" max="10" step="0.01" value="2">
+        <div class="en-linea">
+          <input id="frNum" type="number" min="0" max="10" step="0.01" value="2" aria-label="Frecuencia de sintonía en MHz"> MHz
+        </div>
+        <div class="botonera">
+          <button type="button" class="accion" id="buscarAtras">◀ Buscar</button>
+          <button type="button" class="accion" id="buscarAdelante">Buscar ▶</button>
+          <button type="button" class="accion" id="barrer">Barrer el rango</button>
+        </div>
+        <label for="banda">Ancho de banda del receptor B</label>
+        <select id="banda">
+          <option value="0.01">10 kHz (como una estación de AM)</option>
+          <option value="0.2" selected>200 kHz (como una estación de FM)</option>
+          <option value="1">1 MHz (receptor de banda ancha)</option>
+        </select>
+        <label for="dist">Distancia del receptor al equipo d <span class="valor" id="distTxt"></span></label>
+        <input id="dist" type="range" min="1" max="60" step="0.5" value="8">
+
+        <fieldset id="defensas">
+          <legend>Defensas (TEMPEST)</legend>
+          <label class="casilla"><input type="checkbox" id="filtro"> Filtro pasa-bajas en las líneas que salen del equipo</label>
+          <label for="fc2">Frecuencia de corte f<sub>c</sub> <span class="valor" id="fc2Txt"></span></label>
+          <input id="fc2" type="range" min="0" max="100" step="1" value="40" disabled>
+          <label for="blindaje">Blindaje del gabinete o la sala <span class="valor" id="blindajeTxt"></span></label>
+          <input id="blindaje" type="range" min="0" max="80" step="1" value="0">
+        </fieldset>
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+
+        <fieldset>
+          <legend>Reto: un equipo desconocido</legend>
+          <p class="nota" style="margin-top:2px">La página esconde la frecuencia de un reloj ideal. Con un receptor de VHF (30 a 300 MHz) busca sus señales y deduce f₀.</p>
+          <button type="button" class="accion" id="nuevoReto">Nuevo reto</button>
+          <button type="button" class="accion" id="salirReto">Salir del reto</button>
+          <div id="cajaReto" hidden>
+            <label for="respuesta">Tu respuesta: f₀ (MHz)</label>
+            <div class="en-linea">
+              <input id="respuesta" type="number" min="0" step="0.5" placeholder="MHz">
+              <button type="button" class="accion" id="comprobar" style="margin:0">Comprobar</button>
+              <button type="button" class="accion" id="revelar" style="margin:0">Revelar</button>
+            </div>
+            <div class="resultado" id="resultadoReto" aria-live="polite"></div>
+          </div>
+        </fieldset>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoFugas" aria-label="Arriba, dos periodos del reloj; abajo, el nivel de cada armónico que radia el equipo, el umbral del receptor a la distancia elegida y la banda en la que está sintonizado"></canvas>
+        <div class="leyenda">
+          <span style="--c:#8C1D35">lo capta el receptor ahora</span>
+          <span style="--c:#00408F">se capta a esta distancia</span>
+          <span style="--c:#B9C1CC">queda bajo el umbral</span>
+          <span class="punteada" style="--c:#8C1D35">umbral del receptor</span>
+          <span class="bloque" style="--c:rgba(184,151,90,0.45)">banda sintonizada</span>
+        </div>
+        <p class="nota">Modelo simplificado: todas las frecuencias radian con la misma eficiencia y la señal pierde 20 log₁₀ d en espacio libre. Valor ilustrativo: sin defensas, el fundamental de un reloj ideal se capta hasta d<sub>ref</sub> = 50 m.</p>
+        <table class="lineas" id="tablaLineas"></table>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con el reloj del libro (1 MHz, 50 %), predice qué captará el receptor en 2, 3, 4 y 5 MHz. Después sintonízalo y explica la diferencia.</li>
+            <li>Cambia el ciclo de trabajo a 40 %. ¿Qué aparece en 2 y 4 MHz? ¿Con qué ciclo de trabajo casi desaparece el armónico 3?</li>
+            <li>Aléjate del equipo. ¿Qué armónicos dejas de captar primero? ¿Hasta qué distancia se capta el tercero?</li>
+            <li>Prueba el filtro y luego el blindaje. ¿En qué se diferencian sus efectos? ¿Cuántos dB de blindaje hacen falta para que a 8 m ya no se capte nada?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad (TEMPEST).</b> Las contramedidas combinan blindaje (la jaula de Faraday), filtrado de las líneas de energía y de datos (pasa-bajas, para que los armónicos de los relojes no salgan conducidos por el cableado), zonificación y distancia. El control PE-19 de NIST SP 800-53 pide proteger los sistemas contra la fuga de información por emanaciones electromagnéticas. En espacio libre, un blindaje de A dB divide entre 10<sup>A/20</sup> la distancia a la que puede captarse una emanación.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:serie-fourier, eq:onda-cuadrada y eq:ganancia-filtro; ejemplo del reloj de 1 MHz), fase1/cap01_electricidad.tex (pasa-bajas RC: Ecuaciones eq:descarga-rc y eq:corte-rc) y fase3/cap01_modelo_osi_seguridad.tex (emanaciones comprometedoras y blindaje). La amplitud con ciclo de trabajo D se obtiene de la serie de Fourier; d<sub>ref</sub>, las frecuencias de corte, la distancia y el ancho de banda del receptor son ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6", apagado:"#B9C1CC" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+  var vistaActiva = "v1";
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); x.setAttribute("aria-selected", "false"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo"); b.setAttribute("aria-selected", "true");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal; espacio de miles desde 5 cifras (estilo del libro: 3600, 10 000)
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length >= 5) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  // Sin ceros de sobra: 3 → "3", 4.50 → "4.5"
+  function corto(x, dec) {
+    var s = num(x, dec === undefined ? 2 : dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function frec(fMHz) {                       // frecuencia legible: kHz abajo de 1 MHz
+    if (fMHz < 1) return corto(fMHz * 1000, 1) + " kHz";
+    return corto(fMHz, 2) + " MHz";
+  }
+  function dB(x) { return 20 * Math.log10(x); }
+  function numDB(v, dec) { var s = num(v, dec); return /^−0(\.0+)?$/.test(s) ? s.slice(1) : s; }
+  function lista(arr) { return arr.length < 2 ? arr.join("") : arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1]; }
+
+  // Ayudantes de dibujo
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "middle"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    g.save(); g.font = (negrita ? "bold " : "") + tam + "px " + FUENTE;
+    var w = g.measureText(t).width, x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam / 2 - 3, w + 6, tam + 6); g.restore();
+    texto(g, t, x, y, color, tam, alin, "middle", negrita);
+  }
+  function anchoTexto(g, t, tam, negrita) { g.save(); g.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; var w = g.measureText(t).width; g.restore(); return w; }
+
+  // Pasa-bajas RC del libro: módulo y desfase de H(f) = 1/(1 + j f/fc)
+  function Hmod(f, fc) { return isFinite(fc) ? 1 / Math.sqrt(1 + (f / fc) * (f / fc)) : 1; }
+  function Hang(f, fc) { return isFinite(fc) ? Math.atan(f / fc) : 0; }
+
+  // ================================================================ Vista 1
+  var F0_LIBRO = 1;                 // MHz, reloj del ejemplo del libro
+  function N1() { return 2 * Number($("nArm").value) - 1; }
+  function fcV1() { return $("rc1").checked ? Number($("fc1").value) : Infinity; }
+  // Suma parcial de la Ecuación de la onda cuadrada (en unidades de A), t en µs
+  function suma(t, N, fc) {
+    var s = 0;
+    for (var n = 1; n <= N; n += 2) s += (4 / (n * Math.PI)) * Hmod(n * F0_LIBRO, fc) * Math.sin(2 * Math.PI * n * F0_LIBRO * t - Hang(n * F0_LIBRO, fc));
+    return s;
+  }
+  // Pico en un periodo y flanco de subida cerca de t = 1 µs (de −0.8A a +0.8A: del 10 % al 90 % del salto)
+  function medirOnda(N, fc) {
+    var M = 4000, pico = -Infinity, k, t, x;
+    for (k = 0; k < M; k++) { x = suma(k / M, N, fc); if (x > pico) pico = x; }
+    var paso = 0.0002, prev = suma(0.75, N, fc), cruce = null;
+    for (t = 0.75 + paso; t < 1.25; t += paso) { x = suma(t, N, fc); if (prev < 0 && x >= 0) { cruce = t; break; } prev = x; }
+    var r = { pico: pico, flanco: null, t10: null, t90: null }, x1, x0;
+    if (cruce === null) return r;
+    // cruces de −0.8A y +0.8A, con interpolación lineal entre muestras
+    for (t = cruce; t > cruce - 0.5; t -= paso) {
+      x1 = suma(t, N, fc);
+      if (x1 <= -0.8) { x0 = suma(t + paso, N, fc); r.t10 = t + paso * (-0.8 - x1) / (x0 - x1); break; }
+    }
+    for (t = cruce; t < cruce + 0.5; t += paso) {
+      x1 = suma(t, N, fc);
+      if (x1 >= 0.8) { x0 = suma(t - paso, N, fc); r.t90 = t - paso + paso * (0.8 - x0) / (x1 - x0); break; }
+    }
+    if (r.t10 !== null && r.t90 !== null) r.flanco = r.t90 - r.t10;
+    return r;
+  }
+  var medida1 = null;
+
+  function lectura1() {
+    var N = N1(), fc = fcV1(), k = (N + 1) / 2, h = "";
+    $("nArmTxt").textContent = "N = " + N + " (" + k + (k === 1 ? " término)" : " términos)");
+    $("fc1Txt").textContent = num(Number($("fc1").value), 1) + " MHz";
+    var terminos = [];
+    for (var n = 1; n <= N && n <= 7; n += 2) terminos.push((n === 1 ? "" : "(1/" + n + ")") + "sen(2π·" + (n === 1 ? "" : n) + "f₀t)");
+    h += "<b>Suma parcial</b><span class='formula'>x(t) = (4A/π)[" + terminos.join(" + ") + (N > 7 ? " + … + (1/" + N + ")sen(2π·" + N + "f₀t)" : "") + "]</span>";
+    var bN = 4 / (N * Math.PI);
+    h += N === 1 ? "Solo el fundamental: <span class='formula' style='display:inline'>f₀ = 1 MHz</span>, amplitud " +
+                   "<span class='formula' style='display:inline'>b₁ = 4A/π = " + num(bN, 3) + "A</span>.<br>" :
+         "Armónico más alto: n = " + N + " → <span class='formula' style='display:inline'>" + N + "f₀ = " + N + " MHz</span>, amplitud " +
+         "<span class='formula' style='display:inline'>b<sub>" + N + "</sub> = 4A/(" + N + "π) = " + num(bN, 3) + "A</span>" +
+         " (1/" + N + " del fundamental).<br>";
+    h += "Los pares no aparecen: b₂ = b₄ = b₆ = … = 0.";
+    if (isFinite(fc)) {
+      var H = Hmod(N * F0_LIBRO, fc), tau = 1000 / (2 * Math.PI * fc);
+      h += "<b style='display:block;margin-top:6px'>Pasa-bajas RC</b><span class='formula'>|H(f)| = 1/√(1 + (f/f<sub>c</sub>)²)</span>" +
+           "En " + N + " MHz: |H| = 1/√(1 + (" + N + "/" + corto(fc, 1) + ")²) = <b>" + num(H, 3) + "</b> (" + num(dB(H), 2) + " dB): queda " + num(bN * H, 3) + "A." +
+           "<span class='formula'>τ = RC = 1/(2πf<sub>c</sub>) = " + num(tau, 1) + " ns</span>";
+    }
+    var m = medida1;
+    h += "<b style='display:block;margin-top:6px'>Medido en la curva</b>";
+    h += m.flanco !== null ? "Flanco del 10 % al 90 % del salto: <b>" + num(m.flanco * 1000, 1) + " ns</b><br>" :
+                             "La suma no llega al 90 % del salto: no se puede medir el flanco.<br>";
+    h += m.pico > 1.005 ? "Pico: " + num(m.pico, 3) + "A → sobretiro de <b>" + num(100 * (m.pico - 1), 1) + " %</b> de A en las esquinas." :
+                          "Pico: " + num(m.pico, 3) + "A → sin sobretiro.";
+    $("lectura1").innerHTML = h;
+  }
+
+  function dibujarTiempo() {
+    var cv = $("lienzoTiempo"), estrecho = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, estrecho ? 0.78 : 0.42), g = d.g, w = d.w, h = d.h;
+    var izq = estrecho ? 44 : 56, der = w - 12, arr = 30, abj = h - 40, N = N1(), fc = fcV1();
+    function X(t) { return izq + t / 2 * (der - izq); }
+    function Y(x) { return (arr + abj) / 2 - x / 1.5 * (abj - arr) / 2; }
+    g.clearRect(0, 0, w, h);
+    // flanco medido
+    var m = medida1;
+    if (m.flanco !== null) {
+      g.save(); g.fillStyle = "rgba(184,151,90,0.28)"; g.fillRect(X(m.t10), arr, Math.max(2, X(m.t90) - X(m.t10)), abj - arr); g.restore();
+    }
+    // rejilla
+    [-1, 0, 1].forEach(function (v) {
+      linea(g, izq, Y(v), der, Y(v), v === 0 ? C.borde : C.grisClaro, 1);
+      texto(g, v === 0 ? "0" : (v > 0 ? "+A" : "−A"), izq - 6, Y(v), C.gris, 15, "right");
+    });
+    for (var t = 0; t <= 2.0001; t += 0.5) {
+      linea(g, X(t), abj, X(t), abj + 5, C.gris, 1);
+      texto(g, corto(t, 1), X(t), abj + 16, C.gris, 15, "center");
+    }
+    texto(g, "t (µs)", der, h - 8, C.tinta, 15, "right");
+    texto(g, "x(t), en unidades de A", izq, 14, C.tinta, 15, "left");
+    // cuadrada ideal
+    if ($("verIdeal").checked) {
+      g.save(); g.strokeStyle = C.gris; g.lineWidth = 2; g.setLineDash([7, 5]); g.beginPath();
+      g.moveTo(X(0), Y(0)); g.lineTo(X(0), Y(1));
+      for (var q = 0; q < 4; q++) {
+        var t0 = q * 0.5, v = q % 2 === 0 ? 1 : -1;
+        g.lineTo(X(t0), Y(v)); g.lineTo(X(t0 + 0.5), Y(v));
+      }
+      g.lineTo(X(2), Y(0)); g.stroke(); g.restore();
+    }
+    var M = Math.max(600, Math.round((der - izq) * 2)), i;
+    // armónicos por separado: los primeros cinco en azul claro y el último que se agregó en guinda
+    if ($("verArm").checked) {
+      var dibujar = [], ampN = (4 / (N * Math.PI)) * Hmod(N, fc);
+      for (var n = 1; n <= N && dibujar.length < 5; n += 2) if (n !== N) dibujar.push(n);
+      if (ampN >= 0.05) dibujar.push(N);            // el último solo si se alcanza a ver su onda
+      dibujar.forEach(function (n) {
+        var amp = (4 / (n * Math.PI)) * Hmod(n, fc), fase = Hang(n, fc), ultimo = n === N;
+        g.save(); g.strokeStyle = ultimo ? C.guinda : "rgba(0,64,143,0.45)"; g.lineWidth = ultimo ? 2 : 1.5; g.beginPath();
+        for (var j = 0; j <= M; j++) { var tt = 2 * j / M, y = Y(amp * Math.sin(2 * Math.PI * n * tt - fase)); if (j === 0) g.moveTo(X(tt), y); else g.lineTo(X(tt), y); }
+        g.stroke(); g.restore();
+      });
+      if (N > 11) texto(g, ampN >= 0.05 ? "se dibujan los primeros 5 y el último" : "se dibujan los primeros 5", der, 14, C.gris, 15, "right");
+    }
+    // suma parcial
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath();
+    for (i = 0; i <= M; i++) { var ts = 2 * i / M, ys = Y(suma(ts, N, fc)); if (i === 0) g.moveTo(X(ts), ys); else g.lineTo(X(ts), ys); }
+    g.stroke(); g.restore();
+    // marcas de lo medido
+    if (m.flanco !== null) {
+      var txtF = "flanco " + num(m.flanco * 1000, 1) + " ns", cabeF = X(m.t90) + 8 + anchoTexto(g, txtF, 15, true) <= der;
+      etiqueta(g, txtF, cabeF ? X(m.t90) + 8 : X(m.t10) - 8, Y(-0.55), C.oroTexto, 15, cabeF ? "left" : "right", true);
+    }
+    if (m.pico > 1.005) {
+      var tp = 1.0, mejor = -Infinity;
+      for (i = 0; i <= 2000; i++) { var tq = 1 + 0.5 * i / 2000, xq = suma(tq, N, fc); if (xq > mejor) { mejor = xq; tp = tq; } }
+      linea(g, X(tp), Y(mejor) - 4, X(tp), Y(mejor) - 16, C.azulOscuro, 2);
+      var txtS = "sobretiro " + num(100 * (m.pico - 1), 1) + " %", cabe = X(tp) + 6 + anchoTexto(g, txtS, 15, true) <= der;
+      etiqueta(g, txtS, cabe ? X(tp) + 6 : X(tp) - 6, Y(mejor) - 20, C.azulOscuro, 15, cabe ? "left" : "right", true);
+    }
+  }
+
+  function dibujarEspectro1() {
+    var cv = $("lienzoEspectro"), estrecho = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, estrecho ? 0.72 : 0.36), g = d.g, w = d.w, h = d.h;
+    var izq = estrecho ? 50 : 60, der = w - 12, arr = 26, abj = h - 40, N = N1(), fc = fcV1(), endB = $("dB1").checked;
+    var topes = [12, 20, 30, 40, 50, 60, 70, 80, 90], fmax = 90;
+    for (var k = 0; k < topes.length; k++) if (topes[k] >= N + 2) { fmax = topes[k]; break; }
+    var DBMIN = isFinite(fc) ? -60 : -40, AMAX = 1.4;
+    function X(f) { return izq + f / fmax * (der - izq); }
+    function Y(a) {                      // a: amplitud en unidades de A
+      if (endB) { var v = Math.max(DBMIN, dB(a / (4 / Math.PI))); return arr + (0 - v) / (0 - DBMIN) * (abj - arr); }
+      return abj - a / AMAX * (abj - arr);
+    }
+    g.clearRect(0, 0, w, h);
+    // ejes
+    linea(g, izq, abj, der, abj, C.gris, 1.2);
+    if (endB) {
+      for (var v = 0; v >= DBMIN; v -= 10) {
+        var yv = arr + (0 - v) / (0 - DBMIN) * (abj - arr);
+        linea(g, izq, yv, der, yv, C.grisClaro, 1);
+        texto(g, num(v, 0), izq - 6, yv, C.gris, 15, "right");
+      }
+      texto(g, "nivel (dB) respecto al fundamental", izq, 12, C.tinta, 15, "left");
+    } else {
+      [0.5, 1.0].forEach(function (a) { linea(g, izq, Y(a), der, Y(a), C.grisClaro, 1); texto(g, num(a, 1) + "A", izq - 6, Y(a), C.gris, 15, "right"); });
+      texto(g, "0", izq - 6, abj, C.gris, 15, "right");
+      texto(g, "amplitud de cada armónico, bₙ = 4A/(nπ)", izq, 12, C.tinta, 15, "left");
+    }
+    var pasoF = fmax <= 12 ? 1 : (fmax <= 30 ? 5 : 10);
+    for (var f = 0; f <= fmax + 1e-9; f += pasoF) {
+      linea(g, X(f), abj, X(f), abj + 5, C.gris, 1);
+      texto(g, String(f), X(f), abj + 16, C.gris, 15, "center");
+    }
+    texto(g, "f (MHz)", der, h - 8, C.tinta, 15, "right");
+    var anchoBarra = Math.max(3, Math.min(22, (X(2) - X(0)) * 0.55));
+    // barras
+    for (var n = 1; n <= fmax; n++) {
+      var x = X(n);
+      if (n % 2 === 0) {
+        if (X(2) - X(0) >= 14 && n <= 12) { g.save(); g.fillStyle = C.gris; g.beginPath(); g.arc(x, abj - 3, 2.5, 0, 2 * Math.PI); g.fill(); g.restore(); }
+        continue;
+      }
+      var ideal = 4 / (n * Math.PI), real = ideal * Hmod(n * F0_LIBRO, fc), incluida = n <= N;
+      if (!incluida || isFinite(fc)) {
+        g.save(); g.strokeStyle = incluida ? C.gris : C.oro; g.lineWidth = 1.5; g.setLineDash([4, 3]);
+        g.strokeRect(x - anchoBarra / 2, Y(ideal), anchoBarra, abj - Y(ideal)); g.restore();
+      }
+      if (incluida) {
+        g.save(); g.fillStyle = n === N ? C.guinda : C.azul;
+        g.fillRect(x - anchoBarra / 2, Y(real), anchoBarra, abj - Y(real)); g.restore();
+      }
+    }
+    // valores de las primeras barras
+    var etiquetas = 0;
+    for (n = 1; n <= Math.min(N, fmax) && etiquetas < (estrecho ? 2 : 4); n += 2, etiquetas++) {
+      var re = 4 / (n * Math.PI) * Hmod(n * F0_LIBRO, fc);
+      var tx = endB ? numDB(dB(re / (4 / Math.PI)), 1) + " dB" : num(re, 2) + "A";
+      etiqueta(g, tx, X(n) + anchoBarra / 2 + 3, Math.max(arr + 10, Y(re) + 2), n === N ? C.guinda : C.azulOscuro, 15, "left", true);
+    }
+    texto(g, (X(2) - X(0) >= 14 ? "• " : "") + (estrecho ? "los pares valen 0" : "en 2, 4, 6… MHz no hay nada: los pares valen 0"), der, arr + 6, C.gris, 15, "right");
+  }
+
+  function rehacer1() { medida1 = medirOnda(N1(), fcV1()); lectura1(); if (vistaActiva === "v1") { dibujarTiempo(); dibujarEspectro1(); } }
+  $("nArm").addEventListener("input", rehacer1);
+  ["verArm", "verIdeal", "dB1"].forEach(function (id) { $(id).addEventListener("change", rehacer1); });
+  $("rc1").addEventListener("change", function () { $("fc1").disabled = !$("rc1").checked; rehacer1(); });
+  $("fc1").addEventListener("input", rehacer1);
+  function moverN(delta) {
+    var s = $("nArm"), v = Math.min(40, Math.max(1, Number(s.value) + delta)); s.value = String(v); rehacer1();
+  }
+  $("menosArm").addEventListener("click", function () { detenerAnim(); moverN(-1); });
+  $("masArm").addEventListener("click", function () { detenerAnim(); moverN(1); });
+  var anim = null;
+  function detenerAnim() { if (anim) { clearInterval(anim); anim = null; $("animar").textContent = "Animar"; } }
+  $("animar").addEventListener("click", function () {
+    if (anim) { detenerAnim(); return; }
+    if (Number($("nArm").value) >= 25) $("nArm").value = "1";
+    rehacer1();
+    $("animar").textContent = "Detener";
+    anim = setInterval(function () {
+      if (Number($("nArm").value) >= 25) { detenerAnim(); return; }
+      moverN(1);
+    }, 600);
+  });
+
+  // ================================================================ Vista 2
+  var DREF = 50;                    // m: alcance de referencia del fundamental ideal (valor ilustrativo)
+  var VHF_MIN = 30;                 // MHz: límite inferior del receptor del reto
+  var RETO_F0 = [13, 14, 17, 18, 21, 22, 26, 28, 29, 33, 34, 37, 38, 41, 42, 46];
+  var est = { reto: null, captadas: [], barrido: null };
+
+  function f0() { return est.reto ? est.reto.f0 : Number($("f0").value); }
+  function duty() { return est.reto ? 0.5 : Number($("duty").value) / 100; }
+  function rangoMax() { return Number($("rango").value); }
+  function bandaB() { return Number($("banda").value); }
+  function dist() { return Number($("dist").value); }
+  function fcV2() { return $("filtro").checked && !est.reto ? Math.pow(10, -3 + 5 * Number($("fc2").value) / 100) : Infinity; }
+  function blindaje() { return est.reto ? 0 : Number($("blindaje").value); }
+  function frMin() { return est.reto ? VHF_MIN : 0; }
+  function fr() { return Number($("fr").value); }
+  function umbral() { return dB(dist() / DREF); }    // nivel mínimo que capta el receptor a la distancia d
+
+  // Amplitud relativa al fundamental ideal (4A/π) del armónico n con ciclo de trabajo D
+  function amplitud(n, D) { var a = Math.abs(Math.sin(n * Math.PI * D)) / n; return a < 1e-9 ? 0 : a; }
+  // Líneas del espectro dentro del rango
+  function lineas() {
+    var F = f0(), D = duty(), fc = fcV2(), A = blindaje(), L = [], th = umbral();
+    var nMax = Math.min(600, Math.floor(rangoMax() / F + 1e-9));
+    for (var n = 1; n <= nMax; n++) {
+      var a = amplitud(n, D);
+      if (a === 0) continue;
+      var H = Hmod(n * F, fc), nivel = dB(a * H) - A;
+      L.push({ n: n, f: n * F, a: a, H: H, nivel: nivel, capta: nivel >= th, alcance: DREF * Math.pow(10, nivel / 20) });
+    }
+    return L;
+  }
+  function enBanda(l, centro, B) { return Math.abs(l.f - centro) <= B / 2 + 1e-9; }
+
+  function textoControles2() {
+    $("f0Txt").textContent = est.reto ? "?" : corto(f0(), 1) + " MHz";
+    $("dutyTxt").textContent = est.reto ? "50 %" : Math.round(duty() * 100) + " %";
+    $("frTxt").textContent = frec(fr());
+    $("distTxt").textContent = corto(dist(), 1) + " m";
+    $("fc2Txt").textContent = frec(Math.pow(10, -3 + 5 * Number($("fc2").value) / 100));
+    $("blindajeTxt").textContent = (est.reto ? 0 : blindaje()) + " dB";
+  }
+  function ajustarSintonia() {
+    var R = rangoMax(), paso = Math.min(R / 1000, bandaB() / 2), s = $("fr"), nnum = $("frNum");
+    paso = paso >= 0.01 ? Math.round(paso * 100) / 100 : 0.005;
+    s.min = String(frMin()); s.max = String(R); s.step = String(paso);
+    nnum.min = String(frMin()); nnum.max = String(R); nnum.step = String(paso);
+    var v = Math.min(R, Math.max(frMin(), Number(s.value)));
+    s.value = String(v);
+    if (document.activeElement !== nnum) nnum.value = corto(v, 3).replace("−", "-");
+  }
+  function ponerSintonia(v) {
+    var R = rangoMax();
+    $("fr").value = String(Math.min(R, Math.max(frMin(), v)));
+    if (document.activeElement !== $("frNum")) $("frNum").value = corto(fr(), 3);
+  }
+
+  function lectura2() {
+    var L = lineas(), F = f0(), D = duty(), B = bandaB(), c = fr(), th = umbral(), A = blindaje(), fc = fcV2(), h = "";
+    var dentro = L.filter(function (l) { return enBanda(l, c, B); });
+    var captadas = dentro.filter(function (l) { return l.capta; });
+    if (!est.reto) {
+      h += "<span class='formula'>f₀ = " + corto(F, 1) + " MHz → T = 1/f₀ = " + corto(1 / F, 3) + " µs</span>";
+      h += "Armónicos en f<sub>n</sub> = n·f₀, con amplitud relativa a<sub>n</sub> = |sen(nπD)|/n" +
+           (Math.abs(D - 0.5) < 1e-9 ? " = 1/n para n impar y 0 para n par (onda cuadrada)." : "; con D = " + Math.round(D * 100) + " % también hay pares.") + "<br>";
+    }
+    h += "<b>Receptor en " + frec(c) + " ± " + frec(B / 2) + "</b> (d = " + corto(dist(), 1) + " m)<br>";
+    var umbralTxt = "<span class='formula'>Umbral a " + corto(dist(), 1) + " m: 20 log₁₀(d/d<sub>ref</sub>) = 20 log₁₀(" + corto(dist(), 1) + "/" + DREF + ") = " + num(th, 1) + " dB</span>";
+    if (captadas.length) {
+      var l = captadas.reduce(function (a, b) { return b.nivel > a.nivel ? b : a; });
+      if (est.reto) {
+        h += "<span class='ok'>Capta una señal en " + frec(l.f) + "</span>, " + num(l.nivel - th, 1) + " dB arriba del umbral.";
+      } else {
+        h += "<span class='ok'>Capta el armónico n = " + l.n + "</span> (" + frec(l.f) + ")" + (captadas.length > 1 ? " y " + (captadas.length - 1) + " más en su banda" : "") + ".";
+        h += "<span class='formula'>a<sub>" + l.n + "</sub> = |sen(" + l.n + "π·" + corto(D, 2) + ")|/" + l.n + " = " + num(l.a, 3) + " → " + num(dB(l.a), 2) + " dB</span>";
+        if (isFinite(fc)) h += "<span class='formula'>Filtro: 20 log₁₀|H| = 20 log₁₀(" + num(l.H, 4) + ") = " + num(dB(l.H), 2) + " dB</span>";
+        if (A) h += "<span class='formula'>Blindaje: −" + A + " dB</span>";
+        h += "<span class='formula'>Nivel = " + num(l.nivel, 2) + " dB</span>" + umbralTxt;
+        h += "Margen: " + num(l.nivel - th, 1) + " dB. Esta línea se capta hasta <span class='formula' style='display:inline'>d<sub>" + l.n + "</sub> = " + DREF + " m × 10<sup>" + num(l.nivel, 2) + "/20</sup> = " + num(l.alcance, 1) + " m</span>.";
+      }
+    } else if (dentro.length) {
+      var lb = dentro.reduce(function (a, b) { return b.nivel > a.nivel ? b : a; });
+      h += "<span class='mal'>No capta nada:</span> " + (est.reto ? "hay una señal en su banda, pero" : "el armónico n = " + lb.n + " (" + frec(lb.f) + ") está en su banda, pero") +
+           " llega " + num(th - lb.nivel, 1) + " dB por debajo del umbral." + umbralTxt;
+      if (!est.reto) h += "Se captaría a menos de " + num(lb.alcance, 1) + " m.";
+    } else {
+      h += "<span class='mal'>No capta nada:</span> no hay ningún armónico del reloj en esa banda.";
+      if (!est.reto) {
+        var nCerca = Math.round(c / F);
+        if (nCerca >= 1 && Math.abs(c - nCerca * F) <= B / 2 + 1e-9 && amplitud(nCerca, D) === 0)
+          h += " " + frec(nCerca * F) + " = " + nCerca + "f₀ es un armónico " + (nCerca % 2 === 0 ? "par " : "") + "que con D = " + Math.round(D * 100) + " % vale |sen(" + nCerca + "π·" + corto(D, 2) + ")|/" + nCerca + " = 0.";
+      }
+    }
+    if (est.captadas.length) {
+      h += "<br><b>" + (est.reto ? "Señales encontradas:" : "Captadas en el barrido:") + "</b> " +
+           lista(est.captadas.slice().sort(function (a, b) { return a - b; }).map(function (f) { return frec(f); })) + ".";
+    }
+    $("lectura2").innerHTML = h;
+  }
+
+  function tablaLineas() {
+    var tabla = $("tablaLineas");
+    if (est.reto) { tabla.innerHTML = ""; return; }
+    var L = lineas(), c = fr(), B = bandaB(), filas = "";
+    L.slice(0, 8).forEach(function (l) {
+      filas += "<tr" + (enBanda(l, c, B) ? " class='sintonia'" : "") + "><td>" + l.n + "</td><td>" + corto(l.f, 2) + "</td><td>" + num(l.nivel, 1) +
+               "</td><td>" + (l.alcance >= 0.1 ? num(l.alcance, 1) : "&lt; 0.1") + "</td><td class='" + (l.capta ? "si" : "no") + "'>" + (l.capta ? "sí" : "no") + "</td></tr>";
+    });
+    tabla.innerHTML = L.length ? "<tr><th>n</th><th>f (MHz)</th><th>nivel (dB)</th><th>se capta hasta (m)</th><th>¿a " + corto(dist(), 1) + " m?</th></tr>" + filas :
+                                 "<tr><td>El fundamental está fuera del rango: elige un rango mayor.</td></tr>";
+  }
+
+  var geo2 = null;
+  function dibujarFugas() {
+    var cv = $("lienzoFugas"), estrecho = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, estrecho ? 1.38 : 0.66), g = d.g, w = d.w, h = d.h;
+    var izq = estrecho ? 50 : 62, der = w - 14;
+    var tiraArr = 26, tiraAbj = estrecho ? 84 : 96, arr = tiraAbj + 44, abj = h - 44;
+    var R = rangoMax(), F = f0(), D = duty(), L = lineas(), th = umbral(), c = fr(), B = bandaB();
+    g.clearRect(0, 0, w, h);
+    // ---- tira del reloj
+    texto(g, est.reto ? "Reloj del equipo: desconocido" : "El reloj: f₀ = " + corto(F, 1) + " MHz, D = " + Math.round(D * 100) + " %", izq, 12, C.tinta, 15, "left", "middle", true);
+    var xA = izq, xB = der, yH = tiraArr + 10, yL = tiraAbj - 6;
+    if (est.reto) {
+      texto(g, "?", (xA + xB) / 2, (yH + yL) / 2, C.gris, 28, "center", "middle", true);
+    } else {
+      g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5; g.beginPath();
+      var per = (xB - xA) / 2;
+      for (var q = 0; q < 2; q++) {
+        var x0 = xA + q * per;
+        if (q === 0) g.moveTo(x0, yL);
+        g.lineTo(x0, yH); g.lineTo(x0 + D * per, yH); g.lineTo(x0 + D * per, yL); g.lineTo(x0 + per, yL);
+      }
+      g.stroke(); g.restore();
+      var a0 = 2 * D - 1, yProm = (yH + yL) / 2 - a0 * (yL - yH) / 2;
+      linea(g, xA, yProm, xB, yProm, C.oroTexto, 1.5, [5, 4]);
+      etiqueta(g, (estrecho ? "a₀ = " : "promedio a₀ = A(2D − 1) = ") + (Math.abs(a0) < 1e-9 ? "0" : corto(a0, 2) + "A"), xB - 4, yProm - (a0 > 0.3 ? -12 : 12), C.oroTexto, 15, "right", true);
+    }
+    // ---- espectro: escala vertical
+    var bajo = th, piso = -60, techo = 5;
+    L.forEach(function (l) { if (l.nivel < bajo) bajo = l.nivel; });
+    while (piso > -120 && bajo < piso + 5) piso -= 20;     // el eje baja de 20 en 20 dB hasta −120 dB
+    function X(f) { return izq + f / R * (der - izq); }
+    function Y(v) { return arr + (techo - Math.max(piso, Math.min(techo, v))) / (techo - piso) * (abj - arr); }
+    geo2 = { izq: izq, der: der, R: R };
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(izq, arr, der - izq, abj - arr); g.restore();
+    var pasoV = (techo - piso) > 80 ? 20 : 10;
+    for (var v = 0; v >= piso; v -= pasoV) {
+      linea(g, izq, Y(v), der, Y(v), v === 0 ? C.borde : C.grisClaro, 1);
+      texto(g, num(v, 0), izq - 6, Y(v), C.gris, 15, "right");
+    }
+    texto(g, "nivel (dB) respecto al fundamental ideal", izq, arr - 30, C.tinta, 15, "left");
+    var pasos = { 10: 1, 30: 5, 100: 10, 300: 50 }, pf = pasos[R] || R / 10;
+    if (estrecho && R === 10) pf = 2; if (estrecho && R === 100) pf = 20;
+    for (var f = 0; f <= R + 1e-9; f += pf) {
+      linea(g, X(f), abj, X(f), abj + 5, C.gris, 1);
+      texto(g, String(f), X(f), abj + 16, C.gris, 15, "center");
+    }
+    texto(g, "f (MHz)", der, h - 9, C.tinta, 15, "right");
+    if (est.reto) {
+      g.save(); g.fillStyle = "rgba(91,100,114,0.10)"; g.fillRect(izq, arr, X(VHF_MIN) - izq, abj - arr);
+      g.translate((izq + X(VHF_MIN)) / 2, (arr + abj) / 2); g.rotate(-Math.PI / 2);
+      texto(g, "fuera del receptor (< " + VHF_MIN + " MHz)", 0, 0, C.gris, 15, "center"); g.restore();
+    }
+    // ---- banda del receptor
+    var xb0 = X(c - B / 2), xb1 = X(c + B / 2), wb = Math.max(4, xb1 - xb0), xbc = X(c);
+    g.save(); g.fillStyle = "rgba(184,151,90,0.32)"; g.fillRect(xbc - wb / 2, arr, wb, abj - arr);
+    g.strokeStyle = C.oroTexto; g.lineWidth = 1; g.strokeRect(xbc - wb / 2 + 0.5, arr + 0.5, wb - 1, abj - arr - 1); g.restore();
+    // ---- umbral
+    linea(g, izq, Y(th), der, Y(th), C.guinda, 2, [8, 5]);
+    // rótulo fijo arriba a la derecha (ahí casi nunca hay líneas) con una muestra del trazo;
+    // si una línea fuerte cae debajo, el rótulo se pasa a la izquierda
+    var txtU = "umbral a " + corto(dist(), 1) + " m: " + num(th, 1) + " dB", wU = anchoTexto(g, txtU, 15, true);
+    var xU1 = der - 6, xU0 = xU1 - wU - 30;
+    var tapa = L.some(function (l) { return l.nivel > -12 && X(l.f) >= xU0 - 6 && X(l.f) <= xU1 + 6 && (!est.reto || est.captadas.indexOf(l.f) >= 0); });
+    if (tapa) { xU0 = izq + 6; xU1 = xU0 + wU + 30; }
+    linea(g, xU0, arr + 14, xU0 + 22, arr + 14, C.guinda, 2, [6, 4]);
+    etiqueta(g, txtU, xU1, arr + 14, C.guinda, 15, "right", true);
+    // ---- líneas
+    var espacio = L.length > 1 ? X(F) - X(0) : 999;
+    var visibles = est.reto ? L.filter(function (l) { return est.captadas.some(function (fc0) { return Math.abs(fc0 - l.f) < 1e-6; }); }) : L;
+    visibles.forEach(function (l) {
+      var x = X(l.f), y = Y(l.nivel), ahora = l.capta && enBanda(l, c, B);
+      var color = ahora ? C.guinda : (l.capta ? C.azul : C.apagado);
+      var ancho = espacio < 4 ? 1 : (ahora ? 3.5 : 2.5);
+      linea(g, x, abj, x, y, color, ancho);
+      if (espacio >= 6 || ahora) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, ahora ? 5.5 : 4, 0, 2 * Math.PI); g.fill(); g.restore(); }
+    });
+    // números de armónico sobre las primeras líneas
+    if (!est.reto && espacio >= 22) {
+      visibles.slice(0, 12).forEach(function (l) { if (l.nivel > piso + 3) texto(g, String(l.n), X(l.f), Y(l.nivel) - 13, l.capta ? C.azulOscuro : C.gris, 15, "center", "middle", true); });
+    }
+    if (est.reto) {
+      visibles.forEach(function (l) { etiqueta(g, frec(l.f), X(l.f), Y(l.nivel) - 15, C.azulOscuro, 15, "center", true); });
+    }
+    // ---- rótulo del receptor
+    var dentro = L.filter(function (l) { return enBanda(l, c, B) && l.capta; });
+    var txtR = "receptor " + frec(c) + (dentro.length ? (est.reto ? ": capta una señal" : ": capta n = " + dentro[0].n) : ": nada");
+    var wR = anchoTexto(g, txtR, 15, true), xR = Math.min(Math.max(xbc, izq + wR / 2 + 2), der - wR / 2 - 2);
+    etiqueta(g, txtR, xR, arr - 12, dentro.length ? C.guinda : C.oroTexto, 15, "center", true);
+    if (!L.length && !est.reto) etiqueta(g, "El fundamental está fuera del rango: elige un rango mayor", (izq + der) / 2, (arr + abj) / 2, C.guinda, 15, "center", true);
+  }
+
+  function rehacer2() {
+    ajustarSintonia(); textoControles2(); lectura2(); tablaLineas();
+    if (vistaActiva === "v2") dibujarFugas();
+  }
+  // Fuera del reto, la lista de señales captadas solo describe el último barrido: cualquier cambio la borra
+  function cambio() { if (!est.reto) est.captadas = []; rehacer2(); }
+  function sintonizado() { if (est.reto) registrarCaptura(); cambio(); }
+  ["f0", "duty", "dist", "blindaje", "fc2"].forEach(function (id) { $(id).addEventListener("input", cambio); });
+  $("fr").addEventListener("input", function () { $("frNum").value = corto(fr(), 3); sintonizado(); });
+  $("frNum").addEventListener("input", function () { var v = Number($("frNum").value); if (isFinite(v) && $("frNum").value !== "") { ponerSintonia(v); sintonizado(); } });
+  $("frNum").addEventListener("change", function () { $("frNum").value = corto(fr(), 3); });
+  ["rango", "banda"].forEach(function (id) { $(id).addEventListener("change", cambio); });
+  $("filtro").addEventListener("change", function () { $("fc2").disabled = !$("filtro").checked; cambio(); });
+  $("relojLibro").addEventListener("click", function () { $("f0").value = "1"; $("duty").value = "50"; cambio(); });
+  // En el reto, lo que el receptor capta queda anotado en la gráfica
+  function registrarCaptura(desde, hasta) {
+    var a = desde === undefined ? fr() : desde, b = hasta === undefined ? fr() : hasta, B = bandaB();
+    var lo = Math.min(a, b) - B / 2, hi = Math.max(a, b) + B / 2;
+    lineas().forEach(function (l) {
+      if (l.capta && l.f >= lo - 1e-9 && l.f <= hi + 1e-9 && l.f >= frMin() - B / 2 &&
+          !est.captadas.some(function (f) { return Math.abs(f - l.f) < 1e-6; })) est.captadas.push(l.f);
+    });
+  }
+  function buscar(dir) {
+    var c = fr(), B = bandaB(), cand = lineas().filter(function (l) {
+      return l.capta && l.f >= frMin() && (dir > 0 ? l.f > c + B / 2 + 1e-9 : l.f < c - B / 2 - 1e-9);
+    });
+    if (!cand.length) {
+      $("lectura2").innerHTML += "<br><span class='mal'>No hay más señales " + (dir > 0 ? "arriba" : "abajo") + " de " + frec(c) + " que lleguen sobre el umbral.</span>";
+      return;
+    }
+    var l = dir > 0 ? cand[0] : cand[cand.length - 1];
+    ponerSintonia(l.f); sintonizado();
+  }
+  $("buscarAdelante").addEventListener("click", function () { buscar(1); });
+  $("buscarAtras").addEventListener("click", function () { buscar(-1); });
+
+  // Barrido animado de la sintonía en todo el rango (5 s); cada paso anota lo captado desde el paso anterior
+  $("barrer").addEventListener("click", function () {
+    if (est.barrido) { est.barrido = null; $("barrer").textContent = "Barrer el rango"; return; }
+    if (!est.reto) est.captadas = [];
+    est.barrido = { inicio: performance.now(), desde: frMin(), hasta: rangoMax(), previo: frMin() };
+    $("barrer").textContent = "Detener el barrido";
+    ponerSintonia(frMin());
+    setTimeout(pasoBarrido, 30);
+  });
+  function pasoBarrido() {
+    var b = est.barrido;
+    if (!b) return;
+    var u = Math.min(1, (performance.now() - b.inicio) / 5000), f = b.desde + u * (b.hasta - b.desde);
+    ponerSintonia(f); registrarCaptura(b.previo, f); b.previo = f;
+    rehacer2();
+    if (u < 1) setTimeout(pasoBarrido, 30);
+    else { est.barrido = null; $("barrer").textContent = "Barrer el rango"; rehacer2(); }
+  }
+
+  // ---------------------------------------------------------------- reto
+  function bloquearControles(si) {
+    ["f0", "duty", "relojLibro", "rango", "filtro", "fc2", "blindaje"].forEach(function (id) { $(id).disabled = si; });
+    if (!si) $("fc2").disabled = !$("filtro").checked;
+  }
+  $("nuevoReto").addEventListener("click", function () {
+    var previo = est.reto ? est.reto.f0 : null, F;
+    do { F = RETO_F0[Math.floor(Math.random() * RETO_F0.length)]; } while (F === previo);
+    est.reto = { f0: F, resuelto: false };
+    est.captadas = []; est.barrido = null; $("barrer").textContent = "Barrer el rango";
+    $("rango").value = "300"; $("dist").value = "8";
+    bloquearControles(true);
+    $("cajaReto").hidden = false; $("respuesta").value = ""; $("resultadoReto").innerHTML = "";
+    ajustarSintonia(); ponerSintonia(VHF_MIN);
+    rehacer2();
+  });
+  $("salirReto").addEventListener("click", function () {
+    est.reto = null; est.captadas = []; est.barrido = null; $("barrer").textContent = "Barrer el rango";
+    $("rango").value = "10"; bloquearControles(false); $("cajaReto").hidden = true;
+    ajustarSintonia(); ponerSintonia(2);
+    rehacer2();
+  });
+  $("comprobar").addEventListener("click", function () {
+    if (!est.reto) return;
+    var r = Number($("respuesta").value), F = est.reto.f0;
+    if ($("respuesta").value === "" || !isFinite(r)) { $("resultadoReto").innerHTML = "<span class='mal'>Escribe tu respuesta en MHz.</span>"; return; }
+    var minimo = est.captadas.length ? Math.min.apply(null, est.captadas) : null;
+    if (Math.abs(r - F) <= 0.25) {
+      var ns = est.captadas.slice().sort(function (a, b) { return a - b; }).map(function (f) { return Math.round(f / F); });
+      $("resultadoReto").innerHTML = "<span class='ok'>✓ Correcto: f₀ = " + F + " MHz.</span>" +
+        (ns.length > 1 ? " Las señales que captaste son los armónicos n = " + lista(ns) + ", separados 2f₀ = " + 2 * F + " MHz." :
+         ns.length ? " La señal que captaste es el armónico n = " + ns[0] + "." : "");
+      est.reto.resuelto = true;
+    } else if (Math.abs(r - 2 * F) <= 0.25) {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Te dio el doble.</span> En un reloj ideal solo hay armónicos impares: dos señales vecinas están separadas 2f₀, no f₀.";
+    } else if (minimo !== null && Math.abs(r - minimo) <= 0.25 && Math.round(minimo / F) > 1) {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Esa es la señal más baja que captaste,</span> pero el receptor no baja de " + VHF_MIN + " MHz: ¿es el fundamental o un armónico? Compárala con la separación entre señales vecinas.";
+    } else {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Todavía no.</span> Mide la separación entre dos señales vecinas y recuerda qué armónicos tiene un reloj ideal. Si captas pocas, acércate al equipo.";
+    }
+  });
+  $("revelar").addEventListener("click", function () {
+    if (!est.reto) return;
+    var F = est.reto.f0;
+    est.captadas = lineas().filter(function (l) { return l.capta && l.f >= VHF_MIN; }).map(function (l) { return l.f; });
+    $("resultadoReto").innerHTML = "El reloj era de <b>" + F + " MHz</b>: a " + corto(dist(), 1) + " m, dentro de la banda del receptor, se captan sus armónicos en " +
+      lista(est.captadas.map(function (f) { return frec(f) + " (n = " + Math.round(f / F) + ")"; })) + ".";
+    rehacer2();
+  });
+
+  // ================================================================ general
+  function dibujarTodo() {
+    if (vistaActiva === "v1") { dibujarTiempo(); dibujarEspectro1(); }
+    else dibujarFugas();
+  }
+  window.addEventListener("resize", dibujarTodo);
+
+  // Para verificar desde la consola
+  window.simReloj = { suma: suma, medirOnda: medirOnda, amplitud: amplitud, lineas: lineas, umbral: umbral, Hmod: Hmod,
+                      estado: function () { return est; }, medida1: function () { return medida1; } };
+
+  rehacer1(); rehacer2();
+  // Una liga con #v2 abre directamente la segunda vista
+  var inicial = null;
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) { if ("#" + b.dataset.vista === location.hash) inicial = b; });
+  if (inicial) inicial.click(); else dibujarTodo();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-10-armonicos-del-reloj.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h3v1h-3zM14 2h1v1h-1zM18 2h3v1h-3zM22 2h1v1h-1zM27 2h2v1h-2zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM16 3h3v1h-3zM23 3h2v1h-2zM26 3h1v1h-1zM30 3h3v1h-3zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM14 4h2v1h-2zM19 4h1v1h-1zM21 4h1v1h-1zM24 4h1v1h-1zM27 4h1v1h-1zM29 4h1v1h-1zM32 4h3v1h-3zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM16 5h1v1h-1zM21 5h1v1h-1zM24 5h3v1h-3zM29 5h2v1h-2zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h2v1h-2zM16 6h1v1h-1zM19 6h1v1h-1zM24 6h1v1h-1zM27 6h1v1h-1zM32 6h1v1h-1zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h4v1h-4zM18 7h1v1h-1zM20 7h1v1h-1zM22 7h2v1h-2zM32 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM11 9h1v1h-1zM13 9h6v1h-6zM21 9h2v1h-2zM25 9h2v1h-2zM28 9h1v1h-1zM32 9h1v1h-1zM34 9h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM8 10h2v1h-2zM17 10h1v1h-1zM29 10h2v1h-2zM33 10h2v1h-2zM37 10h1v1h-1zM40 10h1v1h-1zM42 10h1v1h-1zM2 11h2v1h-2zM7 11h1v1h-1zM11 11h2v1h-2zM17 11h1v1h-1zM19 11h1v1h-1zM21 11h2v1h-2zM25 11h2v1h-2zM29 11h2v1h-2zM33 11h2v1h-2zM36 11h2v1h-2zM40 11h1v1h-1zM42 11h1v1h-1zM3 12h7v1h-7zM12 12h1v1h-1zM14 12h2v1h-2zM18 12h1v1h-1zM21 12h1v1h-1zM23 12h1v1h-1zM25 12h1v1h-1zM28 12h2v1h-2zM32 12h2v1h-2zM35 12h1v1h-1zM38 12h3v1h-3zM42 12h1v1h-1zM3 13h2v1h-2zM7 13h1v1h-1zM9 13h1v1h-1zM12 13h1v1h-1zM17 13h2v1h-2zM26 13h1v1h-1zM29 13h1v1h-1zM33 13h2v1h-2zM39 13h1v1h-1zM5 14h2v1h-2zM8 14h2v1h-2zM11 14h1v1h-1zM15 14h2v1h-2zM18 14h1v1h-1zM22 14h1v1h-1zM25 14h1v1h-1zM29 14h2v1h-2zM34 14h1v1h-1zM36 14h1v1h-1zM2 15h1v1h-1zM4 15h1v1h-1zM6 15h2v1h-2zM11 15h1v1h-1zM14 15h1v1h-1zM18 15h2v1h-2zM22 15h1v1h-1zM27 15h1v1h-1zM30 15h1v1h-1zM35 15h3v1h-3zM39 15h4v1h-4zM2 16h2v1h-2zM5 16h1v1h-1zM8 16h3v1h-3zM14 16h4v1h-4zM19 16h1v1h-1zM22 16h1v1h-1zM24 16h2v1h-2zM30 16h7v1h-7zM39 16h1v1h-1zM42 16h1v1h-1zM2 17h1v1h-1zM4 17h4v1h-4zM9 17h1v1h-1zM12 17h1v1h-1zM14 17h2v1h-2zM18 17h1v1h-1zM20 17h3v1h-3zM24 17h1v1h-1zM28 17h3v1h-3zM34 17h6v1h-6zM41 17h2v1h-2zM3 18h1v1h-1zM5 18h2v1h-2zM8 18h1v1h-1zM12 18h1v1h-1zM15 18h1v1h-1zM18 18h1v1h-1zM22 18h1v1h-1zM24 18h3v1h-3zM30 18h1v1h-1zM32 18h1v1h-1zM35 18h2v1h-2zM39 18h1v1h-1zM2 19h1v1h-1zM4 19h1v1h-1zM7 19h1v1h-1zM9 19h4v1h-4zM14 19h1v1h-1zM16 19h2v1h-2zM19 19h4v1h-4zM25 19h3v1h-3zM29 19h2v1h-2zM33 19h1v1h-1zM35 19h3v1h-3zM42 19h1v1h-1zM3 20h1v1h-1zM7 20h3v1h-3zM11 20h1v1h-1zM14 20h2v1h-2zM17 20h2v1h-2zM21 20h1v1h-1zM23 20h3v1h-3zM29 20h5v1h-5zM35 20h4v1h-4zM41 20h2v1h-2zM2 21h1v1h-1zM4 21h2v1h-2zM7 21h1v1h-1zM11 21h4v1h-4zM19 21h1v1h-1zM22 21h1v1h-1zM24 21h2v1h-2zM27 21h1v1h-1zM29 21h1v1h-1zM32 21h1v1h-1zM34 21h1v1h-1zM39 21h1v1h-1zM42 21h1v1h-1zM2 22h1v1h-1zM5 22h2v1h-2zM8 22h1v1h-1zM11 22h1v1h-1zM13 22h1v1h-1zM15 22h1v1h-1zM17 22h1v1h-1zM19 22h1v1h-1zM21 22h7v1h-7zM29 22h1v1h-1zM31 22h2v1h-2zM34 22h1v1h-1zM36 22h2v1h-2zM39 22h1v1h-1zM41 22h2v1h-2zM2 23h1v1h-1zM5 23h3v1h-3zM9 23h1v1h-1zM11 23h3v1h-3zM17 23h1v1h-1zM19 23h1v1h-1zM21 23h2v1h-2zM24 23h4v1h-4zM29 23h2v1h-2zM32 23h6v1h-6zM39 23h2v1h-2zM42 23h1v1h-1zM2 24h1v1h-1zM4 24h1v1h-1zM6 24h6v1h-6zM14 24h1v1h-1zM17 24h5v1h-5zM25 24h1v1h-1zM29 24h1v1h-1zM31 24h1v1h-1zM33 24h1v1h-1zM37 24h1v1h-1zM42 24h1v1h-1zM2 25h3v1h-3zM9 25h2v1h-2zM13 25h3v1h-3zM17 25h1v1h-1zM24 25h1v1h-1zM26 25h1v1h-1zM30 25h1v1h-1zM32 25h1v1h-1zM34 25h1v1h-1zM36 25h4v1h-4zM2 26h1v1h-1zM4 26h1v1h-1zM6 26h4v1h-4zM11 26h1v1h-1zM15 26h1v1h-1zM18 26h1v1h-1zM22 26h1v1h-1zM24 26h3v1h-3zM33 26h2v1h-2zM36 26h2v1h-2zM39 26h1v1h-1zM41 26h1v1h-1zM2 27h2v1h-2zM5 27h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM14 27h4v1h-4zM20 27h3v1h-3zM25 27h2v1h-2zM29 27h2v1h-2zM33 27h1v1h-1zM36 27h2v1h-2zM39 27h1v1h-1zM42 27h1v1h-1zM3 28h3v1h-3zM8 28h1v1h-1zM11 28h1v1h-1zM14 28h2v1h-2zM19 28h1v1h-1zM21 28h1v1h-1zM23 28h5v1h-5zM29 28h1v1h-1zM31 28h3v1h-3zM36 28h1v1h-1zM38 28h3v1h-3zM42 28h1v1h-1zM2 29h3v1h-3zM6 29h1v1h-1zM9 29h1v1h-1zM13 29h1v1h-1zM16 29h1v1h-1zM18 29h1v1h-1zM20 29h3v1h-3zM24 29h1v1h-1zM28 29h3v1h-3zM32 29h3v1h-3zM37 29h3v1h-3zM41 29h1v1h-1zM3 30h4v1h-4zM8 30h2v1h-2zM11 30h5v1h-5zM17 30h1v1h-1zM21 30h1v1h-1zM26 30h1v1h-1zM34 30h1v1h-1zM36 30h2v1h-2zM42 30h1v1h-1zM4 31h3v1h-3zM9 31h3v1h-3zM16 31h3v1h-3zM20 31h1v1h-1zM23 31h1v1h-1zM26 31h3v1h-3zM31 31h4v1h-4zM36 31h1v1h-1zM40 31h1v1h-1zM42 31h1v1h-1zM2 32h7v1h-7zM14 32h1v1h-1zM16 32h2v1h-2zM20 32h2v1h-2zM23 32h1v1h-1zM26 32h1v1h-1zM29 32h1v1h-1zM31 32h1v1h-1zM33 32h1v1h-1zM35 32h1v1h-1zM40 32h3v1h-3zM6 33h2v1h-2zM12 33h1v1h-1zM14 33h1v1h-1zM17 33h1v1h-1zM24 33h3v1h-3zM32 33h1v1h-1zM34 33h1v1h-1zM36 33h4v1h-4zM41 33h2v1h-2zM2 34h4v1h-4zM7 34h5v1h-5zM15 34h1v1h-1zM17 34h2v1h-2zM21 34h2v1h-2zM26 34h1v1h-1zM29 34h1v1h-1zM34 34h6v1h-6zM41 34h2v1h-2zM10 35h2v1h-2zM13 35h1v1h-1zM18 35h1v1h-1zM21 35h3v1h-3zM25 35h2v1h-2zM29 35h3v1h-3zM34 35h1v1h-1zM38 35h2v1h-2zM42 35h1v1h-1zM2 36h7v1h-7zM10 36h2v1h-2zM15 36h1v1h-1zM17 36h1v1h-1zM19 36h4v1h-4zM25 36h1v1h-1zM27 36h3v1h-3zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM40 36h1v1h-1zM42 36h1v1h-1zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h1v1h-1zM13 37h1v1h-1zM15 37h2v1h-2zM20 37h1v1h-1zM22 37h2v1h-2zM28 37h1v1h-1zM31 37h1v1h-1zM34 37h1v1h-1zM38 37h2v1h-2zM41 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM17 38h7v1h-7zM26 38h6v1h-6zM33 38h7v1h-7zM42 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM12 39h2v1h-2zM15 39h1v1h-1zM17 39h1v1h-1zM20 39h4v1h-4zM25 39h2v1h-2zM28 39h2v1h-2zM31 39h1v1h-1zM33 39h1v1h-1zM37 39h2v1h-2zM40 39h2v1h-2zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM15 40h1v1h-1zM17 40h2v1h-2zM20 40h2v1h-2zM25 40h1v1h-1zM28 40h2v1h-2zM31 40h1v1h-1zM33 40h3v1h-3zM38 40h2v1h-2zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM14 41h2v1h-2zM20 41h2v1h-2zM25 41h1v1h-1zM28 41h2v1h-2zM32 41h3v1h-3zM2 42h7v1h-7zM10 42h4v1h-4zM16 42h1v1h-1zM20 42h3v1h-3zM25 42h2v1h-2zM29 42h2v1h-2zM34 42h2v1h-2zM38 42h2v1h-2zM42 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-10-armonicos-del-reloj.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

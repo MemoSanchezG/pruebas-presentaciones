@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traza de OTDR</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 480px) { header, main, footer { padding-left:10px; padding-right:10px; } h1 { font-size:1.4rem; }
+                              .panel { padding:10px; } }
+  .fila > * { min-width:0; }
+  small { font-size:.94em; }
+  .lectura, .seguridad, .preguntas { overflow-wrap:anywhere; }
+  select { width:100%; margin-top:4px; }
+  .valor { float:right; font-weight:bold; color:var(--guinda); }
+  .opcion { display:flex; align-items:center; gap:8px; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  .opcion input { margin:0; width:18px; height:18px; flex:none; }
+  .lectura .formula { display:block; margin:2px 0 4px; }
+  .lectura .renglon { margin:0 0 6px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:10px 0 0; padding:2px 10px 10px; min-width:0; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  .en-linea { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .en-linea input[type=number] { width:7.5em; }
+  .en-linea button.accion { margin:0; }
+  canvas.arrastrable { touch-action:pan-y; cursor:ew-resize; }
+  canvas.arrastrable:focus-visible { outline:2px solid var(--azul); outline-offset:2px; }
+  .enunciado { border:2px solid var(--oro); border-radius:10px; padding:8px 12px; margin-top:8px; line-height:1.5; }
+  .resultado { margin-top:8px; min-height:1.5em; line-height:1.5; }
+  .marcador { margin-top:8px; font-weight:bold; color:var(--azul-oscuro); }
+  .lista-eventos { margin:4px 0 0; padding-left:18px; }
+  .lista-eventos li { margin-bottom:4px; }
+  input:disabled { opacity:.5; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 06 · OTDR y toma por curvatura</div>
+  <h1>La traza del OTDR: cómo se ve una toma en la fibra</h1>
+  <p class="sub">Lee la pendiente de atenuación, los picos de reflexión y los escalones de pérdida; mide con el cursor d = c·t/(2n) y encuentra la toma comparando con la huella.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">La traza del OTDR</button>
+    <button type="button" data-vista="v2" role="tab">Reto: ¿dónde está la toma?</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <fieldset>
+          <legend>La fibra</legend>
+          <label for="ventana">Ventana de operación</label>
+          <select id="ventana">
+            <option value="1310">1310 nm · α ≈ 0.35 dB/km (libro)</option>
+            <option value="1550">1550 nm · α ≈ 0.2 dB/km (libro)</option>
+          </select>
+          <label for="largo">Longitud L <span class="valor" id="largoTxt"></span></label>
+          <input id="largo" type="range" min="4" max="25" step="0.1" value="12">
+        </fieldset>
+        <fieldset>
+          <legend>Eventos en el tendido</legend>
+          <label for="zCon">Conector intermedio <span class="valor" id="zConTxt"></span></label>
+          <input id="zCon" type="range" min="0.3" max="11.7" step="0.01" value="2.8">
+          <select id="tipoCon" aria-label="Tipo de conector">
+            <option value="aire">Sin gel: hueco de aire (R = 3.6 %)</option>
+            <option value="gel">Con gel igualador (R ≈ 7.5×10⁻⁶)</option>
+          </select>
+          <label for="zEmp">Empalme por fusión <span class="valor" id="zEmpTxt"></span></label>
+          <input id="zEmp" type="range" min="0.3" max="11.7" step="0.01" value="6.4">
+          <label class="opcion"><input type="checkbox" id="hayToma" checked> Hay una toma por curvatura</label>
+          <label for="zToma">Posición de la toma <span class="valor" id="zTomaTxt"></span></label>
+          <input id="zToma" type="range" min="0.3" max="11.7" step="0.01" value="8.7">
+          <label for="pToma">Pérdida de la toma <span class="valor" id="pTomaTxt"></span></label>
+          <input id="pToma" type="range" min="0.1" max="2" step="0.01" value="0.6">
+        </fieldset>
+        <fieldset>
+          <legend>El OTDR</legend>
+          <label for="nConf">Índice n configurado en el equipo</label>
+          <select id="nConf">
+            <option value="1.468">1.468 (núcleo monomodo, libro)</option>
+            <option value="1.48">1.48 (fibra del ejemplo del libro)</option>
+            <option value="1.44">1.44 (vidrio de fibra, extremo bajo)</option>
+            <option value="1">1.000 (como si fuera el vacío)</option>
+          </select>
+          <label for="promedio">Tiempo de promediado</label>
+          <select id="promedio">
+            <option value="corto">Corto (más ruido)</option>
+            <option value="largo">Largo (4 veces menos ruido)</option>
+          </select>
+          <label class="opcion"><input type="checkbox" id="verHuella1"> Comparar con la huella (la misma fibra antes de la toma)</label>
+          <label class="opcion"><input type="checkbox" id="usarB"> Medir entre los cursores A y B</label>
+        </fieldset>
+        <label for="tA">Cursor A: tiempo t <small>(μs; arrastra en la gráfica o usa ← →)</small></label>
+        <div class="en-linea">
+          <input id="tA" type="number" min="0" step="0.01">
+          <button type="button" class="accion" id="aMenos" aria-label="Mover el cursor A 0.1 microsegundos a la izquierda">−0.1 μs</button>
+          <button type="button" class="accion" id="aMas" aria-label="Mover el cursor A 0.1 microsegundos a la derecha">+0.1 μs</button>
+        </div>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" class="arrastrable" tabindex="0" aria-label="Traza del OTDR: nivel de la luz que regresa en decibeles contra la distancia, con picos de reflexión, escalones de pérdida, el extremo de la fibra y el cursor; abajo, una lupa alrededor del cursor A"></canvas>
+        <p class="nota">Como en los OTDR comerciales, el eje vertical usa la escala de un solo sentido (el equipo divide entre 2 la pérdida de ida y vuelta): la pendiente de la traza es α en dB/km. El ancho del pulso, el ruido, las pérdidas de conectores y empalmes y la altura de los picos son valores ilustrativos. Arrastra en la gráfica de arriba o en la lupa para mover el cursor.</p>
+        <div class="lectura" id="eventos1"></div>
+        <div class="seguridad"><b>Seguridad.</b> El OTDR es una herramienta forense y de detección de intervenciones: localiza a qué distancia hay un conector, un doblez, un corte o un dispositivo de toma. Una toma por curvatura no corta la fibra ni deja pico: solo un escalón de pérdida, y una toma cuidadosa extrae tan poca luz que el escalón se pierde en el ruido. Por eso el libro pide monitorear la potencia, revisar el enlace con OTDR y, como defensa de fondo, cifrarlo (MACsec o cifrado del transporte óptico).</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de cambiar la ventana, predice: ¿la traza a 1550 nm baja más rápido o más lento que a 1310 nm? Activa los cursores A y B y mide la pendiente en un tramo sin eventos.</li>
+            <li>Cambia el conector de "sin gel" a "con gel". ¿Qué le pasa al pico? ¿Por qué el empalme por fusión y la toma por curvatura no tienen pico?</li>
+            <li>Con promediado corto, baja poco a poco la pérdida de la toma y mira la lupa. ¿Desde qué valor ya no distingues el escalón del ruido? ¿Cambia con promediado largo?</li>
+            <li>Configura el OTDR con n = 1.000. ¿A qué distancia aparece ahora la toma? ¿Por qué el equipo necesita conocer el índice de la fibra?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Reto: ¿dónde está la toma?</h2>
+        <p class="nota" style="margin-top:0">La página arma un enlace con su plano y su huella de referencia, y esconde un evento nuevo. Encuéntralo, mide su tiempo t con el cursor y calcula d a mano.</p>
+        <button type="button" class="accion" id="nuevoReto">Nuevo reto</button>
+        <div class="enunciado" id="enunciado2"></div>
+        <label class="opcion"><input type="checkbox" id="verHuella2" checked> Mostrar la huella de referencia</label>
+        <label for="promedio2">Tiempo de promediado</label>
+        <select id="promedio2">
+          <option value="corto">Corto (más ruido)</option>
+          <option value="largo">Largo (4 veces menos ruido)</option>
+        </select>
+        <label for="tR">Cursor: tiempo t <small>(μs; arrastra en la gráfica o usa ← →)</small></label>
+        <div class="en-linea">
+          <input id="tR" type="number" min="0" step="0.01">
+          <button type="button" class="accion" id="rMenos" aria-label="Mover el cursor 0.1 microsegundos a la izquierda">−0.1 μs</button>
+          <button type="button" class="accion" id="rMas" aria-label="Mover el cursor 0.1 microsegundos a la derecha">+0.1 μs</button>
+        </div>
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+        <label for="respuesta">Tu respuesta: distancia d al evento nuevo <small>(km)</small></label>
+        <div class="en-linea">
+          <input id="respuesta" type="number" min="0" step="0.01" placeholder="km">
+          <button type="button" class="accion" id="comprobar">Comprobar</button>
+          <button type="button" class="accion" id="revelar">Revelar</button>
+        </div>
+        <div class="resultado" id="resultado2" aria-live="polite"></div>
+        <div class="marcador" id="marcador2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" class="arrastrable" tabindex="0" aria-label="Traza del OTDR del reto contra el tiempo de ida y vuelta, con la huella de referencia punteada y un cursor que se arrastra para medir el tiempo del evento nuevo; abajo, una lupa alrededor del cursor"></canvas>
+        <p class="nota">En el reto el eje horizontal solo muestra el tiempo de ida y vuelta: la distancia la calculas tú. Usa la lupa para ver dónde se separan la medición de hoy y la huella.</p>
+        <div class="seguridad"><b>La huella de referencia.</b> Al instalar el enlace se guarda su traza (línea base) junto con el plano de conectores y empalmes. Un evento que no está en la huella ni en el plano —un pico o un escalón nuevo— es un indicio que obliga a inspeccionar físicamente el tendido a la distancia d = c·t/(2n). Detectarlo no basta: lo que ya se copió solo está protegido si el enlace va cifrado.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>El escalón de una toma por curvatura y el de un empalme por fusión se ven casi iguales. ¿Cómo sabes cuál es nuevo?</li>
+            <li>Si olvidas dividir entre 2, ¿a qué distancia mandarías a la cuadrilla? ¿Y si usas c en lugar de c/n?</li>
+            <li>¿Por qué conviene tomar la huella con el mismo equipo, la misma ventana y el mismo n configurado?</li>
+            <li>Encontrar la toma, ¿protege lo que ya se copió? ¿Qué recomienda el libro como defensa de fondo?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap02_campos_magneticos.tex (Ecuaciones eq:otdr-distancia, eq:reflectividad y eq:atenuacion-fibra); fracción de luz extraída 1 − 10^(−A/10): fase3/cap01_modelo_osi_seguridad.tex (sección sec:cifrado-fibra). Valores ilustrativos: ancho del pulso, ruido, pérdidas de conectores y empalmes, altura de los picos y escala de un solo sentido. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  function sci(x, n) {
+    var e = Math.floor(Math.log10(Math.abs(x)) + 1e-9), m = Number((x / Math.pow(10, e)).toFixed(n - 1));
+    if (Math.abs(m) >= 10) { m /= 10; e += 1; }
+    return num(m, n - 1) + (e === 0 ? "" : "×10" + sup(e));
+  }
+
+  // Ayudantes de dibujo
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita, borde) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.94)"; g.fillRect(x0 - 4, y - tam, w + 8, tam + 6);
+    if (borde) { g.strokeStyle = borde; g.lineWidth = 1.5; g.strokeRect(x0 - 4, y - tam, w + 8, tam + 6); }
+    g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function pasoBonito(rango, maxMarcas, pasos) {
+    for (var i = 0; i < pasos.length; i++) if (rango / pasos[i] <= maxMarcas) return pasos[i];
+    return pasos[pasos.length - 1];
+  }
+
+  // ================================================================ Modelo del OTDR
+  var C_KMUS = 0.2998;                // c = 2.998×10⁸ m/s = 0.2998 km/μs (libro)
+  var N_FIBRA = 1.468;                // índice del núcleo monomodo (libro)
+  var ALFA = { "1310": 0.35, "1550": 0.2 };   // dB/km (libro)
+  function refl(n1, n2) { return Math.pow((n1 - n2) / (n1 + n2), 2); }   // Ecuación de reflectividad
+  var R_AIRE = refl(1.468, 1.0);      // ≈ 3.6 % por cara vidrio-aire (libro)
+  var R_GEL = refl(1.468, 1.46);      // ≈ 7.5×10⁻⁶ con gel igualador (libro)
+  var R_INTRUSO = 1e-4;               // ilustrativo
+  var B_PULSO = Math.pow(10, -53 / 10);   // retrodispersión del pulso, ilustrativa
+  var PULSO = 0.05;                   // km que ocupa el pulso en la traza (≈ 500 ns), ilustrativo
+  var DZ = 0.005;                     // km entre muestras
+  var SIGMA = { corto: 0.0035, largo: 0.0035 / 4 };   // ruido en potencia, ilustrativo
+  var P_CON = 0.25, P_EMP = 0.12;     // pérdidas ilustrativas en dB
+
+  function tDeZ(z, n) { return 2 * n * z / C_KMUS; }        // μs
+  function zDeT(t, n) { return C_KMUS * t / (2 * n); }      // km
+
+  // Generador pseudoaleatorio con semilla y ruido gaussiano (Box-Muller)
+  function gaussiano(semilla) {
+    var s = semilla >>> 0, guardado = null;
+    function u() {
+      s = (s + 0x6D2B79F5) >>> 0;
+      var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return (((t ^ (t >>> 14)) >>> 0) + 0.5) / 4294967296;
+    }
+    return function () {
+      if (guardado !== null) { var v = guardado; guardado = null; return v; }
+      var r = Math.sqrt(-2 * Math.log(u())), a = 2 * Math.PI * u();
+      guardado = r * Math.sin(a); return r * Math.cos(a);
+    };
+  }
+
+  // fib: { L, alfa, n, eventos: [{ z, perdida, R (0 si no refleja), tipo, nombre }] }
+  function calcularTraza(fib, semilla, sigma) {
+    var zmax = fib.L * 1.12 + 0.3, n = Math.ceil(zmax / DZ) + 1, rnd = gaussiano(semilla);
+    var ev = fib.eventos.slice().sort(function (p, q) { return p.z - q.z; });
+    var reflexivos = [{ z: 0, R: R_AIRE, antes: 0 }];   // conector del propio OTDR
+    var acumulada = 0;
+    ev.forEach(function (e) {
+      if (e.R > 0) reflexivos.push({ z: e.z, R: e.R, antes: -fib.alfa * e.z - acumulada });
+      acumulada += e.perdida;
+    });
+    reflexivos.push({ z: fib.L, R: R_AIRE, antes: -fib.alfa * fib.L - acumulada });   // corte recto vidrio-aire
+    var y = new Float64Array(n), limpia = new Float64Array(n), base = new Float64Array(n);
+    for (var i = 0; i < n; i++) {
+      var z = i * DZ, P = -fib.alfa * Math.min(z, fib.L);
+      for (var k = 0; k < ev.length; k++) if (z > ev[k].z) P -= ev[k].perdida * Math.min(1, (z - ev[k].z) / PULSO);
+      var bs = Math.pow(10, P / 5);
+      if (z > fib.L) bs *= Math.max(0, 1 - (z - fib.L) / PULSO);
+      var pico = 0;
+      for (var j = 0; j < reflexivos.length; j++) {
+        var u = (z - reflexivos[j].z) / PULSO;
+        if (u < 0 || u > 8) continue;
+        pico += Math.pow(10, reflexivos[j].antes / 5) * (reflexivos[j].R / B_PULSO) * (u <= 1 ? 1 : Math.exp(-(u - 1) * 5));
+      }
+      var total = bs + pico, n1 = rnd() * sigma, n2 = rnd() * sigma;
+      y[i] = 5 * Math.log10(Math.sqrt((total + n1) * (total + n1) + n2 * n2));
+      limpia[i] = total > 1e-12 ? 5 * Math.log10(total) : -99;
+      base[i] = z <= fib.L ? P : -99;
+    }
+    var piso = 5 * Math.log10(sigma * 1.25);
+    return { fib: fib, y: y, limpia: limpia, base: base, n: n, zmax: (n - 1) * DZ, piso: piso, sigma: sigma };
+  }
+  function nivelEn(tr, z) {               // promedio de la traza ruidosa en ±30 m
+    var i0 = Math.round(z / DZ), s = 0, c = 0;
+    for (var i = i0 - 6; i <= i0 + 6; i++) if (i >= 0 && i < tr.n) { s += tr.y[i]; c++; }
+    return c ? s / c : 0;
+  }
+
+  // ================================================================ Dibujo de la traza
+  // op: { modo, zA, zB, nConf, centro, huella, etiquetas }
+  function dibujarOtdr(cv, tr, op) {
+    var w0 = cv.clientWidth || 600, angosto = w0 < 560, explora = op.modo === "explora";
+    var izq = angosto ? 46 : 62, der = 14;
+    var p = { x0: izq, x1: w0 - der, y0: explora ? 58 : 44 };
+    p.y1 = p.y0 + Math.max(200, Math.min(300, w0 * (angosto ? 0.72 : 0.28)));
+    var l = { x0: izq, x1: w0 - der, y0: p.y1 + (angosto ? 70 : 56) };
+    l.y1 = l.y0 + (angosto ? 130 : 120);
+    var alto = l.y1 + 46;
+    var d = preparar(cv, alto / w0), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var nV = tr.fib.n, kD = nV / op.nConf, zmax = tr.zmax;
+    var huella = op.huella;
+
+    // ---------- rangos
+    var yTop = 4, pisoMin = Math.min(tr.piso, huella ? huella.piso : tr.piso);
+    var finNivel = tr.base[Math.min(tr.n - 1, Math.round(tr.fib.L / DZ) - 1)];
+    var yBot = Math.floor(Math.min(finNivel - 3, pisoMin - 3) / 2) * 2;
+    function X(z) { return p.x0 + z / zmax * (p.x1 - p.x0); }
+    function Y(v) { return p.y1 - (Math.min(Math.max(v, yBot), yTop) - yBot) / (yTop - yBot) * (p.y1 - p.y0); }
+
+    // ---------- títulos y leyenda
+    texto(g, explora ? "Traza del OTDR" : "Traza del reto", p.x0 - (angosto ? 40 : 52), 20, C.azulOscuro, 16, "left", "alphabetic", true);
+    var ley = huella ? "— hoy   - - huella" : "";
+    if (ley) texto(g, ley, p.x1, 20, C.gris, 15, "right", "alphabetic", true);
+
+    // ---------- fondo, rejilla y ejes
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0); g.restore();
+    var pasoY = (yTop - yBot) > 16 ? 5 : 2;
+    for (var v = Math.ceil(yBot / pasoY) * pasoY; v <= yTop; v += pasoY) {
+      linea(g, p.x0, Y(v), p.x1, Y(v), v === 0 ? "#B9C1CD" : C.grisClaro, 1);
+      texto(g, corto(v, 0), p.x0 - 6, Y(v) + 5, C.gris, 15, "right");
+    }
+    g.save(); g.translate(p.x0 - (angosto ? 34 : 46), (p.y0 + p.y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "nivel (dB)", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    var maxM = angosto ? 4 : 8;
+    if (explora) {
+      // abajo: distancia con el n configurado; arriba: tiempo de ida y vuelta
+      var dmax = zmax * kD, pd = pasoBonito(dmax, maxM, [0.5, 1, 2, 5, 10]);
+      for (var dd = 0; dd <= dmax + 1e-9; dd += pd) {
+        var xd = X(dd / kD);
+        linea(g, xd, p.y0, xd, p.y1, C.grisClaro, 1);
+        texto(g, corto(dd, 1), xd, p.y1 + 18, C.gris, 15, "center");
+      }
+      texto(g, (angosto ? "d (km), n = " : "distancia d = c·t/(2n) (km), con n = ") + (op.nConf === 1 ? "1.000" : op.nConf), p.x1, p.y1 + 36, C.tinta, 15, "right");
+      var tmax = tDeZ(zmax, nV), pt = pasoBonito(tmax, maxM, [5, 10, 20, 25, 50, 100]);
+      for (var tt = 0; tt <= tmax + 1e-9; tt += pt) {
+        var xt = X(zDeT(tt, nV));
+        linea(g, xt, p.y0 - 5, xt, p.y0, C.oroTexto, 1);
+        texto(g, corto(tt, 0), xt, p.y0 - 8, C.oroTexto, 15, "center");
+      }
+      texto(g, "t (μs)", p.x0 - 12, p.y0 - 8, C.oroTexto, 15, "right", "alphabetic", true);
+    } else {
+      var tmax2 = tDeZ(zmax, nV), pt2 = pasoBonito(tmax2, maxM, [5, 10, 20, 25, 50, 100]);
+      for (var t2 = 0; t2 <= tmax2 + 1e-9; t2 += pt2) {
+        var xt2 = X(zDeT(t2, nV));
+        linea(g, xt2, p.y0, xt2, p.y1, C.grisClaro, 1);
+        texto(g, corto(t2, 0), xt2, p.y1 + 18, C.gris, 15, "center");
+      }
+      texto(g, angosto ? "t (μs), ida y vuelta" : "tiempo de ida y vuelta t (μs)", p.x1, p.y1 + 36, C.tinta, 15, "right");
+    }
+
+    // ---------- ventana de la lupa
+    var media = 0.6, za = op.centro - media, zb = op.centro + media;
+    if (za < 0) { zb -= za; za = 0; }
+    if (zb > zmax) { za -= zb - zmax; zb = zmax; }
+    g.save(); g.fillStyle = "rgba(0,64,143,0.08)"; g.fillRect(X(za), p.y0, X(zb) - X(za), p.y1 - p.y0); g.restore();
+
+    // ---------- trazas
+    function curva(trz, xA, xB, Xf, Yf, color, ancho, guiones) {
+      g.save(); g.strokeStyle = color; g.lineWidth = ancho; if (guiones) g.setLineDash(guiones);
+      g.beginPath();
+      var i0 = Math.max(0, Math.floor(xA / DZ)), i1 = Math.min(trz.n - 1, Math.ceil(xB / DZ)), primero = true;
+      for (var i = i0; i <= i1; i++) {
+        var xx = Xf(i * DZ), yy = Yf(trz.y[i]);
+        if (primero) { g.moveTo(xx, yy); primero = false; } else g.lineTo(xx, yy);
+      }
+      g.stroke(); g.restore();
+    }
+    g.save(); g.beginPath(); g.rect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0); g.clip();
+    if (huella) curva(huella, 0, zmax, X, Y, C.oro, 1.6, [7, 5]);
+    curva(tr, 0, zmax, X, Y, C.azulOscuro, 1.4);
+    g.restore();
+
+    // ---------- etiquetas de eventos: arriba de la traza (o abajo si no caben), sin taparse entre sí
+    if (op.etiquetas) {
+      var puestas = [];
+      op.etiquetas.slice().sort(function (a, b) { return a.z - b.z; }).forEach(function (e) {
+        var xe = X(e.z), wt = anchoTexto(e.texto, 15, true), xt3 = Math.max(p.x0 + wt / 2 + 2, Math.min(p.x1 - wt / 2 - 2, xe));
+        var iz = Math.max(0, Math.min(tr.n - 1, Math.round(e.z / DZ) - 2)), yTraza = Y(tr.base[iz] > -90 ? tr.base[iz] : tr.piso);
+        var opciones = [yTraza - 30, yTraza - 52, yTraza + 34, yTraza + 56, yTraza - 74], ye = opciones[0];
+        for (var k = 0; k < opciones.length; k++) {
+          var yy = opciones[k];
+          if (yy < p.y0 + 17 || yy > p.y1 - 30) continue;
+          var choca = puestas.some(function (q) { return Math.abs(q.x - xt3) < (q.w + wt) / 2 + 6 && Math.abs(q.y - yy) < 20; });
+          if (!choca) { ye = yy; break; }
+        }
+        puestas.push({ x: xt3, w: wt, y: ye });
+        linea(g, xe, p.y0, xe, p.y1, e.color, 1, [2, 4]);
+        etiqueta(g, e.texto, xt3, ye, e.color, 15, "center", true);
+      });
+    }
+
+    // ---------- cursores
+    function cursor(z, nombre, color, conTexto, arriba) {
+      var xc = X(z), tcur = Number(tDeZ(z, nV).toFixed(2));
+      linea(g, xc, p.y0, xc, p.y1, color, 2);
+      var tc = nombre + (conTexto ? " · t = " + num(tcur, 2) + " μs" + (explora && !angosto ? " → d = " + num(C_KMUS * tcur / (2 * op.nConf), 3) + " km" : "") : "");
+      var wc = anchoTexto(tc, 15, true);
+      etiqueta(g, tc, Math.max(p.x0 + wc / 2 + 4, Math.min(p.x1 - wc / 2 - 4, xc)), arriba ? p.y0 + 19 : p.y1 - 8, color, 15, "center", true, color);
+    }
+    if (op.zB !== null && op.zB !== undefined) cursor(op.zB, "B", C.oroTexto, false, true);
+    cursor(op.zA, "A", C.guinda, true, false);
+
+    // ---------- lupa
+    function XL(z) { return l.x0 + (z - za) / (zb - za) * (l.x1 - l.x0); }
+    var lo = Infinity, hi = -Infinity;
+    [tr, huella].forEach(function (trz) {
+      if (!trz) return;
+      var i0 = Math.max(0, Math.floor(za / DZ)), i1 = Math.min(trz.n - 1, Math.ceil(zb / DZ));
+      for (var i = i0; i <= i1; i++) if (trz.base[i] > -90) { lo = Math.min(lo, trz.base[i]); hi = Math.max(hi, trz.base[i]); }
+    });
+    if (lo === Infinity) { lo = tr.piso - 3; hi = tr.piso + 3; }
+    var ruidoLocal = 2.1715 * tr.sigma / Math.pow(10, Math.max(lo, tr.piso) / 5);
+    var pad = Math.max(0.2, Math.min(3, 4 * ruidoLocal)), lyb = lo - pad, lyt = hi + pad;
+    if (lyt - lyb < 1) { var cm = (lyt + lyb) / 2; lyb = cm - 0.5; lyt = cm + 0.5; }
+    function YL(v) { return l.y1 - (Math.min(Math.max(v, lyb), lyt) - lyb) / (lyt - lyb) * (l.y1 - l.y0); }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0); g.restore();
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 1; g.setLineDash([4, 3]); g.strokeRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0); g.restore();
+    texto(g, explora ? "Lupa: ±0.6 km alrededor del cursor A" : "Lupa alrededor del cursor", l.x0 - (angosto ? 40 : 52), l.y0 - 10, C.azul, 15, "left", "alphabetic", true);
+    var rangoL = lyt - lyb, pl = rangoL > 4 ? 1 : (rangoL > 2 ? 0.5 : (rangoL > 0.8 ? 0.2 : 0.1));
+    for (var vl = Math.ceil(lyb / pl) * pl; vl <= lyt + 1e-9; vl += pl) {
+      linea(g, l.x0, YL(vl), l.x1, YL(vl), C.grisClaro, 1);
+      texto(g, num(Math.abs(vl) < 1e-9 ? 0 : vl, pl < 1 ? 1 : 0), l.x0 - 6, YL(vl) + 5, C.gris, 15, "right");
+    }
+    if (explora) {
+      var pdl = pasoBonito((zb - za) * kD, angosto ? 3 : 6, [0.1, 0.2, 0.25, 0.5, 1]);
+      for (var dl = Math.ceil(za * kD / pdl) * pdl; dl <= zb * kD + 1e-9; dl += pdl) {
+        texto(g, corto(dl, 2), XL(dl / kD), l.y1 + 18, C.gris, 15, "center");
+        linea(g, XL(dl / kD), l.y1, XL(dl / kD), l.y1 + 4, C.gris, 1);
+      }
+      texto(g, "d (km)", l.x1, l.y1 + 36, C.tinta, 15, "right");
+    } else {
+      var ta = tDeZ(za, nV), tb = tDeZ(zb, nV), ptl = pasoBonito(tb - ta, angosto ? 3 : 6, [1, 2, 2.5, 5, 10]);
+      for (var tl = Math.ceil(ta / ptl) * ptl; tl <= tb + 1e-9; tl += ptl) {
+        texto(g, corto(tl, 1), XL(zDeT(tl, nV)), l.y1 + 18, C.gris, 15, "center");
+        linea(g, XL(zDeT(tl, nV)), l.y1, XL(zDeT(tl, nV)), l.y1 + 4, C.gris, 1);
+      }
+      texto(g, "t (μs)", l.x1, l.y1 + 36, C.tinta, 15, "right");
+    }
+    g.save(); g.beginPath(); g.rect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0); g.clip();
+    if (huella) curva(huella, za, zb, XL, YL, C.oro, 2, [7, 5]);
+    curva(tr, za, zb, XL, YL, C.azulOscuro, 1.6);
+    if (op.etiquetas) op.etiquetas.forEach(function (e) { if (e.z >= za && e.z <= zb) linea(g, XL(e.z), l.y0, XL(e.z), l.y1, e.color, 1, [2, 4]); });
+    g.restore();
+    var xcl = XL(op.zA);
+    if (xcl >= l.x0 && xcl <= l.x1) linea(g, xcl, l.y0, xcl, l.y1, C.guinda, 2);
+    if (op.zB !== null && op.zB !== undefined && op.zB >= za && op.zB <= zb) linea(g, XL(op.zB), l.y0, XL(op.zB), l.y1, C.oroTexto, 2);
+    return { p: p, l: l, X: X, za: za, zb: zb, zmax: zmax };
+  }
+
+  // Arrastre: en la gráfica principal mueve el cursor más cercano; en la lupa afina sin mover la ventana
+  function arrastrable(cv, obtener, poner, soltar) {
+    var zona = null, cual = "A";
+    function zDe(ev, geo, enLupa) {
+      var r = cv.getBoundingClientRect(), x = ev.clientX - r.left - cv.clientLeft;
+      if (enLupa) return geo.za + (x - geo.l.x0) / (geo.l.x1 - geo.l.x0) * (geo.zb - geo.za);
+      return (x - geo.p.x0) / (geo.p.x1 - geo.p.x0) * geo.zmax;
+    }
+    cv.addEventListener("pointerdown", function (ev) {
+      var o = obtener(); if (!o || !o.geo) return;
+      var geo = o.geo, r = cv.getBoundingClientRect(), y = ev.clientY - r.top - cv.clientTop;
+      if (y >= geo.p.y0 - 24 && y <= geo.p.y1 + 24) zona = "p";
+      else if (y >= geo.l.y0 - 4 && y <= geo.l.y1 + 24) zona = "l";
+      else return;
+      var z = zDe(ev, geo, zona === "l");
+      cual = "A";
+      if (zona === "p" && o.zB !== null && o.zB !== undefined && Math.abs(z - o.zB) < Math.abs(z - o.zA)) cual = "B";
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
+      poner(cual, z, zona === "p");
+    });
+    cv.addEventListener("pointermove", function (ev) {
+      if (!zona) return;
+      var o = obtener(); if (!o || !o.geo) return;
+      var z = zDe(ev, o.geo, zona === "l");
+      if (zona === "l") z = Math.max(o.geo.za, Math.min(o.geo.zb, z));
+      poner(cual, z, zona === "p");
+    });
+    function fin() { if (zona === "l") soltar(); zona = null; }
+    cv.addEventListener("pointerup", fin);
+    cv.addEventListener("pointercancel", fin);
+    cv.addEventListener("keydown", function (ev) {
+      var o = obtener(); if (!o) return;
+      var paso = (ev.shiftKey ? 1 : 0.1) * C_KMUS / (2 * o.n);      // 0.1 μs o 1 μs de ida y vuelta
+      if (ev.key === "ArrowLeft") { ev.preventDefault(); poner("A", o.zA - paso, true); }
+      else if (ev.key === "ArrowRight") { ev.preventDefault(); poner("A", o.zA + paso, true); }
+    });
+  }
+
+  // ================================================================ Vista 1
+  var est1 = { zA: 4.0, zB: 6.0, centro: 4.0, semilla: 20260907, semillaH: 7151 };
+  var tr1 = null, huella1 = null, geo1 = null;
+  function fibra1(conToma) {
+    var L = Number($("largo").value), ev = [];
+    ev.push({ z: Number($("zCon").value), perdida: P_CON, R: $("tipoCon").value === "gel" ? R_GEL : R_AIRE, tipo: "conector" });
+    ev.push({ z: Number($("zEmp").value), perdida: P_EMP, R: 0, tipo: "empalme" });
+    if (conToma && $("hayToma").checked) ev.push({ z: Number($("zToma").value), perdida: Number($("pToma").value), R: 0, tipo: "toma" });
+    return { L: L, alfa: ALFA[$("ventana").value], n: N_FIBRA, eventos: ev };
+  }
+  function recalcular1() {
+    var L = Number($("largo").value);
+    ["zCon", "zEmp", "zToma"].forEach(function (id) {
+      var el = $(id); el.max = (L - 0.3).toFixed(2);
+      if (Number(el.value) > L - 0.3) el.value = (L - 0.3).toFixed(2);
+    });
+    $("largoTxt").textContent = num(L, 1) + " km";
+    $("zConTxt").textContent = num(Number($("zCon").value), 2) + " km";
+    $("zEmpTxt").textContent = num(Number($("zEmp").value), 2) + " km";
+    $("zTomaTxt").textContent = num(Number($("zToma").value), 2) + " km";
+    $("pTomaTxt").textContent = num(Number($("pToma").value), 2) + " dB";
+    $("zToma").disabled = $("pToma").disabled = !$("hayToma").checked;
+    var sigma = SIGMA[$("promedio").value];
+    tr1 = calcularTraza(fibra1(true), est1.semilla, sigma);
+    huella1 = calcularTraza(fibra1(false), est1.semillaH, sigma);
+    est1.zA = Math.min(est1.zA, tr1.zmax); est1.zB = Math.min(est1.zB, tr1.zmax);
+    actualizar1();
+  }
+  function etiquetas1() {
+    var f = tr1.fib, et = [];
+    f.eventos.forEach(function (e) {
+      if (e.tipo === "conector") et.push({ z: e.z, texto: "conector", color: C.azul });
+      if (e.tipo === "empalme") et.push({ z: e.z, texto: "empalme", color: C.gris });
+      if (e.tipo === "toma") et.push({ z: e.z, texto: "toma", color: C.guinda });
+    });
+    et.push({ z: f.L, texto: "extremo", color: C.oroTexto });
+    return et;
+  }
+  function lectura1() {
+    var nC = Number($("nConf").value), nV = N_FIBRA, tA = Number(tDeZ(est1.zA, nV).toFixed(2));
+    var dA = C_KMUS * tA / (2 * nC), nivA = nivelEn(tr1, est1.zA), h = "";
+    var nTxt = nC === 1 ? "1.000" : String(nC);
+    h += "<div class='renglon'><b>Cursor A:</b> t = " + num(tA, 2) + " μs (ida y vuelta)</div>";
+    h += "<div class='renglon'><span class='formula'>d = c·t/(2n)</span>(2.998×10⁸ m/s)(" + num(tA, 2) + "×10⁻⁶ s)/(2 × " + nTxt + ") = " + num(dA * 1000, 0) + " m = <b>" + num(dA, 3) + " km</b></div>";
+    h += "<div class='renglon'>Nivel de la traza en A: <b>" + num(nivA, 2) + " dB</b>" + (est1.zA > tr1.fib.L + PULSO ? " (más allá del extremo: solo ruido)" : "") + "</div>";
+    if (nC !== nV) h += "<div class='renglon'><span class='mal'>Ojo:</span> el equipo usa n = " + nTxt + ", pero la fibra tiene n = " + nV + ".</div>";
+    if ($("usarB").checked) {
+      var tB = Number(tDeZ(est1.zB, nV).toFixed(2)), dB = C_KMUS * tB / (2 * nC), nivB = nivelEn(tr1, est1.zB);
+      var dd = Math.abs(dB - dA), caida = (est1.zB >= est1.zA ? nivA - nivB : nivB - nivA);
+      h += "<div class='renglon'><b>Cursor B:</b> t = " + num(tB, 2) + " μs → d = " + num(dB, 3) + " km; nivel " + num(nivB, 2) + " dB</div>";
+      if (dd > 0.01) h += "<div class='renglon'><span class='formula'>pendiente = caída/Δd</span>" + num(caida, 2) + " dB / " + num(dd, 3) + " km = <b>" + num(caida / dd, 3) + " dB/km</b> (α de esta ventana: " + ALFA[$("ventana").value] + " dB/km; si entre A y B hay un evento, la caída incluye su pérdida)</div>";
+    }
+    $("lectura1").innerHTML = h;
+    if (document.activeElement !== $("tA")) $("tA").value = tA.toFixed(2);
+  }
+  function eventos1() {
+    var f = tr1.fib, nV = f.n, h = "<b>Eventos de esta fibra</b> (n = " + nV + "; t = 2·n·d/c):<ul class='lista-eventos'>";
+    function tEv(z) { return "t = 2(" + nV + ")(" + num(z * 1000, 0) + " m)/(2.998×10⁸ m/s) = " + num(tDeZ(z, nV), 2) + " μs"; }
+    h += "<li><b>Conector del OTDR (0 km):</b> pico inicial; el receptor se satura un instante.</li>";
+    var total = f.alfa * f.L, sumas = [num(f.alfa * f.L, 2)];
+    f.eventos.slice().sort(function (a, b) { return a.z - b.z; }).forEach(function (e) {
+      total += e.perdida; sumas.push(num(e.perdida, 2));
+      if (e.tipo === "conector") h += "<li><b>Conector a " + num(e.z, 2) + " km:</b> " + tEv(e.z) + ". Pico de reflexión (" + (e.R === R_GEL ? "con gel, R ≈ 7.5×10⁻⁶" : "sin gel, R = 3.6 %") + ") y pérdida de " + num(e.perdida, 2) + " dB*.</li>";
+      if (e.tipo === "empalme") h += "<li><b>Empalme por fusión a " + num(e.z, 2) + " km:</b> " + tEv(e.z) + ". Escalón de " + num(e.perdida, 2) + " dB*, sin pico: no hay hueco de aire.</li>";
+      if (e.tipo === "toma") h += "<li><b>Toma por curvatura a " + num(e.z, 2) + " km:</b> " + tEv(e.z) + ". Escalón de " + num(e.perdida, 2) + " dB, sin pico: desvía 1 − 10<sup>−" + num(e.perdida, 2) + "/10</sup> = <b>" + num(100 * (1 - Math.pow(10, -e.perdida / 10)), 1) + " %</b> de la luz.</li>";
+    });
+    h += "<li><b>Extremo a " + num(f.L, 2) + " km:</b> " + tEv(f.L) + ". Pico del corte vidrio-aire (R = 3.6 %) y después solo ruido.</li></ul>";
+    h += "<div class='renglon'><span class='formula'>A = αL</span>Atenuación de la fibra: " + f.alfa + " dB/km × " + num(f.L, 2) + " km = <b>" + num(f.alfa * f.L, 2) + " dB</b>. Pérdida de extremo a extremo: " + sumas.join(" + ") + " = " + num(total, 2) + " dB → llega 10<sup>−" + num(total, 2) + "/10</sup> = <b>" + num(100 * Math.pow(10, -total / 10), 1) + " %</b> de la potencia.</div>";
+    h += "<div class='renglon nota'>* Pérdidas ilustrativas de conectores y empalmes.</div>";
+    $("eventos1").innerHTML = h;
+  }
+  function actualizar1() {
+    lectura1(); eventos1();
+    if (!$("v1").classList.contains("activo")) return;
+    geo1 = dibujarOtdr($("lienzo1"), tr1, {
+      modo: "explora", zA: est1.zA, zB: $("usarB").checked ? est1.zB : null, nConf: Number($("nConf").value),
+      centro: est1.centro, huella: $("verHuella1").checked ? huella1 : null, etiquetas: etiquetas1()
+    });
+  }
+  function ponerCursor1(cual, z, recentrar) {
+    z = Math.max(0, Math.min(tr1.zmax, z));
+    if (cual === "B") est1.zB = z; else { est1.zA = z; if (recentrar) est1.centro = z; }
+    actualizar1();
+  }
+  ["largo", "zCon", "zEmp", "zToma", "pToma"].forEach(function (id) { $(id).addEventListener("input", recalcular1); });
+  ["ventana", "tipoCon", "hayToma", "promedio"].forEach(function (id) { $(id).addEventListener("change", recalcular1); });
+  ["nConf", "verHuella1", "usarB"].forEach(function (id) { $(id).addEventListener("change", actualizar1); });
+  $("tA").addEventListener("input", function () { var t = Number($("tA").value); if (isFinite(t) && $("tA").value !== "") ponerCursor1("A", zDeT(t, N_FIBRA), true); });
+  $("tA").addEventListener("change", function () { $("tA").value = tDeZ(est1.zA, N_FIBRA).toFixed(2); });
+  $("aMenos").addEventListener("click", function () { ponerCursor1("A", est1.zA - zDeT(0.1, N_FIBRA), true); });
+  $("aMas").addEventListener("click", function () { ponerCursor1("A", est1.zA + zDeT(0.1, N_FIBRA), true); });
+  arrastrable($("lienzo1"), function () { return { geo: geo1, zA: est1.zA, zB: $("usarB").checked ? est1.zB : null, n: N_FIBRA }; },
+    ponerCursor1, function () { est1.centro = est1.zA; actualizar1(); });
+
+  // ================================================================ Vista 2: reto
+  var reto = null, tr2 = null, huella2 = null, geo2 = null, est2 = { zA: 0, centro: 0 }, resueltos = 0, intentados = 0;
+  function azar(a, b) { return a + Math.random() * (b - a); }
+  function redondo(x, d) { var k = Math.pow(10, d); return Math.round(x * k) / k; }
+  function lejos(z, lista, sep) { return lista.every(function (q) { return Math.abs(q - z) >= sep; }); }
+  function nuevoReto() {
+    var ventana = Math.random() < 0.5 ? "1310" : "1550", n = Math.random() < 0.5 ? 1.468 : 1.48;
+    var L = redondo(azar(7, 18), 1), docs = [], pos = [], z, intentos;
+    // un conector en el registro y uno o dos empalmes por fusión, documentados
+    var tipos = ["conector", "empalme"].concat(Math.random() < 0.5 ? ["empalme"] : []);
+    tipos.forEach(function (tipo) {
+      intentos = 0;
+      do { z = redondo(azar(0.8, L - 0.8), 1); intentos++; } while (!lejos(z, pos, 1.2) && intentos < 200);
+      pos.push(z);
+      docs.push(tipo === "conector"
+        ? { z: z, perdida: P_CON, R: Math.random() < 0.5 ? R_GEL : R_AIRE, tipo: "conector" }
+        : { z: z, perdida: P_EMP, R: 0, tipo: "empalme" });
+    });
+    // evento nuevo: posición cerca de un kilómetro entero; pérdida ilustrativa en pasos de 0.05 dB
+    var intruso = Math.random() < 0.3, zn;
+    intentos = 0;
+    do {
+      zn = redondo(Math.max(1, Math.round(azar(1, L - 1))) + azar(-0.38, 0.38), 2); intentos++;
+    } while ((zn < 0.8 || zn > L - 0.8 || !lejos(zn, pos, 0.9)) && intentos < 500);
+    var nuevo = intruso
+      ? { z: zn, perdida: redondo(0.22 + 0.05 * Math.floor(Math.random() * 4), 2), R: R_INTRUSO, tipo: "intruso" }
+      : { z: zn, perdida: redondo(0.17 + 0.05 * Math.floor(Math.random() * 11), 2), R: 0, tipo: "toma" };
+    reto = { ventana: ventana, n: n, L: L, docs: docs, nuevo: nuevo, resuelto: false,
+             semilla: Math.floor(Math.random() * 4e9), semillaH: Math.floor(Math.random() * 4e9) };
+    intentados++;
+    calcularReto();
+    est2.zA = Math.min(1.0, L * 0.1); est2.centro = est2.zA;
+    $("respuesta").value = ""; $("resultado2").innerHTML = "";
+    var plano = docs.slice().sort(function (a, b) { return a.z - b.z; }).map(function (e) {
+      return (e.tipo === "conector" ? "conector" : "empalme por fusión") + " a " + num(e.z, 1) + " km";
+    });
+    $("enunciado2").innerHTML = "<b>Enlace monomodo</b> de L = " + num(L, 1) + " km a " + ventana + " nm (α ≈ " + ALFA[ventana] + " dB/km), con <b>n = " + n + "</b>.<br><b>Plano del instalador:</b> " + plano.join("; ") + "; extremo a " + num(L, 1) + " km.";
+    actualizar2();
+  }
+  function calcularReto() {
+    if (!reto) return;
+    var sigma = SIGMA[$("promedio2").value], fib = { L: reto.L, alfa: ALFA[reto.ventana], n: reto.n, eventos: reto.docs.concat([reto.nuevo]) };
+    tr2 = calcularTraza(fib, reto.semilla, sigma);
+    huella2 = calcularTraza({ L: reto.L, alfa: ALFA[reto.ventana], n: reto.n, eventos: reto.docs }, reto.semillaH, sigma);
+  }
+  function lectura2() {
+    var t = Number(tDeZ(est2.zA, reto.n).toFixed(2)), h = "";
+    h += "<div class='renglon'><b>Cursor:</b> t = " + num(t, 2) + " μs</div>";
+    h += "<div class='renglon'><span class='formula'>d = c·t/(2n)</span>Sustituye tú: c = 2.998×10⁸ m/s, n = " + reto.n + " y t en segundos.</div>";
+    if (reto.resuelto) {
+      var tn = Number(tDeZ(reto.nuevo.z, reto.n).toFixed(2));
+      h += "<div class='renglon'>Evento nuevo: (2.998×10⁸)(" + num(tn, 2) + "×10⁻⁶)/(2 × " + reto.n + ") = <b>" + num(C_KMUS * tn / (2 * reto.n), 3) + " km</b></div>";
+    }
+    $("lectura2").innerHTML = h;
+    if (document.activeElement !== $("tR")) $("tR").value = t.toFixed(2);
+    $("marcador2").textContent = "Retos resueltos: " + resueltos + " de " + intentados;
+  }
+  function actualizar2() {
+    if (!reto) return;
+    lectura2();
+    if (!$("v2").classList.contains("activo")) return;
+    var et = null;
+    if (reto.resuelto) {
+      et = reto.docs.map(function (e) { return { z: e.z, texto: e.tipo === "conector" ? "conector (plano)" : "empalme (plano)", color: C.gris }; });
+      et.push({ z: reto.nuevo.z, texto: "evento nuevo", color: C.guinda });
+    }
+    geo2 = dibujarOtdr($("lienzo2"), tr2, { modo: "reto", zA: est2.zA, zB: null, nConf: reto.n, centro: est2.centro,
+      huella: $("verHuella2").checked ? huella2 : null, etiquetas: et });
+  }
+  function ponerCursor2(cual, z, recentrar) {
+    if (!reto) return;
+    est2.zA = Math.max(0, Math.min(tr2.zmax, z)); if (recentrar) est2.centro = est2.zA;
+    actualizar2();
+  }
+  $("nuevoReto").addEventListener("click", nuevoReto);
+  $("verHuella2").addEventListener("change", actualizar2);
+  $("promedio2").addEventListener("change", function () { calcularReto(); actualizar2(); });
+  $("tR").addEventListener("input", function () { var t = Number($("tR").value); if (reto && isFinite(t) && $("tR").value !== "") ponerCursor2("A", zDeT(t, reto.n), true); });
+  $("tR").addEventListener("change", function () { if (reto) $("tR").value = tDeZ(est2.zA, reto.n).toFixed(2); });
+  $("rMenos").addEventListener("click", function () { if (reto) ponerCursor2("A", est2.zA - zDeT(0.1, reto.n), true); });
+  $("rMas").addEventListener("click", function () { if (reto) ponerCursor2("A", est2.zA + zDeT(0.1, reto.n), true); });
+  arrastrable($("lienzo2"), function () { return reto ? { geo: geo2, zA: est2.zA, zB: null, n: reto.n } : null; },
+    ponerCursor2, function () { est2.centro = est2.zA; actualizar2(); });
+
+  function fraccion(p) { return num(100 * (1 - Math.pow(10, -p / 10)), 1); }
+  $("comprobar").addEventListener("click", function () {
+    if (!reto) return;
+    var txt = $("respuesta").value, r = Number(txt), d = reto.nuevo.z, n = reto.n, res = $("resultado2");
+    if (txt === "" || !isFinite(r)) { res.innerHTML = "<span class='mal'>Escribe tu distancia en kilómetros.</span>"; return; }
+    var doc = reto.docs.filter(function (e) { return Math.abs(r - e.z) <= 0.1; })[0];
+    if (Math.abs(r - d) <= 0.1) {
+      if (!reto.resuelto) resueltos++;
+      reto.resuelto = true;
+      res.innerHTML = "<span class='ok'>✓ ¡Encontrado!</span> El evento nuevo está a " + num(d, 2) + " km (tu respuesta se desvía " + num(Math.abs(r - d), 2) + " km; se aceptan 0.1 km). " +
+        (reto.nuevo.tipo === "toma" ? "Es una toma por curvatura: escalón de " + num(reto.nuevo.perdida, 2) + " dB sin pico, que desvía 1 − 10<sup>−" + num(reto.nuevo.perdida, 2) + "/10</sup> = " + fraccion(reto.nuevo.perdida) + " % de la luz."
+                                     : "Es un conector o empalme mecánico que no está en el plano: pico de reflexión y escalón de " + num(reto.nuevo.perdida, 2) + " dB.");
+    } else if (doc) {
+      res.innerHTML = "<span class='mal'>✗ Ese evento está en el plano</span> (" + (doc.tipo === "conector" ? "conector" : "empalme") + " a " + num(doc.z, 1) + " km) y también en la huella. Busca el que es nuevo.";
+    } else if (Math.abs(r - 2 * d) <= 0.2) {
+      res.innerHTML = "<span class='mal'>✗ Te dio el doble.</span> El pulso va y regresa: ¿dividiste entre 2?";
+    } else if (Math.abs(r - 2 * n * d) <= 0.3) {
+      res.innerHTML = "<span class='mal'>✗ Faltan dos cosas:</span> dividir entre 2 (ida y vuelta) y usar la rapidez en el vidrio, v = c/n.";
+    } else if (Math.abs(r - n * d) <= 0.15) {
+      res.innerHTML = "<span class='mal'>✗ Casi:</span> parece que usaste c en lugar de v = c/n. En el vidrio la luz va n veces más lento.";
+    } else if (r > 100 && Math.abs(r / 1000 - d) <= 0.1) {
+      res.innerHTML = "<span class='mal'>✗ Revisa las unidades:</span> la respuesta va en kilómetros.";
+    } else {
+      res.innerHTML = "<span class='mal'>✗ Todavía no.</span> Busca dónde se separan la medición de hoy y la huella, pon el cursor al inicio de ese cambio y revisa que t esté en segundos (×10⁻⁶).";
+    }
+    actualizar2();
+  });
+  $("revelar").addEventListener("click", function () {
+    if (!reto) return;
+    reto.resuelto = true;
+    $("resultado2").innerHTML = "El evento nuevo estaba a <b>" + num(reto.nuevo.z, 2) + " km</b> (t = " + num(tDeZ(reto.nuevo.z, reto.n), 2) + " μs): " +
+      (reto.nuevo.tipo === "toma" ? "una toma por curvatura de " + num(reto.nuevo.perdida, 2) + " dB (" + fraccion(reto.nuevo.perdida) + " % de la luz)." : "un conector o empalme mecánico no documentado.");
+    est2.zA = reto.nuevo.z; est2.centro = est2.zA;
+    actualizar2();
+  });
+
+  // ================================================================ General
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) actualizar1();
+    if ($("v2").classList.contains("activo")) actualizar2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  recalcular1();
+  nuevoReto();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) inicial.click();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-06-otdr-fibra.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM13 2h2v1h-2zM16 2h1v1h-1zM21 2h2v1h-2zM24 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM23 3h1v1h-1zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM14 4h2v1h-2zM18 4h1v1h-1zM23 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h3v1h-3zM17 5h1v1h-1zM19 5h1v1h-1zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM15 6h2v1h-2zM20 6h6v1h-6zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h2v1h-2zM17 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h3v1h-3zM14 9h3v1h-3zM18 9h1v1h-1zM20 9h2v1h-2zM23 9h1v1h-1zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h3v1h-3zM15 10h3v1h-3zM19 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM2 11h2v1h-2zM5 11h3v1h-3zM9 11h2v1h-2zM14 11h2v1h-2zM17 11h2v1h-2zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h2v1h-2zM8 12h2v1h-2zM12 12h1v1h-1zM15 12h2v1h-2zM23 12h2v1h-2zM26 12h1v1h-1zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h3v1h-3zM7 13h1v1h-1zM10 13h6v1h-6zM18 13h1v1h-1zM21 13h4v1h-4zM29 13h6v1h-6zM38 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM7 14h3v1h-3zM12 14h2v1h-2zM15 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM7 15h1v1h-1zM11 15h2v1h-2zM14 15h2v1h-2zM18 15h5v1h-5zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM6 16h4v1h-4zM14 16h2v1h-2zM17 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM3 17h2v1h-2zM7 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM13 17h1v1h-1zM15 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM4 18h1v1h-1zM6 18h1v1h-1zM8 18h2v1h-2zM12 18h2v1h-2zM15 18h1v1h-1zM17 18h3v1h-3zM24 18h2v1h-2zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM5 19h1v1h-1zM7 19h1v1h-1zM11 19h3v1h-3zM16 19h2v1h-2zM20 19h2v1h-2zM23 19h1v1h-1zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h7v1h-7zM10 20h2v1h-2zM14 20h7v1h-7zM22 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM2 21h1v1h-1zM6 21h2v1h-2zM14 21h4v1h-4zM20 21h1v1h-1zM23 21h1v1h-1zM25 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h1v1h-1zM4 22h3v1h-3zM8 22h5v1h-5zM14 22h1v1h-1zM17 22h3v1h-3zM22 22h1v1h-1zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h2v1h-2zM5 23h1v1h-1zM7 23h1v1h-1zM10 23h1v1h-1zM13 23h2v1h-2zM16 23h1v1h-1zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM5 24h1v1h-1zM8 24h1v1h-1zM11 24h1v1h-1zM13 24h1v1h-1zM16 24h2v1h-2zM22 24h1v1h-1zM24 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h2v1h-2zM5 25h1v1h-1zM9 25h2v1h-2zM12 25h1v1h-1zM14 25h1v1h-1zM16 25h2v1h-2zM20 25h4v1h-4zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h1v1h-1zM5 26h8v1h-8zM14 26h4v1h-4zM20 26h2v1h-2zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h2v1h-2zM6 27h1v1h-1zM9 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM17 27h2v1h-2zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM5 28h1v1h-1zM8 28h5v1h-5zM15 28h1v1h-1zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h3v1h-3zM9 29h1v1h-1zM12 29h2v1h-2zM15 29h2v1h-2zM18 29h1v1h-1zM21 29h1v1h-1zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM7 30h4v1h-4zM14 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h14v1h-14zM10 31h1v1h-1zM12 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM16 32h4v1h-4zM22 32h2v1h-2zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h6v1h-6zM17 33h9v1h-9zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM14 34h1v1h-1zM16 34h1v1h-1zM18 34h1v1h-1zM21 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h2v1h-2zM17 35h1v1h-1zM20 35h3v1h-3zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h4v1h-4zM15 36h1v1h-1zM17 36h4v1h-4zM23 36h1v1h-1zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM14 37h1v1h-1zM17 37h1v1h-1zM21 37h1v1h-1zM23 37h3v1h-3zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM14 38h4v1h-4zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-06-otdr-fibra.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

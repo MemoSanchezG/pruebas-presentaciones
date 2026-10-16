@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patrón de radiación de antenas</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  select { width:100%; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .renglon { margin:0 0 5px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:12px 0 0; padding:4px 10px 10px; min-width:0; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:6px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; flex:none; }
+  button.accion:disabled { opacity:.45; cursor:default; background:#fff; color:var(--azul); }
+  .botonera { display:flex; flex-wrap:wrap; }
+  .lienzos { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:12px; align-items:start; }
+  .lienzos figure { margin:0; min-width:0; }
+  .lienzos figcaption { color:var(--gris); font-size:.95rem; margin-top:4px; }
+  @media (max-width: 1060px) { .lienzos { grid-template-columns:1fr; } }
+  #polar, #mapa { touch-action:none; cursor:grab; }
+  #tres { touch-action:none; cursor:move; }
+  #polar, #tres { max-width:600px; margin:0 auto; }
+  .medidor { height:16px; background:var(--gris-claro); border-radius:8px; overflow:hidden; margin-top:6px; }
+  .medidor span { display:block; height:100%; background:var(--azul); width:0; }
+  .grande { font-size:1.35rem; font-weight:bold; color:var(--azul-oscuro); }
+  .resultado { margin-top:8px; min-height:1.4em; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; color:var(--tinta); }
+  .leyenda span { display:inline-flex; align-items:center; gap:6px; }
+  .leyenda i { display:inline-block; width:22px; height:14px; border-radius:3px; border:2px solid; }
+  .muestra-lap { background:rgba(0,64,143,0.18); border-color:#00408F !important; }
+  .muestra-esp { background:rgba(184,151,90,0.30); border-color:#8A6A2E !important; }
+  .muestra-espia { background:#8C1D35; border-color:#8C1D35 !important; border-radius:50% !important; width:14px !important; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 13 · Antenas: patrón de radiación y ganancia</div>
+  <h1>Patrón de radiación: hacia dónde radia una antena</h1>
+  <p class="sub">Gira un dipolo, una Yagi-Uda o una parabólica, compara su patrón en el plano y en 3D, y mira cómo la antena del espía y la del punto de acceso cambian la zona desde donde se puede escuchar.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Patrón de radiación</button>
+    <button type="button" data-vista="v2" role="tab">El espía y la antena</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La antena</h2>
+        <label for="antena">Tipo de antena</label>
+        <select id="antena">
+          <option value="iso">Isotrópica (referencia ideal)</option>
+          <option value="dip" selected>Dipolo vertical</option>
+          <option value="yagi">Yagi-Uda (elementos verticales)</option>
+          <option value="par">Parabólica</option>
+        </select>
+        <div id="opcDip">
+          <label for="largoDip">Longitud del dipolo</label>
+          <select id="largoDip">
+            <option value="0.5" selected>λ/2 (media onda)</option>
+            <option value="1">λ</option>
+            <option value="1.25">1.25λ</option>
+          </select>
+        </div>
+        <div id="opcYagi" hidden>
+          <label for="nYagi">Número de elementos N <small>(separados 0.3λ)</small></label>
+          <select id="nYagi">
+            <option value="4">4</option>
+            <option value="6">6</option>
+            <option value="8" selected>8 (la figura del libro)</option>
+            <option value="16">16</option>
+            <option value="24">24</option>
+          </select>
+        </div>
+        <div id="opcPar" hidden>
+          <label for="diam">Diámetro del plato D: <span class="valor" id="diamVal"></span></label>
+          <input id="diam" type="range" min="0.3" max="1.2" step="0.05" value="0.6">
+          <label for="frecPar">Frecuencia</label>
+          <select id="frecPar">
+            <option value="12" selected>12 GHz (satélite, λ = 2.5 cm)</option>
+            <option value="2.4">2.4 GHz (Wi-Fi, λ = 12.5 cm)</option>
+          </select>
+        </div>
+        <label for="plano">Plano del diagrama</label>
+        <select id="plano">
+          <option value="v" selected>Vertical (vista de lado)</option>
+          <option value="h">Horizontal (vista desde arriba)</option>
+        </select>
+        <fieldset>
+          <legend>Escala del diagrama</legend>
+          <label class="casilla"><input type="radio" name="escala" value="lin" checked> Lineal (amplitud del campo)</label>
+          <label class="casilla"><input type="radio" name="escala" value="db"> Decibeles (hasta −40 dB)</label>
+        </fieldset>
+        <label for="giro" id="giroLbl">Inclinación de la antena: <span class="valor" id="giroVal"></span></label>
+        <input id="giro" type="range" min="-180" max="180" step="1" value="0">
+        <button type="button" class="accion" id="reiniciar">Orientación inicial</button>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+        <fieldset>
+          <legend>Reto: ¿de dónde viene la señal?</legend>
+          <p class="nota" style="margin-top:2px">Una fuente escondida transmite en el plano horizontal. Gira tu antena, observa la potencia que recibes y marca la dirección. Prueba con varias antenas.</p>
+          <div class="botonera">
+            <button type="button" class="accion" id="retoNuevo">Nuevo reto</button>
+            <button type="button" class="accion" id="retoMarcar" disabled>Marcar esta dirección</button>
+            <button type="button" class="accion" id="retoRevelar" disabled>Revelar</button>
+            <button type="button" class="accion" id="retoSalir" disabled>Salir</button>
+          </div>
+          <div class="resultado" id="retoRes" aria-live="polite"></div>
+        </fieldset>
+      </div>
+      <div class="panel">
+        <div class="lienzos">
+          <figure>
+            <canvas id="polar" aria-label="Diagrama polar del patrón de radiación en el plano elegido, con la antena al centro y el receptor a la derecha; se puede arrastrar para girar la antena"></canvas>
+            <figcaption>Arrastra el diagrama para girar la antena. El receptor está fijo a la derecha (0°).</figcaption>
+          </figure>
+          <figure>
+            <canvas id="tres" aria-label="Patrón de radiación en tres dimensiones, con el corte del plano elegido marcado; se puede arrastrar para cambiar el punto de vista"></canvas>
+            <figcaption>Patrón en 3D: arrastra para cambiar el punto de vista. En guinda, el corte que muestra el diagrama.</figcaption>
+          </figure>
+        </div>
+        <p class="nota" id="notaModelo"></p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con el dipolo en la vista de lado, inclínalo hasta que su eje apunte al receptor. ¿Qué nivel lees? Luego cambia a la vista desde arriba y gíralo: ¿cambia algo? ¿Por qué al patrón en 3D se le llama "dona"?</li>
+            <li>Cambia la longitud del dipolo a λ y luego a 1.25λ. ¿Qué le pasa al haz? ¿Qué aparece que el de media onda no tiene?</li>
+            <li>Elige la Yagi y aumenta el número de elementos. ¿Qué pasa con el ancho de haz y con la ganancia? Si la ganancia "no crea energía", ¿de dónde sale la potencia extra hacia el frente? (Usa la escala en dB para ver el lóbulo trasero.)</li>
+            <li>Haz el reto con el dipolo y luego con la Yagi. ¿Con cuál puedes saber de dónde viene la señal? ¿Por qué?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> El patrón dice desde dónde se puede escuchar. Un dipolo vertical en el techo de una oficina radia sobre todo en horizontal: cubre el piso y, por las ventanas, la calle y los edificios vecinos a la misma altura (y, en direcciones oblicuas, los pisos contiguos). Por eso el libro recomienda ubicar los equipos al centro del edificio, lejos de las ventanas, y ajustar la potencia al perímetro. La Yagi tiene doble uso: escucha a larga distancia para un atacante y radiogoniometría para un defensor, que la gira para apuntar hacia un punto de acceso falso o hacia un interferente. Solo es legítimo en redes propias o con autorización expresa.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>El punto de acceso (AP)</h2>
+        <label for="ptAp">Potencia del radio P<sub>t</sub>: <span class="valor" id="ptApVal"></span></label>
+        <input id="ptAp" type="range" min="-10" max="20" step="0.5" value="20">
+        <label for="antAp">Antena del AP</label>
+        <select id="antAp">
+          <option value="omni" selected>Omnidireccional, 2 dBi</option>
+          <option value="yagi8">Directiva: Yagi de 8 elementos</option>
+        </select>
+        <label for="orAp">Hacia dónde apunta su haz: <span class="valor" id="orApVal"></span> <small>(0° = hacia la derecha del mapa)</small></label>
+        <input id="orAp" type="range" min="-180" max="180" step="1" value="180">
+        <h2 style="margin-top:14px">El espía</h2>
+        <label for="antEsp">Antena del espía</label>
+        <select id="antEsp">
+          <option value="lap">Laptop (0 dBi)</option>
+          <option value="dip">Dipolo λ/2 (2.15 dBi)</option>
+          <option value="yagi" selected>Yagi-Uda de 15 dBi (ejemplos del libro)</option>
+          <option value="par">Parabólica de 60 cm en 2.4 GHz</option>
+        </select>
+        <label for="distEsp">Distancia al AP d: <span class="valor" id="distEspVal"></span> <small>(o arrastra al espía en el mapa)</small></label>
+        <input id="distEsp" type="range" min="0" max="4000" step="1" value="2699">
+        <label for="desal">Desalineación de su antena: <span class="valor" id="desalVal"></span></label>
+        <input id="desal" type="range" min="-180" max="180" step="1" value="0">
+        <div class="botonera">
+          <button type="button" class="accion" id="apuntar">Apuntar al AP</button>
+          <button type="button" class="accion" id="ejemploLibro">Ejemplo del libro (1 km)</button>
+        </div>
+        <p class="nota">Fijos (ejemplo del libro): f = 2400 MHz, sensibilidad del receptor S<sub>min</sub> = −85 dBm, espacio libre. La distancia inicial de 5 km es un valor ilustrativo.</p>
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="mapa" aria-label="Mapa visto desde arriba: el punto de acceso al centro, la zona donde capta una laptop, la zona donde capta el espía con su antena y el espía, que se puede arrastrar"></canvas>
+        <div class="leyenda" id="leyenda"></div>
+        <p class="nota" id="notaMapa"></p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Prueba las cuatro antenas del espía y compara su alcance con el de la laptop. ¿Cuántos dB de ganancia necesitaría para duplicar el alcance de la laptop? ¿Y para multiplicarlo por 10?</li>
+            <li>Baja la potencia del AP poco a poco. ¿Qué les pasa a las dos zonas? ¿Basta bajar la potencia para que el espía deje de escuchar?</li>
+            <li>Cambia la antena del AP por la directiva y orienta su haz lejos del espía. ¿Cuánto bajó la señal que recibe? ¿Hacia dónde le convendría moverse?</li>
+            <li>Desalinea poco a poco la antena del espía. ¿Cuántos grados tolera la Yagi antes de perder 3 dB? ¿Y la parabólica? ¿Por qué?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>La física no protege el enlace.</b> Un espía con una antena directiva capta desde mucho más lejos de donde se conecta un usuario común: el radio de peligro lo fija la antena del atacante. Las medidas físicas del libro (potencia al mínimo necesario, antenas de haz estrecho bien orientadas, equipos al centro del edificio) reducen la zona de exposición, pero la confidencialidad la dan WPA3 o un protocolo de capa superior; además hay que vigilar los puntos de acceso y las potencias anómalas. El cálculo es en espacio libre: muros y vegetación reducen el alcance, pero un espía en una azotea o con un dron se acerca a esta cota.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap03_lineas_ondas_transmision.tex (Ecuaciones eq:ganancia-dbi, eq:dipolo, eq:yagi-separacion, eq:pire, eq:friis, eq:fspl-db y eq:alcance-maximo; Definición def:ganancia-antena; Figura fig:patrones-cap05; ganancia de la parabólica G = η(πD/λ)²). Valores ilustrativos: los modelos de la Yagi con N ≠ 8, de los dipolos de λ y 1.25λ y la forma del patrón de la parabólica; el tamaño del edificio y los datos del reto. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  var RAD = Math.PI / 180, K = 2 * Math.PI, RAIZ12 = Math.SQRT1_2;
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles a partir de 5 cifras (estilo del libro): 49 152, 3411, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length > 4) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    s = p.join(".").replace("-", "−");
+    return /^−0(\.0+)?$/.test(s) ? s.slice(1) : s;
+  }
+  function conSigno(x, dec) { var s = num(x, dec); return x > 0 && s !== num(0, dec) ? "+" + s : s; }
+  function par(x, dec) { return x < 0 ? "(" + num(x, dec) + ")" : num(x, dec); }
+  function grados(x) { return num(x, Math.abs(x) < 10 ? 1 : (Math.abs(x) < 100 ? 1 : 0)) + "°"; }
+  function km(x) { return x >= 10 ? num(x, 1) + " km" : (x >= 1 ? num(x, 2) + " km" : num(x * 1000, 0) + " m"); }
+  function log10(x) { return Math.log(x) / Math.LN10; }
+
+  // Ayudantes de dibujo
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones, alfa) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    if (alfa !== undefined) g.globalAlpha = alfa;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function tamLetra(w) { return w < 420 ? 15 : 16; }
+
+  // ================================================================ Modelos de antena
+  // Función de Bessel J1 (aproximación racional de Numerical Recipes, error < 1e-7)
+  function besselJ1(x) {
+    var ax = Math.abs(x), y, ans1, ans2, z, xx, r;
+    if (ax < 8) {
+      y = x * x;
+      ans1 = x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1 + y * (-2972611.439 + y * (15704.48260 + y * (-30.16036606))))));
+      ans2 = 144725228442.0 + y * (2300535178.0 + y * (18583304.74 + y * (99447.43394 + y * (376.9991397 + y))));
+      return ans1 / ans2;
+    }
+    z = 8 / ax; y = z * z; xx = ax - 2.356194491;
+    ans1 = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+    ans2 = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+    r = Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * ans1 - z * Math.sin(xx) * ans2);
+    return x < 0 ? -r : r;
+  }
+  // Dipolo de longitud L (en λ) con corriente senoidal; cz = coseno del ángulo con el eje. Sin normalizar.
+  function factorDipolo(cz, L) {
+    var s2 = 1 - cz * cz;
+    if (s2 < 1e-12) return 0;
+    var kl = Math.PI * L;
+    return Math.abs((Math.cos(kl * cz) - Math.cos(kl)) / Math.sqrt(s2));
+  }
+  // Arreglo de N elementos separados d (en λ) que suman en fase hacia +x; cx = coseno del ángulo con el eje x
+  function factorArreglo(cx, N, d) {
+    var psi = K * d * (cx - 1), den = N * Math.sin(psi / 2);
+    if (Math.abs(den) < 1e-12) return 1;
+    return Math.abs(Math.sin(N * psi / 2) / den);
+  }
+  // Apertura circular uniforme con ka = πD/λ; el factor (1 + cos θ)/2 evita radiación hacia atrás
+  function factorApertura(cx, ka) {
+    var s = Math.sqrt(Math.max(0, 1 - cx * cx)), u = ka * s;
+    var a = u < 1e-6 ? 1 : Math.abs(2 * besselJ1(u) / u);
+    return a * (1 + cx) / 2;
+  }
+  // Máximo de un dipolo (para normalizar a 1)
+  function maxDipolo(L) {
+    var m = 0;
+    for (var i = 1; i < 4000; i++) { var v = factorDipolo(Math.cos(Math.PI * i / 4000), L); if (v > m) m = v; }
+    return m;
+  }
+  // Directividad = 4π·máx(F²) / ∮F² dΩ (F normalizada a 1). Malla uniforme en cos θ alrededor del eje dado.
+  function directividad(F, eje) {
+    var nu = 720, nf = 144, du = 2 / nu, df = 2 * Math.PI / nf, suma = 0;
+    for (var i = 0; i < nu; i++) {
+      var c = -1 + (i + 0.5) * du, s = Math.sqrt(1 - c * c);
+      for (var j = 0; j < nf; j++) {
+        var p = (j + 0.5) * df, a = s * Math.cos(p), b = s * Math.sin(p);
+        var v = eje === "x" ? F([c, a, b]) : F([a, b, c]);
+        suma += v * v;
+      }
+    }
+    return 4 * Math.PI / (suma * du * df);
+  }
+  // Semiancho a −3 dB (en grados) de un lóbulo centrado en 0 de la función fun(ángulo en rad)
+  function semiancho(fun) {
+    var paso = 0.02 * RAD, a = 0, f0 = fun(0);
+    while (a < Math.PI && fun(a + paso) >= RAIZ12 * f0) a += paso;
+    if (a >= Math.PI - paso) return 180;
+    var lo = a, hi = a + paso;
+    for (var k = 0; k < 40; k++) { var mid = (lo + hi) / 2; if (fun(mid) >= RAIZ12 * f0) lo = mid; else hi = mid; }
+    return (lo + hi) / 2 / RAD;
+  }
+  // Lóbulo lateral más alto (dB) de fun(ángulo) entre 0 y "hasta", con el principal en 0; null si no hay
+  function lobuloLateral(fun, hasta) {
+    var n = 9000, prev = fun(0), minimo = false, mayor = 0;
+    for (var i = 1; i <= n; i++) {
+      var v = fun(hasta * i / n);
+      if (!minimo && v > prev && prev < 0.5) minimo = true;
+      if (minimo && v > mayor) mayor = v;
+      prev = v;
+    }
+    return (minimo && mayor > 1e-3) ? 20 * log10(mayor) : null;
+  }
+
+  var cacheModelos = {};
+  // cfg: {tipo, L, N, D, f}; regresa el patrón normalizado F(u) en el marco de la antena y sus datos
+  function modelo(cfg) {
+    var clave = [cfg.tipo, cfg.L, cfg.N, cfg.D, cfg.f].join("|");
+    if (cacheModelos[clave]) return cacheModelos[clave];
+    var m = { tipo: cfg.tipo, cfg: cfg };
+    if (cfg.tipo === "iso") {
+      m.F = function () { return 1; }; m.eje = "z"; m.G = 1; m.hpV = m.hpH = 360; m.sll = null;
+    } else if (cfg.tipo === "dip") {
+      var L = cfg.L, nd = maxDipolo(L);
+      m.F = function (u) { return factorDipolo(u[2], L) / nd; };
+      m.eje = "z"; m.G = directividad(m.F, "z");
+      var corteE = function (a) { return factorDipolo(Math.sin(a), L) / nd; };
+      m.hpV = 2 * semiancho(corteE); m.hpH = 360; m.sll = lobuloLateral(corteE, Math.PI / 2);
+    } else if (cfg.tipo === "yagi") {
+      var N = cfg.N;
+      m.F = function (u) { return factorArreglo(u[0], N, 0.3) * factorDipolo(u[2], 0.5); };
+      m.eje = "x"; m.G = directividad(m.F, "x");
+      var corteH = function (a) { return factorArreglo(Math.cos(a), N, 0.3); };
+      m.hpH = 2 * semiancho(corteH);
+      m.hpV = 2 * semiancho(function (a) { return factorArreglo(Math.cos(a), N, 0.3) * factorDipolo(Math.sin(a), 0.5); });
+      m.sll = lobuloLateral(corteH, Math.PI);
+      m.fb = -20 * log10(Math.max(factorArreglo(-1, N, 0.3), 1e-9));
+    } else {
+      var lam = 0.3 / cfg.f, ka = Math.PI * cfg.D / lam;
+      m.F = function (u) { return factorApertura(u[0], ka); };
+      m.eje = "x"; m.G = 0.6 * ka * ka; m.ka = ka; m.lam = lam;
+      var corteP = function (a) { return factorApertura(Math.cos(a), ka); };
+      m.hpH = m.hpV = 2 * semiancho(corteP); m.sll = lobuloLateral(corteP, Math.PI);
+    }
+    m.GdB = 10 * log10(m.G);
+    cacheModelos[clave] = m;
+    return m;
+  }
+
+  // Rotaciones: marco de la antena -> global. Primero se inclina (el) en su plano vertical y luego se gira (az).
+  function rotar(v, az, el) {
+    var ce = Math.cos(el), se = Math.sin(el), x1 = v[0] * ce - v[2] * se, z1 = v[0] * se + v[2] * ce, y1 = v[1];
+    var ca = Math.cos(az), sa = Math.sin(az);
+    return [x1 * ca - y1 * sa, x1 * sa + y1 * ca, z1];
+  }
+  function desrotar(g, az, el) {
+    var ca = Math.cos(az), sa = Math.sin(az), x1 = g[0] * ca + g[1] * sa, y1 = -g[0] * sa + g[1] * ca, z1 = g[2];
+    var ce = Math.cos(el), se = Math.sin(el);
+    return [x1 * ce + z1 * se, y1, -x1 * se + z1 * ce];
+  }
+  function cruz(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function punto(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function norma(a) { return Math.sqrt(punto(a, a)); }
+  // Dirección global de un ángulo a (rad) dentro del plano del diagrama
+  function dirPlano(a, plano) { return plano === "h" ? [Math.cos(a), Math.sin(a), 0] : [Math.cos(a), 0, Math.sin(a)]; }
+  function angPlano(v, plano) { return Math.atan2(plano === "h" ? v[1] : v[2], v[0]); }
+  var PISO = -40;
+  function radio(f, esc) {
+    if (esc === "lin") return f;
+    if (f <= 1e-7) return 0;
+    return Math.max(0, (20 * log10(f) - PISO) / -PISO);
+  }
+  function envolver(a) { a = ((a + 180) % 360 + 360) % 360 - 180; return a === -180 ? 180 : a; }
+
+  // ================================================================ Vista 1 · estado
+  var est1 = { az: 0, el: 0, yaw: -38, pitch: 20 };
+  var reto = { activo: false };
+  function cfgActual() {
+    var t = $("antena").value;
+    return { tipo: t, L: t === "dip" ? Number($("largoDip").value) : 0, N: t === "yagi" ? Number($("nYagi").value) : 0,
+             D: t === "par" ? Number($("diam").value) : 0, f: t === "par" ? Number($("frecPar").value) : 0 };
+  }
+  function planoActual() { return reto.activo ? "h" : $("plano").value; }
+  function escalaActual() { return document.querySelector('input[name="escala"]:checked').value; }
+  function giroActivo() { return planoActual() === "h" ? est1.az : est1.el; }
+  function nivelEn(m, gdir) { return m.F(desrotar(gdir, est1.az * RAD, est1.el * RAD)); }
+
+  // Centros de los lóbulos de máximo 1 que caen en el plano (para marcar el ancho de haz)
+  function centrosLobulo(m, plano) {
+    var n = plano === "h" ? [0, 0, 1] : [0, 1, 0], az = est1.az * RAD, el = est1.el * RAD;
+    if (m.tipo === "iso") return [];
+    if (m.tipo === "dip") {
+      var c = cruz(n, rotar([0, 0, 1], az, el)), nc = norma(c);
+      if (nc < 1e-6) return [];
+      c = [c[0] / nc, c[1] / nc, c[2] / nc];
+      return [angPlano(c, plano), angPlano([-c[0], -c[1], -c[2]], plano)];
+    }
+    var b = rotar([1, 0, 0], az, el);
+    return Math.abs(punto(b, n)) > 1e-6 ? [] : [angPlano(b, plano)];
+  }
+  // Ángulos (rad) donde el corte cae a −3 dB a cada lado de un centro a0
+  function cruces3dB(m, plano, a0) {
+    var f = function (a) { return nivelEn(m, dirPlano(a, plano)); };
+    var paso = (m.tipo === "par" ? 0.01 : 0.1) * RAD, res = [];
+    [-1, 1].forEach(function (s) {
+      var a = 0;
+      while (a < Math.PI && f(a0 + s * (a + paso)) >= RAIZ12) a += paso;
+      var lo = a, hi = a + paso;
+      for (var k = 0; k < 40; k++) { var mid = (lo + hi) / 2; if (f(a0 + s * mid) >= RAIZ12) lo = mid; else hi = mid; }
+      res.push(a0 + s * (lo + hi) / 2);
+    });
+    return res;
+  }
+
+  // ================================================================ Vista 1 · lecturas
+  function textoGanancia(m) {
+    var c = m.cfg;
+    if (m.tipo === "iso") return "<span class='formula'>G = 1 → 10 log₁₀ 1 = <b>0 dBi</b></span> (" + num(-2.15, 2) + " dBd)";
+    if (m.tipo === "par") {
+      return "<span class='formula'>G = η(πD/λ)² = 0.6(π·" + num(c.D, 2) + "/" + num(m.lam, m.lam < 0.1 ? 3 : 3) + ")² = " +
+             num(m.G, 0) + " → <b>" + num(m.GdB, 2) + " dBi</b></span>";
+    }
+    return "<span class='formula'>G<sub>máx</sub> = " + num(m.G, 2) + " → 10 log₁₀(" + num(m.G, 2) + ") = <b>" + num(m.GdB, 2) +
+           " dBi</b></span> = " + num(m.GdB - 2.15, 2) + " dBd <span class='nota'>(calculada del patrón: densidad en la dirección principal entre la que daría una isotrópica con la misma potencia)</span>";
+  }
+  function textoModelo(m) {
+    var c = m.cfg;
+    if (m.tipo === "iso") return "Referencia ideal: radia igual en todas las direcciones. Ninguna antena real es isotrópica, pero contra ella se mide la ganancia (dBi).";
+    if (m.tipo === "dip") {
+      return c.L === 0.5 ? "Dipolo de media onda: F(θ) = cos(π/2·cos θ)/sen θ, con θ medido desde el eje (el patrón de la figura del libro). Mide L ≈ λ/2 = c/(2f): en 2.4 GHz, 6.25 cm (5.94 cm con el factor 0.95). Vertical, produce polarización vertical."
+                         : "Dipolo de " + (c.L === 1 ? "λ" : "1.25λ") + ": patrón estándar de corriente senoidal, F(θ) ∝ [cos(πL/λ·cos θ) − cos(πL/λ)]/sen θ (valor ilustrativo; el libro solo describe su forma).";
+    }
+    if (m.tipo === "yagi") {
+      return (c.N === 8 ? "Modelo idealizado de la figura del libro" : "Modelo idealizado de la figura del libro con N = " + c.N + " (valor ilustrativo)") +
+             ": N elementos separados 0.3λ que suman en fase hacia el frente; no es un diseño real. En 2.4 GHz, 0.3λ = 3.75 cm (la regla del libro λ/π ≈ 0.32λ da 3.98 cm). Con los elementos verticales, la polarización es vertical.";
+    }
+    return "Forma ilustrativa del patrón (apertura circular uniforme). La ganancia es la fórmula del libro con η = 0.6" +
+           (c.D === 0.6 && c.f === 12 ? ": el plato de 60 cm en 12 GHz es el ejemplo del libro." : ".");
+  }
+  function lectura1() {
+    var m = modelo(cfgActual()), plano = planoActual(), h = "";
+    if (reto.activo) {
+      var pr = potenciaReto(m), frac = Math.max(0, Math.min(1, (pr + 100) / 50));
+      h += "<div class='renglon'>Potencia recibida: <span class='grande'>" + num(pr, 1) + " dBm</span>" +
+           "<div class='medidor' aria-hidden='true'><span style='width:" + (100 * frac).toFixed(1) + "%'></span></div></div>";
+      h += "<div class='renglon'>Tu antena apunta a <b>" + num(est1.az, 0) + "°</b> en el plano horizontal.</div>";
+      if (reto.revelado) h += "<div class='renglon'>La fuente está a <b>" + reto.beta + "°</b>.</div>";
+      $("lectura1").innerHTML = h;
+      return;
+    }
+    var f0 = nivelEn(m, [1, 0, 0]), db0 = f0 > 1e-7 ? 20 * log10(f0) : null;
+    h += "<div class='renglon'>Orientación: giro " + num(est1.az, 0) + "° · inclinación " + num(est1.el, 0) + "°</div>";
+    h += "<div class='renglon'><b>Hacia el receptor (0°):</b> <span class='formula'>F = " + num(f0, 3) + " → 20 log₁₀ F = " +
+         (db0 === null ? "−∞ dB</span> <span class='mal'>(nulo)</span>" : "<b>" + num(db0, 2) + " dB</b></span>") + "</div>";
+    if (db0 !== null) {
+      h += "<div class='renglon'>Ganancia en esa dirección: <span class='formula'>G = G<sub>máx</sub> + 20 log₁₀ F = " + num(m.GdB, 2) + " " +
+           (db0 < -0.005 ? "− " + num(-db0, 2) : "+ " + num(Math.abs(db0), 2)) + " = <b>" + num(m.GdB + db0, 2) + " dBi</b></span></div>";
+    }
+    h += "<div class='renglon'><b>Ganancia máxima:</b> " + textoGanancia(m) + "</div>";
+    var cs = centrosLobulo(m, plano), hp = null;
+    if (cs.length) { var cr = cruces3dB(m, plano, cs[0]); hp = Math.abs(cr[1] - cr[0]) / RAD; }
+    if (m.tipo === "iso") h += "<div class='renglon'>Sin dirección preferida: el patrón es una esfera.</div>";
+    else if (hp !== null) h += "<div class='renglon'><b>Ancho de haz a −3 dB</b> en este plano: <b>" + grados(hp) + "</b> (donde la amplitud cae a 1/√2).</div>";
+    else if (m.tipo === "dip" && Math.abs(est1.el) < 1e-9 && plano === "h") h += "<div class='renglon'>En este plano el dipolo vertical es <b>omnidireccional</b>: no tiene ancho de haz.</div>";
+    else h += "<div class='renglon'>El haz principal no está en este plano. Ancho de haz del modelo: " + (m.hpH >= 359 ? "omnidireccional" : grados(m.hpH)) + " (horizontal) y " + grados(m.hpV) + " (vertical).</div>";
+    if (m.tipo === "yagi") h += "<div class='renglon'><b>Relación frente-espalda:</b> " + num(m.fb, 1) + " dB · lóbulo lateral más alto: " + num(m.sll, 1) + " dB</div>";
+    else if (m.sll !== null && m.sll !== undefined) h += "<div class='renglon'><b>Lóbulo lateral más alto:</b> " + num(m.sll, 1) + " dB</div>";
+    else if (m.tipo === "dip") h += "<div class='renglon'>Sin lóbulos laterales.</div>";
+    $("lectura1").innerHTML = h;
+  }
+
+  // ================================================================ Vista 1 · diagrama polar
+  var geoPolar = null;
+  function dibujarIconoAntena(g, m, cx, cy, Ra, plano) {
+    // Proyección de un punto del marco de la antena sobre el plano del diagrama
+    var az = est1.az * RAD, el = est1.el * RAD;
+    function P(v) { var q = rotar(v, az, el); return [cx + Ra * q[0], cy - Ra * (plano === "h" ? q[1] : q[2])]; }
+    function seg(a, b, color, ancho) { var p = P(a), q = P(b); linea(g, p[0], p[1], q[0], q[1], color, ancho); }
+    g.save(); g.lineCap = "round";
+    if (m.tipo === "iso") {
+      g.fillStyle = C.guinda; g.beginPath(); g.arc(cx, cy, 6, 0, 2 * Math.PI); g.fill();
+    } else if (m.tipo === "dip") {
+      var l = 0.2 * m.cfg.L / 0.5, p0 = P([0, 0, -l]), p1 = P([0, 0, l]);
+      if (Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) < 6) {
+        g.fillStyle = C.guinda; g.beginPath(); g.arc(cx, cy, 6, 0, 2 * Math.PI); g.fill();
+        g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, 6, 0, 2 * Math.PI); g.stroke();
+      } else {
+        seg([0, 0, -l], [0, 0, -0.012], C.guinda, 5); seg([0, 0, 0.012], [0, 0, l], C.guinda, 5);
+      }
+    } else if (m.tipo === "yagi") {
+      var N = m.cfg.N, largo = 0.36, paso = largo / (N - 1);
+      seg([-0.1, 0, 0], [-0.1 + largo, 0, 0], C.gris, 3);
+      for (var i = 0; i < N; i++) {
+        var x = -0.1 + i * paso, e = i === 0 ? 0.085 : (i === 1 ? 0.075 : 0.065);
+        var a = P([x, 0, -e]), b = P([x, 0, e]);
+        if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) { var q = P([x, 0, 0]); g.fillStyle = i === 1 ? C.guinda : C.azulOscuro; g.beginPath(); g.arc(q[0], q[1], 3.2, 0, 2 * Math.PI); g.fill(); }
+        else linea(g, a[0], a[1], b[0], b[1], i === 1 ? C.guinda : C.azulOscuro, 3);
+      }
+    } else {
+      g.strokeStyle = C.azulOscuro; g.lineWidth = 3.5; g.beginPath();
+      var pl = plano === "h" ? 1 : 2;
+      for (var k = -10; k <= 10; k++) {
+        var s = k / 10 * 0.13, v = [-0.05 + 2.2 * s * s, pl === 1 ? s : 0, pl === 2 ? s : 0];
+        var p = P(v);
+        if (k === -10) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]);
+      }
+      g.stroke();
+      seg([-0.05, 0, 0], [0.04, 0, 0], C.gris, 2);
+      var fo = P([0.04, 0, 0]); g.fillStyle = C.guinda; g.beginPath(); g.arc(fo[0], fo[1], 3.5, 0, 2 * Math.PI); g.fill();
+    }
+    g.restore();
+  }
+
+  function dibujarPolar() {
+    var cv = $("polar"), d = preparar(cv, 1.0), g = d.g, w = d.w, h = d.h;
+    var m = modelo(cfgActual()), plano = planoActual(), esc = escalaActual(), T = tamLetra(w);
+    g.clearRect(0, 0, w, h);
+    var cx = w / 2 - 12, cy = h / 2 + 8, R = Math.min(w / 2 - 50, h / 2 - 46);
+    geoPolar = { cx: cx, cy: cy, R: R };
+    texto(g, plano === "h" ? "Plano horizontal (desde arriba)" : "Plano vertical (de lado)", 10, 22, C.azulOscuro, T, "left", "alphabetic", true);
+    texto(g, esc === "lin" ? "escala lineal" : "escala en dB", reto.activo ? w - 8 : 10, h - 10, C.gris, T, reto.activo ? "right" : "left");
+    // Rejilla
+    var anillos = [0.25, 0.5, 0.75, 1];
+    anillos.forEach(function (r) {
+      g.save(); g.strokeStyle = r === 1 ? C.gris : C.grisClaro; g.lineWidth = r === 1 ? 1.4 : 1;
+      g.beginPath(); g.arc(cx, cy, r * R, 0, 2 * Math.PI); g.stroke(); g.restore();
+    });
+    for (var a = 0; a < 360; a += 30) {
+      var ca = Math.cos(a * RAD), sa = Math.sin(a * RAD);
+      linea(g, cx, cy, cx + R * ca, cy - R * sa, C.grisClaro, 1);
+      var rot = a + "°";
+      if (plano === "v" && a === 90) rot = "90° arriba";
+      if (plano === "v" && a === 270) rot = "270° abajo";
+      if (a !== 0) texto(g, rot, cx + (R + 17) * ca, cy - (R + 17) * sa + 5, C.gris, T, "center");
+    }
+    // Rótulos de los anillos: a la izquierda de la línea de 90°, justo por dentro de cada anillo
+    anillos.forEach(function (r) {
+      var t = esc === "lin" ? num(r, 2) : (r === 1 ? "0 dB" : num(PISO * (1 - r), 0) + " dB");
+      etiqueta(g, t, cx - 6, cy - r * R + 15, C.gris, T, "right");
+    });
+    // Patrón
+    var paso = m.tipo === "par" ? 0.05 : 0.5, n = Math.round(360 / paso), puntos = [];
+    for (var i = 0; i <= n; i++) {
+      var ang = i * paso * RAD, f = nivelEn(m, dirPlano(ang, plano)), r = radio(f, esc) * R;
+      puntos.push([cx + r * Math.cos(ang), cy - r * Math.sin(ang)]);
+    }
+    g.save(); g.beginPath();
+    puntos.forEach(function (p, k) { if (k === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); });
+    g.closePath(); g.fillStyle = "rgba(0,64,143,0.16)"; g.fill();
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5; g.lineJoin = "round"; g.stroke(); g.restore();
+    // Ancho de haz a −3 dB (el rótulo se escribe al final, encima de todo)
+    var rotulo3dB = null;
+    if (!reto.activo) {
+      centrosLobulo(m, plano).forEach(function (a0, k) {
+        var cr = cruces3dB(m, plano, a0), rr = radio(RAIZ12, esc) * R;
+        cr.forEach(function (ac) { linea(g, cx, cy, cx + (R + 4) * Math.cos(ac), cy - (R + 4) * Math.sin(ac), C.oroTexto, 1.8, [6, 4]); });
+        g.save(); g.strokeStyle = C.oroTexto; g.lineWidth = 2; g.beginPath();
+        g.arc(cx, cy, rr, -Math.max(cr[0], cr[1]), -Math.min(cr[0], cr[1])); g.stroke(); g.restore();
+        if (k === 0) {
+          var am = (cr[0] + cr[1]) / 2, xa = cx + 0.62 * R * Math.cos(am), ya = cy - 0.62 * R * Math.sin(am);
+          rotulo3dB = { t: "−3 dB: " + grados(Math.abs(cr[1] - cr[0]) / RAD), x: xa, y: ya + (Math.abs(Math.sin(am)) < 0.3 ? -12 : 5) };
+        }
+      });
+    }
+    dibujarIconoAntena(g, m, cx, cy, R, plano);
+    if (reto.activo) {
+      if (reto.revelado) {
+        var b = reto.beta * RAD, xb = cx + (R + 8) * Math.cos(b), yb = cy - (R + 8) * Math.sin(b);
+        linea(g, cx, cy, xb, yb, C.guinda, 2, [3, 4]);
+        g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xb, yb, 8, 0, 2 * Math.PI); g.fill(); g.restore();
+        etiqueta(g, "fuente " + reto.beta + "°", cx + (R - 34) * Math.cos(b), cy - (R - 34) * Math.sin(b) + 5, C.guinda, T, "center", true);
+      }
+      etiqueta(g, "Reto: la fuente está escondida", 10, h - 10, C.guinda, T, "left", true);
+      return;
+    }
+    // Receptor a 0°
+    var f0 = nivelEn(m, [1, 0, 0]), r0 = radio(f0, esc) * R, xr = cx + R + 26;
+    linea(g, cx, cy, xr - 10, cy, C.guinda, 1.5, [4, 4]);
+    g.save(); g.fillStyle = C.guinda;
+    g.fillRect(xr - 9, cy - 7, 18, 14); g.strokeStyle = C.guinda; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(xr, cy - 7); g.lineTo(xr, cy - 20); g.stroke();
+    g.beginPath(); g.arc(cx + r0, cy, 6, 0, 2 * Math.PI); g.fill();
+    g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(cx + r0, cy, 6, 0, 2 * Math.PI); g.stroke(); g.restore();
+    etiqueta(g, "receptor: " + (f0 > 1e-7 ? num(20 * log10(f0), 1) + " dB" : "nulo"), w - 8, h - 10, C.guinda, T, "right", true);
+    if (rotulo3dB) etiqueta(g, rotulo3dB.t, rotulo3dB.x, rotulo3dB.y, C.oroTexto, T, "center", true);
+  }
+
+  // ================================================================ Vista 1 · patrón en 3D
+  var vista3D = null;
+  function dibujar3D() {
+    var cv = $("tres"), d = preparar(cv, 1.0), g = d.g, w = d.w, h = d.h, T = tamLetra(w);
+    var m = modelo(cfgActual()), plano = planoActual(), esc = escalaActual();
+    var az = est1.az * RAD, el = est1.el * RAD, yaw = est1.yaw * RAD, pit = est1.pitch * RAD;
+    var cx = w / 2, cy = h / 2 + 14, s = Math.min(w, h) * 0.34;
+    g.clearRect(0, 0, w, h);
+    texto(g, "Patrón en 3D", 10, 22, C.azulOscuro, T, "left", "alphabetic", true);
+    var cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pit), sp = Math.sin(pit);
+    function V(p) {
+      var x = p[0] * cyw - p[1] * syw, y = p[0] * syw + p[1] * cyw, z = p[2];
+      return [cx + s * x, cy - s * (y * sp + z * cp), y * cp - z * sp];
+    }
+    vista3D = V;
+    // Malla en el marco de la antena: anillos alrededor de su eje natural
+    var ejeX = m.eje === "x", nth = m.tipo === "par" ? 70 : 36, nph = 48, pot = m.tipo === "par" ? 2.6 : (ejeX ? 1.5 : 1);
+    var malla = [];
+    for (var i = 0; i <= nth; i++) {
+      var th = Math.PI * Math.pow(i / nth, pot), st = Math.sin(th), ct = Math.cos(th), fila = [];
+      for (var j = 0; j < nph; j++) {
+        var ph = 2 * Math.PI * j / nph, v = ejeX ? [ct, st * Math.cos(ph), st * Math.sin(ph)] : [st * Math.cos(ph), st * Math.sin(ph), ct];
+        var r = radio(m.F(v), esc), q = rotar([v[0] * r, v[1] * r, v[2] * r], az, el);
+        fila.push(V(q));
+      }
+      malla.push(fila);
+    }
+    var segs = [];
+    for (i = 0; i <= nth; i++) for (j = 0; j < nph; j++) {
+      var a = malla[i][j], b = malla[i][(j + 1) % nph];
+      if (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) > 0.3) segs.push([a, b]);
+      if (i < nth) { var c2 = malla[i + 1][j]; if (Math.abs(a[0] - c2[0]) + Math.abs(a[1] - c2[1]) > 0.3) segs.push([a, c2]); }
+    }
+    var zmin = Infinity, zmax = -Infinity;
+    segs.forEach(function (sg) { sg.z = (sg[0][2] + sg[1][2]) / 2; if (sg.z < zmin) zmin = sg.z; if (sg.z > zmax) zmax = sg.z; });
+    var cubetas = [[], [], [], []];
+    segs.forEach(function (sg) { var k = zmax > zmin ? Math.min(3, Math.floor(4 * (sg.z - zmin) / (zmax - zmin + 1e-9))) : 0; cubetas[k].push(sg); });
+    // Ejes y círculo del plano de corte (atrás)
+    function linea3(p, q, color, ancho, guiones) { var a = V(p), b = V(q); linea(g, a[0], a[1], b[0], b[1], color, ancho, guiones); }
+    g.save(); g.strokeStyle = C.gris; g.lineWidth = 1.2; g.setLineDash([5, 4]); g.beginPath();
+    for (var k = 0; k <= 96; k++) { var aa = 2 * Math.PI * k / 96, pp = V(dirPlano(aa, plano)); if (k === 0) g.moveTo(pp[0], pp[1]); else g.lineTo(pp[0], pp[1]); }
+    g.stroke(); g.restore();
+    [3, 2, 1, 0].forEach(function (kb) {
+      var alfa = [0.85, 0.6, 0.4, 0.22][kb];
+      g.save(); g.strokeStyle = C.azul; g.globalAlpha = alfa; g.lineWidth = 1; g.beginPath();
+      cubetas[kb].forEach(function (sg) { g.moveTo(sg[0][0], sg[0][1]); g.lineTo(sg[1][0], sg[1][1]); });
+      g.stroke(); g.restore();
+    });
+    linea3([0, 0, 0], [1.25, 0, 0], C.tinta, 1.5); linea3([0, 0, 0], [0, 0, 1.2], C.tinta, 1.5); linea3([0, 0, 0], [0, 1.15, 0], C.gris, 1.2);
+    var ex = V([1.32, 0, 0]), ez = V([0, 0, 1.28]);
+    if (!reto.activo) etiqueta(g, "receptor", ex[0], ex[1] + 5, C.guinda, T, ex[0] > w - 70 ? "right" : (ex[0] < 70 ? "left" : "center"), true);
+    etiqueta(g, "arriba", ez[0], ez[1] - 2, C.gris, T, "center");
+    // Corte del plano del diagrama
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 2.6; g.beginPath();
+    var paso = m.tipo === "par" ? 0.1 : 1;
+    for (k = 0; k <= 360 / paso; k++) {
+      var an = k * paso * RAD, dg = dirPlano(an, plano), rr = radio(nivelEn(m, dg), esc), p3 = V([dg[0] * rr, dg[1] * rr, dg[2] * rr]);
+      if (k === 0) g.moveTo(p3[0], p3[1]); else g.lineTo(p3[0], p3[1]);
+    }
+    g.stroke(); g.restore();
+    // Antena al centro
+    g.save(); g.lineCap = "round";
+    if (m.tipo === "dip") { linea3(rotar([0, 0, -0.16 * m.cfg.L / 0.5], az, el), rotar([0, 0, 0.16 * m.cfg.L / 0.5], az, el), C.guinda, 4); }
+    else if (m.tipo === "yagi") {
+      linea3(rotar([-0.08, 0, 0], az, el), rotar([0.24, 0, 0], az, el), C.gris, 3);
+      for (k = 0; k < Math.min(m.cfg.N, 8); k++) { var xk = -0.08 + k * 0.32 / 7; linea3(rotar([xk, 0, -0.07], az, el), rotar([xk, 0, 0.07], az, el), k === 1 ? C.guinda : C.azulOscuro, 2.5); }
+    } else if (m.tipo === "par") {
+      g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5; g.beginPath();
+      for (k = 0; k <= 36; k++) { var t = 2 * Math.PI * k / 36, pq = V(rotar([-0.03, 0.12 * Math.cos(t), 0.12 * Math.sin(t)], az, el)); if (k === 0) g.moveTo(pq[0], pq[1]); else g.lineTo(pq[0], pq[1]); }
+      g.stroke(); linea3(rotar([-0.03, 0, 0], az, el), rotar([0.1, 0, 0], az, el), C.guinda, 2.5);
+    } else { var o = V([0, 0, 0]); g.fillStyle = C.guinda; g.beginPath(); g.arc(o[0], o[1], 5, 0, 2 * Math.PI); g.fill(); }
+    g.restore();
+  }
+
+  // ================================================================ Vista 1 · controles
+  function actualizar1() {
+    var t = $("antena").value;
+    $("opcDip").hidden = t !== "dip"; $("opcYagi").hidden = t !== "yagi"; $("opcPar").hidden = t !== "par";
+    $("diamVal").textContent = num(Number($("diam").value), 2) + " m";
+    var h = planoActual() === "h";
+    $("giroLbl").firstChild.nodeValue = h ? "Giro de la antena (azimut): " : "Inclinación de la antena: ";
+    $("giro").value = String(giroActivo());
+    $("giroVal").textContent = num(giroActivo(), 0) + "°";
+    $("plano").disabled = reto.activo;
+    $("notaModelo").textContent = textoModelo(modelo(cfgActual()));
+    lectura1();
+    if ($("v1").classList.contains("activo")) { dibujarPolar(); dibujar3D(); }
+  }
+  function ponerGiro(v) {
+    v = Math.round(envolver(v));
+    if (planoActual() === "h") est1.az = v; else est1.el = v;
+    actualizar1();
+  }
+  ["antena", "largoDip", "nYagi", "frecPar", "plano"].forEach(function (id) { $(id).addEventListener("change", actualizar1); });
+  $("diam").addEventListener("input", actualizar1);
+  document.querySelectorAll('input[name="escala"]').forEach(function (r) { r.addEventListener("change", actualizar1); });
+  $("giro").addEventListener("input", function () { ponerGiro(Number($("giro").value)); });
+  $("reiniciar").addEventListener("click", function () { est1.az = 0; est1.el = 0; actualizar1(); });
+
+  // Arrastre en el diagrama polar: gira la antena como una perilla
+  var cvP = $("polar"), arrP = null;
+  function anguloPuntero(ev) { var r = cvP.getBoundingClientRect(); return Math.atan2(-(ev.clientY - r.top - geoPolar.cy), ev.clientX - r.left - geoPolar.cx) / RAD; }
+  function capturar(cv, ev) { try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* puntero ya liberado */ } }
+  cvP.addEventListener("pointerdown", function (ev) { if (!geoPolar) return; arrP = { a0: anguloPuntero(ev), g0: giroActivo() }; capturar(cvP, ev); });
+  cvP.addEventListener("pointermove", function (ev) { if (arrP) ponerGiro(arrP.g0 + envolver(anguloPuntero(ev) - arrP.a0)); });
+  cvP.addEventListener("pointerup", function () { arrP = null; });
+  cvP.addEventListener("pointercancel", function () { arrP = null; });
+  // Arrastre en el 3D: cambia el punto de vista
+  var cv3 = $("tres"), arr3 = null;
+  cv3.addEventListener("pointerdown", function (ev) { arr3 = { x: ev.clientX, y: ev.clientY, yaw: est1.yaw, pitch: est1.pitch }; capturar(cv3, ev); });
+  cv3.addEventListener("pointermove", function (ev) {
+    if (!arr3) return;
+    est1.yaw = arr3.yaw - (ev.clientX - arr3.x) * 0.5;
+    est1.pitch = Math.max(-85, Math.min(85, arr3.pitch + (ev.clientY - arr3.y) * 0.5));
+    dibujar3D();
+  });
+  cv3.addEventListener("pointerup", function () { arr3 = null; });
+  cv3.addEventListener("pointercancel", function () { arr3 = null; });
+
+  // ---------------------------------------------------------------- reto de radiogoniometría
+  function potenciaReto(m) {   // el receptor no distingue nada por debajo de 60 dB bajo el máximo
+    var f = nivelEn(m, [Math.cos(reto.beta * RAD), Math.sin(reto.beta * RAD), 0]);
+    return reto.pref + 20 * log10(Math.max(f, 1e-3));
+  }
+  function botonesReto() {
+    $("retoMarcar").disabled = !reto.activo; $("retoRevelar").disabled = !reto.activo || reto.revelado; $("retoSalir").disabled = !reto.activo;
+  }
+  $("retoNuevo").addEventListener("click", function () {
+    reto = { activo: true, revelado: false, beta: Math.floor(Math.random() * 360), pref: -75 + Math.random() * 14 };
+    est1.el = 0; est1.az = 0; $("plano").value = "h";
+    $("retoRes").innerHTML = "Gira la antena (deslizador o arrastrando el diagrama) y busca dónde recibes más potencia.";
+    botonesReto(); actualizar1();
+  });
+  $("retoMarcar").addEventListener("click", function () {
+    if (!reto.activo) return;
+    var m = modelo(cfgActual());
+    if (m.hpH >= 359) {
+      $("retoRes").innerHTML = "<span class='mal'>Con esta antena la potencia no cambia al girarla en el plano horizontal:</span> no hay una dirección que marcar. Prueba con otra antena.";
+      return;
+    }
+    var err = envolver(est1.az - reto.beta), tol = Math.max(2, m.hpH / 4);
+    $("retoRes").innerHTML = Math.abs(err) <= tol
+      ? "<span class='ok'>✓ ¡Bien! Apuntas a " + num(est1.az, 0) + "°;</span> te desviaste " + num(Math.abs(err), 0) + "° (con un haz de " + grados(m.hpH) + " se aceptan ±" + num(tol, 0) + "°)."
+      : "<span class='mal'>✗ Todavía no:</span> te desviaste más de " + num(tol, 0) + "°. Barre despacio y quédate donde la potencia es máxima.";
+  });
+  $("retoRevelar").addEventListener("click", function () { if (!reto.activo) return; reto.revelado = true; botonesReto(); actualizar1(); });
+  $("retoSalir").addEventListener("click", function () { reto = { activo: false }; $("retoRes").innerHTML = ""; est1.az = 0; botonesReto(); actualizar1(); });
+
+  // ================================================================ Vista 2 · el espía y la antena
+  var F_MHZ = 2400, SMIN = -85, LOGF = 20 * log10(F_MHZ);
+  var YAGI8 = function (a) { return factorArreglo(Math.cos(a), 8, 0.3); };
+  var KA_PAR = Math.PI * 0.6 / 0.125;
+  var ANT_AP = {
+    omni: { G: 2, F: function () { return 1; }, corto: "omnidireccional de 2 dBi" },
+    yagi8: { G: null, F: YAGI8, corto: "Yagi de 8 elementos" }
+  };
+  var ANT_ESP = {
+    lap: { G: 0, F: function () { return 1; }, corto: "laptop de 0 dBi" },
+    dip: { G: 2.15, F: function () { return 1; }, corto: "dipolo de 2.15 dBi" },
+    yagi: { G: 15, F: function (a) { return factorArreglo(Math.cos(a), 24, 0.3); }, corto: "Yagi de 15 dBi" },
+    par: { G: 10 * log10(0.6 * KA_PAR * KA_PAR), F: function (a) { return factorApertura(Math.cos(a), KA_PAR); }, corto: "parabólica de 60 cm" }
+  };
+  function yagi8() { return modelo({ tipo: "yagi", L: 0, N: 8, D: 0, f: 0 }); }
+  function antAp() { var a = ANT_AP[$("antAp").value]; if (a.G === null) a.G = yagi8().GdB; return a; }
+  function kmAnillo(r) { return r >= 1 ? num(r, r % 1 === 0 ? 0 : 1) + " km" : num(r * 1000, 0) + " m"; }
+  var est2 = { d: 5, ang: 0, escalaFija: null };
+  function lp(dkm) { return 20 * log10(dkm) + LOGF + 32.44; }
+  function alcance(Lmax) { return Math.pow(10, (Lmax - 32.44 - LOGF) / 20); }
+  function dB(f) { return 20 * log10(Math.max(f, 1e-6)); }
+  // Ganancia del AP hacia el azimut phi (grados)
+  function gAp(ap, phi) { return ap.G + dB(ap.F(envolver(phi - Number($("orAp").value)) * RAD)); }
+  function calculo2() {
+    var ap = antAp(), esp = ANT_ESP[$("antEsp").value], pt = Number($("ptAp").value), al = Number($("desal").value);
+    var gt = gAp(ap, est2.ang), gr = esp.G + dB(esp.F(al * RAD)), L = lp(est2.d), pr = pt + gt + gr - L;
+    return { ap: ap, esp: esp, pt: pt, al: al, gt: gt, gr: gr, L: L, pr: pr, margen: pr - SMIN,
+             lmax: pt + gt + esp.G - SMIN, dEsp: alcance(pt + gt + esp.G - SMIN), dLap: alcance(pt + gt - SMIN) };
+  }
+  function zonaMax(c, G) {   // radio máximo (km) de la zona de quien usa una antena de ganancia G
+    var mx = 0;
+    for (var a = 0; a < 360; a += 1) mx = Math.max(mx, alcance(c.pt + gAp(c.ap, a) + G - SMIN));
+    return mx;
+  }
+  // Radios posibles del mapa (km) y separación de sus anillos
+  var ESCALAS = [0.05, 0.1, 0.2, 0.3, 0.5, 1, 2, 3, 5, 10, 20, 30, 50, 100, 200];
+  var ANILLOS = { 0.05: 0.01, 0.1: 0.02, 0.2: 0.05, 0.3: 0.1, 0.5: 0.1, 1: 0.2, 2: 0.5, 3: 1, 5: 1, 10: 2, 20: 5, 30: 10, 50: 10, 100: 20, 200: 50 };
+  function escalaMapa(c) {
+    if (est2.escalaFija) return est2.escalaFija;
+    var need = 1.08 * Math.max(zonaMax(c, c.esp.G), zonaMax(c, 0), est2.d);
+    for (var i = 0; i < ESCALAS.length; i++) if (ESCALAS[i] >= need) return ESCALAS[i];
+    return ESCALAS[ESCALAS.length - 1];
+  }
+  var geoMapa = null;
+  function dibujarMapa() {
+    var cv = $("mapa"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.08 : 0.72), g = d.g, w = d.w, h = d.h, T = tamLetra(w), c = calculo2();
+    g.clearRect(0, 0, w, h);
+    var cx = w / 2, cy = h / 2 + 12, R = Math.min(w / 2, h / 2 - 12) - 16, Rkm = escalaMapa(c), ppk = R / Rkm;
+    geoMapa = { cx: cx, cy: cy, ppk: ppk, Rkm: Rkm };
+    texto(g, "Vista desde arriba · espacio libre", 10, 22, C.azulOscuro, T, "left", "alphabetic", true);
+    // Anillos de distancia
+    var paso = ANILLOS[Rkm] || Rkm / 5, nAn = Math.round(Rkm / paso);
+    for (var ia = 1; ia <= nAn; ia++) {
+      g.save(); g.strokeStyle = C.grisClaro; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, ia * paso * ppk, 0, 2 * Math.PI); g.stroke(); g.restore();
+    }
+    // Zonas: primero la del espía (más grande), luego la de la laptop
+    function zona(G, relleno, borde) {
+      g.save(); g.beginPath();
+      for (var a = 0; a <= 360; a += 0.5) {
+        var rk = alcance(c.pt + gAp(c.ap, a) + G - SMIN) * ppk, x = cx + rk * Math.cos(a * RAD), y = cy - rk * Math.sin(a * RAD);
+        if (a === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.closePath(); g.fillStyle = relleno; g.fill(); g.strokeStyle = borde; g.lineWidth = 2.5; g.lineJoin = "round"; g.stroke(); g.restore();
+    }
+    if (c.esp.G > 0.01) zona(c.esp.G, "rgba(184,151,90,0.28)", C.oroTexto);
+    zona(0, "rgba(0,64,143,0.16)", C.azul);
+    // Rótulos de los anillos (arriba a la izquierda del AP)
+    for (ia = 1; ia <= nAn; ia++) { var rk = Math.round(ia * paso * 1000) / 1000; etiqueta(g, kmAnillo(rk), cx + rk * ppk * Math.cos(112 * RAD), cy - rk * ppk * Math.sin(112 * RAD) + 5, C.gris, T, "center"); }
+    // Edificio de referencia (80 m × 50 m), solo si se alcanza a ver
+    var bw = 0.08 * ppk, bh = 0.05 * ppk;
+    if (bw > 10) {
+      g.save(); g.fillStyle = "rgba(91,100,114,0.18)"; g.strokeStyle = C.gris; g.lineWidth = 1.5;
+      g.fillRect(cx - bw / 2, cy - bh / 2, bw, bh); g.strokeRect(cx - bw / 2, cy - bh / 2, bw, bh); g.restore();
+      if (bw > 90) texto(g, "edificio", cx, cy + bh / 2 - 6, C.gris, T, "center");
+    }
+    // AP y la dirección de su haz
+    if ($("antAp").value === "yagi8") {
+      var o = Number($("orAp").value) * RAD;
+      linea(g, cx, cy, cx + 34 * Math.cos(o), cy - 34 * Math.sin(o), C.azulOscuro, 3);
+      g.save(); g.fillStyle = C.azulOscuro; g.beginPath();
+      g.moveTo(cx + 44 * Math.cos(o), cy - 44 * Math.sin(o));
+      g.lineTo(cx + 32 * Math.cos(o) - 7 * Math.sin(o), cy - 32 * Math.sin(o) - 7 * Math.cos(o));
+      g.lineTo(cx + 32 * Math.cos(o) + 7 * Math.sin(o), cy - 32 * Math.sin(o) + 7 * Math.cos(o));
+      g.closePath(); g.fill(); g.restore();
+    }
+    g.save(); g.fillStyle = C.azulOscuro; g.fillRect(cx - 8, cy - 8, 16, 16); g.strokeStyle = "#fff"; g.lineWidth = 2; g.strokeRect(cx - 8, cy - 8, 16, 16); g.restore();
+    etiqueta(g, "AP", cx - 12, cy + 24, C.azulOscuro, T, "right", true);
+    // Espía
+    var ae = est2.ang * RAD, xs = cx + est2.d * ppk * Math.cos(ae), ys = cy - est2.d * ppk * Math.sin(ae);
+    linea(g, cx, cy, xs, ys, C.guinda, 1.5, [5, 4]);
+    var haciaAp = Math.atan2(cy - ys, cx - xs), dirAnt = haciaAp - c.al * RAD;   // ángulos de pantalla (y hacia abajo)
+    // patrón de su antena (amplitud, radio 38 px) orientado según la desalineación
+    g.save(); g.beginPath();
+    for (var k = 0; k <= 360; k += 2) {
+      var aa = k * RAD, rr = 38 * c.esp.F(aa) * (c.esp.G > 0.01 ? 1 : 0.55);
+      var xx = xs + rr * Math.cos(dirAnt + aa), yy = ys + rr * Math.sin(dirAnt + aa);
+      if (k === 0) g.moveTo(xx, yy); else g.lineTo(xx, yy);
+    }
+    g.closePath(); g.fillStyle = "rgba(140,29,53,0.12)"; g.fill(); g.strokeStyle = C.guinda; g.lineWidth = 1.5; g.stroke(); g.restore();
+    g.save(); g.fillStyle = C.guinda; g.beginPath(); g.arc(xs, ys, 9, 0, 2 * Math.PI); g.fill();
+    g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(xs, ys, 9, 0, 2 * Math.PI); g.stroke(); g.restore();
+    var capta = c.margen >= 0, txt = "Espía a " + km(est2.d) + ": " + (capta ? "capta (" : "no capta (") + conSigno(c.margen, 1) + " dB)";
+    // rótulo corto junto al espía, del lado contrario al AP y dentro del lienzo
+    var ux = Math.cos(ae), uy = -Math.sin(ae), tw = anchoTexto("espía", T, true);
+    var alin = ux > 0.3 ? "left" : (ux < -0.3 ? "right" : "center"), xl = xs + 18 * ux, yl = ys + 20 * uy + 5;
+    if (alin === "left" && xl + tw > w - 6) { alin = "right"; xl = xs - 14; }
+    if (alin === "right" && xl - tw < 6) { alin = "left"; xl = xs + 14; }
+    if (alin === "center") xl = Math.min(Math.max(xl, tw / 2 + 6), w - tw / 2 - 6);
+    yl = Math.min(Math.max(yl, 44), h - 36);
+    etiqueta(g, "espía", xl, yl, C.guinda, T, alin, true);
+    etiqueta(g, txt, 10, h - 10, capta ? C.guinda : C.azul, T, "left", true);
+  }
+  function lectura2() {
+    var c = calculo2(), h = "", omni = $("antAp").value === "omni";
+    h += "<div class='renglon'><b>Pérdida en espacio libre</b> a " + km(est2.d) + ":<br><span class='formula'>L<sub>p</sub> = 20 log₁₀(" + num(est2.d, est2.d < 0.1 ? 3 : 2) + ") + 20 log₁₀(2400) + 32.44 = <b>" + num(c.L, 2) + " dB</b></span></div>";
+    var fAp = c.ap.F(envolver(est2.ang - Number($("orAp").value)) * RAD);
+    h += "<div class='renglon'><b>Ganancia del AP hacia el espía:</b> " + (omni ? "G<sub>t</sub> = <b>2.00 dBi</b> (omnidireccional)"
+         : "<span class='formula'>G<sub>t</sub> = " + num(c.ap.G, 2) + " + 20 log₁₀(" + num(fAp, 3) + ") = <b>" + num(c.gt, 2) + " dBi</b></span>") + "</div>";
+    if (!omni) h += "<div class='renglon'>PIRE en la dirección del haz: P<sub>t</sub> + G<sub>máx</sub> = " + num(c.pt, 1) + " + " + num(c.ap.G, 2) + " = " + num(c.pt + c.ap.G, 2) + " dBm</div>";
+    h += "<div class='renglon'><b>Ganancia del espía hacia el AP:</b> " + (Math.abs(c.al) < 0.5 || c.esp.G < 0.01 || $("antEsp").value === "dip" ? "G<sub>r</sub> = <b>" + num(c.gr, 2) + " dBi</b>"
+         : "<span class='formula'>G<sub>r</sub> = " + num(c.esp.G, 2) + " + 20 log₁₀(" + num(c.esp.F(c.al * RAD), 3) + ") = <b>" + num(c.gr, 2) + " dBi</b></span> (desalineada " + num(Math.abs(c.al), 0) + "°)") + "</div>";
+    h += "<div class='renglon'><b>Friis:</b> <span class='formula'>P<sub>r</sub> = P<sub>t</sub> + G<sub>t</sub> + G<sub>r</sub> − L<sub>p</sub> = " + num(c.pt, 1) + " + " + par(c.gt, 2) + " + " + par(c.gr, 2) + " − " + num(c.L, 2) + " = <b>" + num(c.pr, 2) + " dBm</b></span></div>";
+    h += "<div class='renglon'><b>Margen</b> = P<sub>r</sub> − S<sub>min</sub> = " + num(c.pr, 2) + " − (−85) = " +
+         (c.margen >= 0 ? "<span class='mal'>" + conSigno(c.margen, 2) + " dB: el espía capta la señal</span>" : "<span class='ok'>" + num(c.margen, 2) + " dB: no la capta</span>") + "</div>";
+    h += "<div class='renglon'><b>Alcance máximo</b> hacia el espía (apuntando al AP): <span class='formula'>L<sub>max</sub> = P<sub>t</sub> + G<sub>t</sub> + G<sub>r</sub> − S<sub>min</sub> = " + num(c.lmax, 2) +
+         " dB → d<sub>max</sub> = 10^((" + num(c.lmax, 2) + " − 32.44 − 67.60)/20) = <b>" + km(c.dEsp) + "</b></span></div>";
+    if (c.esp.G > 0.01) h += "<div class='renglon'>Con una laptop de 0 dBi: " + km(c.dLap) + ". La antena del espía multiplica el alcance por <span class='formula'>10^(" + num(c.esp.G, 2) + "/20) = <b>" + num(Math.pow(10, c.esp.G / 20), 2) + "</b></span> (cada 6.02 dB, el doble de distancia).</div>";
+    $("lectura2").innerHTML = h;
+    var mxL = zonaMax(c, 0), mxE = zonaMax(c, c.esp.G);
+    $("leyenda").innerHTML = "<span><i class='muestra-lap'></i>Laptop de 0 dBi: hasta " + km(mxL) + "</span>" +
+      (c.esp.G > 0.01 ? "<span><i class='muestra-esp'></i>Espía con " + c.esp.corto + " apuntando al AP: hasta " + km(mxE) + "</span>" : "") +
+      "<span><i class='muestra-espia'></i>Espía (arrástralo)</span>";
+    $("notaMapa").textContent = omni ? "Con la antena omnidireccional las zonas son círculos: el alcance es el mismo en todas las direcciones."
+      : "Con la antena directiva, la zona tiene la forma de su patrón (en amplitud): el alcance en cada dirección es d_max·F. Su lóbulo trasero está " + num(yagi8().fb, 1) + " dB abajo del principal.";
+  }
+  function actualizar2() {
+    $("ptApVal").textContent = num(Number($("ptAp").value), 1) + " dBm (" + num(Math.pow(10, Number($("ptAp").value) / 10), Number($("ptAp").value) < 0 ? 2 : 1) + " mW)";
+    $("orApVal").textContent = num(Number($("orAp").value), 0) + "°";
+    $("orAp").disabled = $("antAp").value === "omni";
+    $("distEspVal").textContent = km(est2.d);
+    $("desalVal").textContent = num(Number($("desal").value), 0) + "°";
+    lectura2();
+    if ($("v2").classList.contains("activo")) dibujarMapa();
+  }
+  ["ptAp", "orAp", "desal"].forEach(function (id) { $(id).addEventListener("input", actualizar2); });
+  ["antAp", "antEsp"].forEach(function (id) { $(id).addEventListener("change", actualizar2); });
+  $("distEsp").addEventListener("input", function () { est2.d = Math.pow(10, Number($("distEsp").value) / 1000 - 2); actualizar2(); });
+  $("apuntar").addEventListener("click", function () { $("desal").value = "0"; actualizar2(); });
+  $("ejemploLibro").addEventListener("click", function () {
+    $("ptAp").value = "20"; $("antAp").value = "omni"; $("orAp").value = "180"; $("antEsp").value = "yagi"; $("desal").value = "0";
+    est2.d = 1; est2.ang = 0; $("distEsp").value = "2000";
+    actualizar2();
+  });
+  // Arrastre del espía en el mapa (la escala se congela mientras se arrastra)
+  var cvM = $("mapa"), arrM = false;
+  function moverEspia(ev) {
+    if (!geoMapa) return;
+    var r = cvM.getBoundingClientRect(), dx = ev.clientX - r.left - geoMapa.cx, dy = -(ev.clientY - r.top - geoMapa.cy);
+    var dk = Math.max(0.01, Math.min(geoMapa.Rkm, Math.hypot(dx, dy) / geoMapa.ppk));
+    est2.d = dk; est2.ang = Math.round(Math.atan2(dy, dx) / RAD);
+    $("distEsp").value = String(Math.round((log10(dk) + 2) * 1000));
+    actualizar2();
+  }
+  cvM.addEventListener("pointerdown", function (ev) { arrM = true; est2.escalaFija = geoMapa ? geoMapa.Rkm : null; capturar(cvM, ev); moverEspia(ev); });
+  cvM.addEventListener("pointermove", function (ev) { if (arrM) moverEspia(ev); });
+  function soltar() { if (!arrM) return; arrM = false; est2.escalaFija = null; actualizar2(); }
+  cvM.addEventListener("pointerup", soltar);
+  cvM.addEventListener("pointercancel", soltar);
+
+  // ================================================================ general
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) { dibujarPolar(); dibujar3D(); }
+    if ($("v2").classList.contains("activo")) dibujarMapa();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  actualizar1();
+  actualizar2();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) { inicial.click(); window.addEventListener("load", function () { setTimeout(function () { window.scrollTo(0, 0); }, 60); }); }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-13-antenas-patron.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h2v1h-2zM15 2h1v1h-1zM17 2h2v1h-2zM20 2h3v1h-3zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM15 3h3v1h-3zM23 3h1v1h-1zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM13 4h1v1h-1zM18 4h1v1h-1zM21 4h1v1h-1zM23 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h6v1h-6zM22 5h1v1h-1zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM15 6h1v1h-1zM18 6h8v1h-8zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM17 7h1v1h-1zM19 7h1v1h-1zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM12 9h7v1h-7zM21 9h1v1h-1zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h2v1h-2zM19 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM27 10h2v1h-2zM32 10h5v1h-5zM2 11h1v1h-1zM4 11h1v1h-1zM6 11h2v1h-2zM11 11h8v1h-8zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM13 12h2v1h-2zM16 12h1v1h-1zM23 12h2v1h-2zM26 12h1v1h-1zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM4 13h3v1h-3zM10 13h1v1h-1zM14 13h2v1h-2zM18 13h1v1h-1zM22 13h4v1h-4zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h3v1h-3zM11 14h5v1h-5zM19 14h1v1h-1zM22 14h1v1h-1zM24 14h2v1h-2zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h2v1h-2zM7 15h1v1h-1zM10 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM18 15h5v1h-5zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM3 16h2v1h-2zM7 16h2v1h-2zM11 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM19 16h1v1h-1zM24 16h1v1h-1zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM4 17h2v1h-2zM16 17h1v1h-1zM20 17h1v1h-1zM23 17h1v1h-1zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h2v1h-2zM6 18h1v1h-1zM8 18h6v1h-6zM15 18h3v1h-3zM19 18h2v1h-2zM22 18h1v1h-1zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h2v1h-2zM10 19h5v1h-5zM17 19h1v1h-1zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM4 20h5v1h-5zM10 20h2v1h-2zM13 20h1v1h-1zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h2v1h-2zM22 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h4v1h-4zM10 21h3v1h-3zM14 21h1v1h-1zM17 21h2v1h-2zM20 21h1v1h-1zM23 21h1v1h-1zM26 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM5 22h1v1h-1zM8 22h3v1h-3zM13 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM22 22h1v1h-1zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h1v1h-1zM6 23h1v1h-1zM10 23h1v1h-1zM13 23h1v1h-1zM15 23h2v1h-2zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h7v1h-7zM10 24h2v1h-2zM13 24h3v1h-3zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h2v1h-2zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM4 25h1v1h-1zM6 25h1v1h-1zM11 25h3v1h-3zM15 25h3v1h-3zM20 25h6v1h-6zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h4v1h-4zM8 26h1v1h-1zM10 26h1v1h-1zM16 26h2v1h-2zM19 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h2v1h-2zM6 27h1v1h-1zM9 27h1v1h-1zM13 27h3v1h-3zM18 27h1v1h-1zM20 27h3v1h-3zM24 27h2v1h-2zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM8 28h1v1h-1zM11 28h1v1h-1zM13 28h2v1h-2zM16 28h3v1h-3zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h4v1h-4zM10 29h1v1h-1zM14 29h1v1h-1zM16 29h3v1h-3zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM7 30h3v1h-3zM11 30h1v1h-1zM13 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h13v1h-13zM38 30h1v1h-1zM10 31h3v1h-3zM16 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h3v1h-3zM17 32h2v1h-2zM20 32h1v1h-1zM22 32h1v1h-1zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM13 33h1v1h-1zM15 33h4v1h-4zM20 33h6v1h-6zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM15 34h1v1h-1zM19 34h1v1h-1zM21 34h2v1h-2zM25 34h3v1h-3zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM15 35h1v1h-1zM18 35h1v1h-1zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM16 36h2v1h-2zM19 36h2v1h-2zM22 36h2v1h-2zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM16 37h3v1h-3zM22 37h5v1h-5zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM13 38h5v1h-5zM19 38h3v1h-3zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-13-antenas-patron.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

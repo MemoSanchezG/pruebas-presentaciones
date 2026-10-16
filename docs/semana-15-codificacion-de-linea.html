@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codificación de línea</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .fila > * { min-width:0; }
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width: 480px) { header, main, footer { padding-left:10px; padding-right:10px; } h1 { font-size:1.4rem; }
+                              .panel { padding:10px; } nav.pestanas button { padding:8px 9px; } }
+  .opcion { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; }
+  .opcion input { width:auto; }
+  .nota { color:var(--gris); font-size:.92rem; margin:6px 0 0; }
+  #entrada, #respuesta { width:100%; font-family:Consolas,"Courier New",monospace; font-size:1.1rem; letter-spacing:.05em; }
+  .presets { display:flex; flex-wrap:wrap; }
+  .presets button.accion { padding:5px 9px; font-size:.95rem; }
+  table.comp { border-collapse:collapse; width:100%; margin-top:6px; font-size:1rem; }
+  table.comp th, table.comp td { border-bottom:1px solid var(--borde); padding:5px 6px; text-align:left; vertical-align:top; }
+  table.comp th { color:var(--azul-oscuro); }
+  .tabla-scroll { overflow-x:auto; }
+  .bits { font-family:Consolas,"Courier New",monospace; letter-spacing:.04em; word-break:break-all; }
+  .aviso { color:var(--guinda); font-weight:bold; }
+  .linea-resp { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  .linea-resp input { flex:1 1 12em; }
+  .linea-resp button.accion { margin-top:0; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 15 · Modelo OSI y capa física</div>
+  <h1>Codificación de línea: NRZ-L y Manchester</h1>
+  <p class="sub">Escribe bits o texto y mira cómo viajan por el cable; provoca una racha larga, desajusta el reloj del receptor y lee la línea como lo haría un espía con un osciloscopio.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Codifica</button>
+    <button type="button" data-vista="v2" role="tab">2. Rachas y reloj</button>
+    <button type="button" data-vista="v3" role="tab">3. Reto: lee la línea</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Entrada</h2>
+        <label class="opcion"><input type="radio" name="modoEntrada" value="bits" checked> Bits (0 y 1)</label>
+        <label class="opcion"><input type="radio" name="modoEntrada" value="texto"> Texto ASCII (8 bits por carácter)</label>
+        <label for="entrada">Mensaje <small id="ayudaEntrada">(hasta 64 bits)</small></label>
+        <input type="text" id="entrada" value="10110010" autocomplete="off" spellcheck="false">
+        <div class="presets">
+          <button type="button" class="accion" data-bits="10110010">Figura del libro</button>
+          <button type="button" class="accion" data-bits="0000000000000000">16 ceros</button>
+          <button type="button" class="accion" data-bits="1111111111111111">16 unos</button>
+          <button type="button" class="accion" data-bits="10101010">10101010</button>
+          <button type="button" class="accion" data-texto="FCFM">Texto "FCFM"</button>
+        </div>
+        <label class="opcion"><input type="checkbox" id="marcas" checked> Marcas de reloj (inicio de cada bit)</label>
+        <label class="opcion"><input type="checkbox" id="promedio" checked> Valor promedio (componente de CD)</label>
+        <label class="opcion"><input type="checkbox" id="thomas"> Manchester con la convención contraria (G. E. Thomas)</label>
+        <p class="nota">El libro usa la convención de IEEE 802.3: 0 = alto → bajo y 1 = bajo → alto, con la transición a mitad del bit.</p>
+        <label for="rb">Tasa de datos R<sub>b</sub> <small>(Mb/s, valor ilustrativo)</small></label>
+        <input type="number" id="rb" min="0.001" step="any" value="1" style="width:8em">
+        <div class="lectura" id="lecturaEntrada"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoCod" aria-label="Formas de onda NRZ-L y Manchester del mensaje, con marcas de reloj y valor promedio"></canvas>
+        <div class="lectura tabla-scroll" id="lecturaCod"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con la secuencia del libro, predice antes de mirar la tabla: ¿cuántas transiciones tiene cada código? ¿Por qué Manchester tiene al menos una por bit?</li>
+            <li>Prueba "16 ceros". ¿Qué les pasa a las transiciones y al valor promedio de cada código?</li>
+            <li>Busca una secuencia de 8 bits con la que NRZ-L tenga promedio cero y el mayor número posible de transiciones. ¿Cuántas tiene Manchester con esa misma secuencia?</li>
+            <li>¿Cuántos baudios necesita cada código con tu R<sub>b</sub>? ¿Qué se paga a cambio del reloj de Manchester?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad.</b> La codificación de línea es pública: no es cifrado. Un <i>tap</i> pasivo conectado a un par trenzado de 10/100 Mb/s que copia la señal hacia otra tarjeta de red basta para capturar todo el tráfico, sin ninguna clave; por eso la norma ISO/IEC 27002 incluye un control específico para proteger el cableado.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Una racha larga y un reloj imperfecto</h2>
+        <div>Trama: 1 0 1 + racha + 1 0 1 (o la complementaria).</div>
+        <label class="opcion"><input type="radio" name="tipoRacha" value="0" checked> Racha de ceros</label>
+        <label class="opcion"><input type="radio" name="tipoRacha" value="1"> Racha de unos</label>
+        <label for="largo">Largo de la racha: <span id="largoTxt"></span></label>
+        <input id="largo" type="range" min="1" max="40" step="1" value="24">
+        <label for="error">Error del reloj del receptor: <span id="errorTxt"></span> <small>(valor ilustrativo)</small></label>
+        <input id="error" type="range" min="-10" max="10" step="0.5" value="3">
+        <p class="nota">Error positivo: el periodo de bit del receptor es más largo que el del transmisor (su reloj es más lento).</p>
+        <div class="lectura" id="lecturaRacha"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoRacha" aria-label="La misma trama en NRZ-L y en Manchester, con los instantes en que el receptor muestrea y los bits que recupera"></canvas>
+        <p class="nota">Líneas grises: bits del transmisor. Puntos: instantes en que el receptor lee la línea; debajo, el bit que recupera (guinda si la cuenta de la racha falla). En Manchester, los triángulos marcan la transición de mitad de bit con la que el receptor recupera el reloj. Modelo simplificado: el receptor NRZ-L se reajusta en cada transición.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con el reloj 3 % lento, predice desde qué largo de racha el receptor NRZ-L cuenta mal. Compruébalo moviendo el largo.</li>
+            <li>¿Por qué el receptor Manchester no pierde la cuenta, aunque el error llegue a 10 %?</li>
+            <li>¿Qué le pasa al valor promedio de NRZ-L cuando la racha crece? ¿Y al de Manchester?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Eres el espía con el osciloscopio</h2>
+        <label for="codigoReto">Código de la línea</label>
+        <select id="codigoReto" style="width:100%">
+          <option value="nrz">NRZ-L (1 = +V, 0 = −V)</option>
+          <option value="man" selected>Manchester (IEEE 802.3)</option>
+          <option value="azar">Al azar (identifícalo tú)</option>
+        </select>
+        <label class="opcion"><input type="checkbox" id="marcasReto" checked> Marcas de reloj</label>
+        <button type="button" class="accion" id="nuevoRetoCod">Nuevo reto</button>
+        <div class="lectura" id="marcadorCod"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoReto" aria-label="Forma de onda de un byte capturada en la línea"></canvas>
+        <div class="linea-resp">
+          <label for="respuesta" style="margin:0">Bits que lees:</label>
+          <input type="text" id="respuesta" maxlength="12" placeholder="8 bits, p. ej. 0100…" autocomplete="off" spellcheck="false">
+          <button type="button" class="accion" id="verificarReto">Verificar</button>
+        </div>
+        <div class="lectura" id="lecturaReto" aria-live="polite"></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Resuelve tres retos en NRZ-L y tres en Manchester. ¿Cuál se lee más rápido a ojo? ¿Qué miras en cada uno?</li>
+            <li>Quita las marcas de reloj. ¿En cuál de los dos códigos todavía puedes saber dónde empieza cada bit?</li>
+            <li>¿Qué necesitaste para leer el carácter? ¿Usaste alguna clave?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Codificar no es cifrar.</b> Lo que acabas de hacer es lo que hace un <i>tap</i> pasivo: leer la línea conociendo el código, que es público. La confidencialidad tiene que venir de cifrar en alguna capa (MACsec en la capa de enlace, IPsec en la de red, TLS sobre transporte) y de proteger físicamente el cableado.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase3/cap01_modelo_osi_seguridad.tex (Ecuación eq:tasa-codigo-linea, Figura fig:codificacion-linea y Cuadro tab:estandares-fisicos). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  function $(id) { return document.getElementById(id); }
+  var vistaActiva = "v1";
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x) { // hasta 5 decimales, sin ceros sobrantes
+    var s = String(+Number(x).toFixed(5)), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function signo(x, dec) { var r = +Number(x).toFixed(dec); return r === 0 ? "0" : (r > 0 ? "+" : "") + corto(r); } // sin ceros sobrantes
+  function txt(g, s, x, y, color, px, alin, base, negrita, mono) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + px + "px " + (mono ? "Consolas, 'Courier New', monospace" : "Calibri, 'Segoe UI', sans-serif");
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(s, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function azar(n) {
+    var buf = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n;
+    do { window.crypto.getRandomValues(buf); } while (buf[0] >= lim);
+    return buf[0] % n;
+  }
+
+  // =====================================================================
+  // Codificadores: niveles por medio bit (+1 = +V, −1 = −V)
+  // =====================================================================
+  function nrz(bits) { var h = []; bits.forEach(function (b) { var v = b ? 1 : -1; h.push(v, v); }); return h; }
+  function manchester(bits, thomas) {   // IEEE 802.3: 0 = alto→bajo, 1 = bajo→alto
+    var h = [];
+    bits.forEach(function (b) {
+      var sube = thomas ? !b : !!b;
+      if (sube) h.push(-1, 1); else h.push(1, -1);
+    });
+    return h;
+  }
+  function analizar(h) { // transiciones, tramo más largo sin transición (en T_b) y promedio
+    var tr = 0, run = 1, maxRun = 1, suma = 0;
+    for (var i = 0; i < h.length; i++) {
+      suma += h[i];
+      if (i > 0) { if (h[i] !== h[i - 1]) { tr++; run = 1; } else { run++; if (run > maxRun) maxRun = run; } }
+    }
+    return { trans: tr, tramo: maxRun / 2, prom: h.length ? suma / h.length : 0 };
+  }
+  function rachaMasLarga(bits) {
+    var r = 0, m = 0; for (var i = 0; i < bits.length; i++) { r = (i && bits[i] === bits[i - 1]) ? r + 1 : 1; if (r > m) m = r; } return m;
+  }
+  function tb(x) { return (x === 0.5 ? "½" : corto(x)) + " T<sub>b</sub>"; }
+
+  // Dibuja una forma de onda escalonada a partir de niveles por medio bit
+  function trazo(g, h, x0, dx, yAlto, yBajo, color, ancho) {
+    if (!h.length) return;
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho; g.lineJoin = "round"; g.beginPath();
+    var y = h[0] > 0 ? yAlto : yBajo; g.moveTo(x0, y);
+    for (var i = 0; i < h.length; i++) {
+      var yi = h[i] > 0 ? yAlto : yBajo;
+      if (yi !== y) { g.lineTo(x0 + i * dx, y); g.lineTo(x0 + i * dx, yi); y = yi; }
+    }
+    g.lineTo(x0 + h.length * dx, y); g.stroke(); g.restore();
+  }
+
+  // =====================================================================
+  // 1. CODIFICA
+  // =====================================================================
+  var E = { modo: "bits", bits: [], chars: [], error: "", marcas: true, prom: true, thomas: false, rb: 1 };
+  var MAXBITS = 64;
+  function leerEntrada() {
+    var s = $("entrada").value, bits = [], chars = [], err = "";
+    if (E.modo === "bits") {
+      var limpio = s.replace(/[\s_]/g, "");
+      if (/[^01]/.test(limpio)) err = "Solo se aceptan 0 y 1 (se ignoraron los demás caracteres).";
+      limpio = limpio.replace(/[^01]/g, "");
+      if (limpio.length > MAXBITS) { err = "Se muestran solo los primeros " + MAXBITS + " bits."; limpio = limpio.slice(0, MAXBITS); }
+      bits = limpio.split("").map(Number);
+    } else {
+      for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i);
+        if (c < 32 || c > 126) { err = "Solo caracteres ASCII imprimibles (sin acentos ni ñ); se ignoraron los demás."; continue; }
+        if (chars.length >= MAXBITS / 8) { err = "Se muestran solo los primeros " + (MAXBITS / 8) + " caracteres."; break; }
+        chars.push(s[i]);
+        for (var k = 7; k >= 0; k--) bits.push((c >> k) & 1);
+      }
+    }
+    E.bits = bits; E.chars = chars; E.error = err;
+  }
+  document.querySelectorAll('input[name="modoEntrada"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      if (!this.checked) return;
+      E.modo = this.value;
+      $("entrada").value = E.modo === "bits" ? "10110010" : "FCFM";
+      $("ayudaEntrada").textContent = E.modo === "bits" ? "(hasta 64 bits)" : "(hasta 8 caracteres)";
+      actualizarCod();
+    });
+  });
+  document.querySelectorAll(".presets button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var texto = this.dataset.texto !== undefined;
+      E.modo = texto ? "texto" : "bits";
+      document.querySelector('input[name="modoEntrada"][value="' + E.modo + '"]').checked = true;
+      $("ayudaEntrada").textContent = texto ? "(hasta 8 caracteres)" : "(hasta 64 bits)";
+      $("entrada").value = texto ? this.dataset.texto : this.dataset.bits;
+      actualizarCod();
+    });
+  });
+  $("entrada").addEventListener("input", actualizarCod);
+  $("marcas").addEventListener("change", function () { E.marcas = this.checked; actualizarCod(); });
+  $("promedio").addEventListener("change", function () { E.prom = this.checked; actualizarCod(); });
+  $("thomas").addEventListener("change", function () { E.thomas = this.checked; actualizarCod(); });
+  $("rb").addEventListener("input", function () { E.rb = parseFloat(this.value); actualizarCod(); });
+
+  function actualizarCod() { leerEntrada(); lecturaCod(); if (vistaActiva === "v1") dibujarCod(); }
+
+  function lecturaCod() {
+    var b = E.bits, n = b.length, h = [];
+    if (E.error) h.push('<span class="aviso">' + E.error + "</span><br>");
+    if (!n) { $("lecturaEntrada").innerHTML = h.join("") + "Escribe al menos un bit."; $("lecturaCod").innerHTML = ""; return; }
+    var n1 = b.filter(function (x) { return x; }).length, n0 = n - n1;
+    h.push("<b>Bits (" + n + "):</b> <span class=\"bits\">" + b.join("").replace(/(.{8})(?=.)/g, "$1 ") + "</span>");
+    if (E.modo === "texto") {
+      h.push("<br><b>ASCII:</b> " + E.chars.map(function (c) {
+        var code = c.charCodeAt(0);
+        return '"' + c + '" = 0x' + code.toString(16).toUpperCase() + " = " + code;
+      }).join(" · "));
+    }
+    h.push("<br>Unos: n₁ = " + n1 + " · ceros: n₀ = " + n0 + " · racha más larga: " + rachaMasLarga(b) + " bit(s) iguales.");
+    $("lecturaEntrada").innerHTML = h.join("");
+
+    var aN = analizar(nrz(b)), aM = analizar(manchester(b, E.thomas)), rb = E.rb, rbOk = rb > 0 && isFinite(rb);
+    var iguales = 0; for (var i = 1; i < n; i++) if (b[i] === b[i - 1]) iguales++;
+    var t = [];
+    t.push('<table class="comp"><tr><th></th><th>NRZ-L</th><th>Manchester' + (E.thomas ? " (G. E. Thomas)" : " (IEEE 802.3)") + "</th></tr>");
+    t.push("<tr><td>Símbolos por bit, n/m</td><td>1</td><td>2</td></tr>");
+    t.push("<tr><td>Tasa de símbolos, R<sub>s</sub> = R<sub>b</sub>·n/m</td><td>" +
+           (rbOk ? corto(rb) + " × 1 = " + corto(rb) + " Mbaudios" : "—") + "</td><td>" +
+           (rbOk ? corto(rb) + " × 2 = " + corto(2 * rb) + " Mbaudios" : "—") + "</td></tr>");
+    t.push("<tr><td>Transiciones</td><td>" + aN.trans + " (una por cada cambio de bit)</td><td>" + aM.trans + " = " + n +
+           " a mitad de bit + " + iguales + " en fronteras entre bits iguales</td></tr>");
+    t.push("<tr><td>Tramo más largo sin transición</td><td>" + tb(aN.tramo) + "</td><td>" + tb(aM.tramo) + "</td></tr>");
+    t.push("<tr><td>Valor promedio (CD)</td><td>(n₁ − n₀)/N · V = (" + n1 + " − " + n0 + ")/" + n + " · V = " +
+           signo(aN.prom, 3) + " V</td><td>" + num(aM.prom, 0) + " V (cada bit pasa la mitad del tiempo en +V y la mitad en −V)</td></tr>");
+    t.push("</table>");
+    if (rbOk) t.push("Códigos de bloque del cuadro de estándares, con el mismo R<sub>b</sub>: 4B5B → " + corto(rb) + " × 5/4 = " + corto(rb * 5 / 4) +
+                     " Mbaudios; 8B/10B → " + corto(rb) + " × 10/8 = " + corto(rb * 10 / 8) + " Mbaudios; 64B/66B → " + corto(rb) + " × 66/64 = " + corto(rb * 66 / 64) + " Mbaudios.");
+    else t.push('<span class="aviso">Escribe un R<sub>b</sub> positivo.</span>');
+    $("lecturaCod").innerHTML = t.join("");
+  }
+
+  function dibujarCod() {
+    var cv = $("lienzoCod"), wc = cv.clientWidth || 600, angosto = wc < 560, fs = angosto ? 12.5 : 15;
+    var b = E.bits, n = b.length, texto = E.modo === "texto" && E.chars.length;
+    var P = preparar(cv, angosto ? 0.95 : 0.56), g = P.g, w = P.w, h = P.h;
+    g.clearRect(0, 0, w, h);
+    if (!n) { txt(g, "Escribe bits o texto en el panel", w / 2, h / 2, C.gris, fs + 2, "center"); return; }
+    var mL = angosto ? 34 : 46, mR = 12, x0 = mL, dx = (w - mL - mR) / (2 * n), bw = 2 * dx;
+    var top = texto ? 2 * fs + 16 : fs + 14;
+    var pista = (h - top - 14) / 2, amp = pista * 0.30;
+    var pistas = [
+      { nombre: "NRZ-L", hh: nrz(b), col: C.azul, yc: top + pista * 0.5 + 6 },
+      { nombre: "Manchester" + (E.thomas ? " (G. E. Thomas)" : " (IEEE 802.3)"), hh: manchester(b, E.thomas), col: C.guinda, yc: top + pista * 1.5 + 6 }
+    ];
+    // Etiquetas de bits (y de caracteres)
+    var fsBit = Math.max(10, Math.min(fs + 3, bw * 0.8));
+    for (var i = 0; i < n; i++) txt(g, String(b[i]), x0 + (i + 0.5) * bw, top - 6, C.azulOscuro, fsBit, "center", "alphabetic", true);
+    if (texto) {
+      for (var c = 0; c < E.chars.length; c++) {
+        var xa = x0 + c * 8 * bw, xb = x0 + (c + 1) * 8 * bw;
+        txt(g, '"' + E.chars[c] + '"', (xa + xb) / 2, fs + 4, C.oroTexto, fs + 1, "center", "alphabetic", true);
+        linea(g, xa + 3, fs + 9, xb - 3, fs + 9, C.oro, 2);
+      }
+    }
+    // Marcas de reloj
+    if (E.marcas) {
+      for (i = 0; i <= n; i++) {
+        var gruesa = texto && i % 8 === 0;
+        linea(g, x0 + i * bw, top - 2, x0 + i * bw, h - 8, gruesa ? "#9AA3B2" : "#C9CFD9", gruesa ? 2 : 1, gruesa ? null : [4, 4]);
+      }
+    }
+    pistas.forEach(function (p, k) {
+      var yA = p.yc - amp, yB = p.yc + amp;
+      linea(g, x0, p.yc, w - mR, p.yc, C.grisClaro, 1);
+      txt(g, "+V", x0 - 6, yA, C.gris, fs - 2, "right", "middle");
+      txt(g, "−V", x0 - 6, yB, C.gris, fs - 2, "right", "middle");
+      txt(g, "0", x0 - 6, p.yc, C.gris, fs - 2, "right", "middle");
+      txt(g, p.nombre, x0 + 4, yA - amp * 0.55, p.col, fs, "left", "alphabetic", true);
+      if (k === 1 && E.marcas && bw >= 14) for (i = 0; i < n; i++) linea(g, x0 + (i + 0.5) * bw, yB + 6, x0 + (i + 0.5) * bw, yB + 12, C.guinda, 1.5);
+      trazo(g, p.hh, x0, dx, yA, yB, p.col, angosto ? 2.5 : 3.2);
+      if (E.prom) {
+        var a = analizar(p.hh), yp = p.yc - a.prom * amp;
+        linea(g, x0, yp, w - mR, yp, C.oroTexto, 2.2, [8, 5]);
+        var et = "promedio = " + signo(a.prom, 2) + " V";
+        g.save(); g.font = "bold " + (fs - 1) + "px Calibri, 'Segoe UI', sans-serif"; var an = g.measureText(et).width; g.restore();
+        g.fillStyle = "rgba(255,255,255,0.85)"; g.fillRect(w - mR - an - 8, yp - fs - 2, an + 6, fs + 1);
+        txt(g, et, w - mR - 4, yp - 4, C.oroTexto, fs - 1, "right", "alphabetic", true);
+      }
+    });
+  }
+
+  // =====================================================================
+  // 2. RACHAS Y RELOJ
+  // =====================================================================
+  var R = { tipo: 0, N: 24, eps: 0.03 };
+  document.querySelectorAll('input[name="tipoRacha"]').forEach(function (r) {
+    r.addEventListener("change", function () { if (this.checked) { R.tipo = +this.value; actualizarRacha(); } });
+  });
+  $("largo").addEventListener("input", function () { R.N = +this.value; actualizarRacha(); });
+  $("error").addEventListener("input", function () { R.eps = +this.value / 100; actualizarRacha(); });
+
+  function tramaRacha() {
+    var r = R.tipo, o = 1 - r, t = [o, r, o];
+    for (var i = 0; i < R.N; i++) t.push(r);
+    t.push(o, r, o);
+    return t;
+  }
+  // Receptor NRZ-L: se reajusta en cada transición y muestrea a la mitad de cada periodo de SU reloj
+  function receptorNRZ(bits, eps) {
+    var Tr = 1 + eps, seg = [], ini = 0, muestras = [];
+    for (var i = 1; i <= bits.length; i++) {
+      if (i === bits.length || bits[i] !== bits[i - 1]) { seg.push({ ini: ini, fin: i, v: bits[ini] }); ini = i; }
+    }
+    seg.forEach(function (s) {
+      s.cuenta = 0;
+      for (var m = 0; ; m++) {
+        var t = s.ini + (m + 0.5) * Tr;
+        if (t >= s.fin - 1e-9) break;
+        muestras.push({ t: t, v: s.v, seg: s }); s.cuenta++;
+      }
+    });
+    return { seg: seg, muestras: muestras };
+  }
+  // Receptor Manchester: se resincroniza con la transición de mitad de bit (siempre la hay)
+  function receptorMan(bits, eps) {
+    var Tr = 1 + eps, h = manchester(bits, false), trans = [], rel = [], tUlt = null;
+    for (var i = 1; i < h.length; i++) if (h[i] !== h[i - 1]) trans.push({ t: i / 2, sube: h[i] > h[i - 1] });
+    trans.forEach(function (tr) {
+      if (tUlt === null) { if (Math.abs(tr.t - 0.5) < 1e-9) { rel.push(tr); tUlt = tr.t; } return; }
+      if (tr.t - tUlt > 0.75 * Tr) { rel.push(tr); tUlt = tr.t; }  // ignora las de frontera entre bits
+    });
+    return rel.map(function (tr) { return { t: tr.t, bit: tr.sube ? 1 : 0 }; });
+  }
+  function actualizarRacha() {
+    $("largoTxt").textContent = R.N + " bit" + (R.N > 1 ? "s" : "");
+    $("errorTxt").textContent = (R.eps > 0 ? "+" : "") + num(R.eps * 100, 1) + " %";
+    lecturaRacha();
+    if (vistaActiva === "v2") dibujarRacha();
+  }
+  function lecturaRacha() {
+    var bits = tramaRacha(), N = R.N, eps = R.eps, rn = receptorNRZ(bits, eps), rm = receptorMan(bits, eps);
+    var segR = rn.seg.filter(function (s) { return s.ini === 3; })[0], cuenta = segR.cuenta;
+    var recN = rn.muestras.map(function (m) { return m.v; }), recM = rm.map(function (m) { return m.bit; });
+    var cuentaM = 0; rm.forEach(function (m) { if (m.t > 3 && m.t < 3 + N) cuentaM++; });
+    var nombre = R.tipo ? "unos" : "ceros", h = [];
+    h.push("<b>Desfase acumulado en la racha</b> ≈ N·|ε|·T<sub>b</sub> = " + N + " × " + num(Math.abs(eps), 3) + " × T<sub>b</sub> = " +
+           num(N * Math.abs(eps), 2) + " T<sub>b</sub>" + (N * Math.abs(eps) > 0.5 ? " &gt; ½ T<sub>b</sub>: hay riesgo de contar mal." : " &lt; ½ T<sub>b</sub>."));
+    h.push("<br><b>NRZ-L:</b> " + (cuenta === N ? '<span class="ok">contó ' + cuenta + " de " + N + " " + nombre + "</span>"
+           : '<span class="mal">contó ' + cuenta + " de " + N + " " + nombre + " (" + Math.abs(cuenta - N) + (cuenta > N ? " de más" : " de menos") + ")</span>") +
+           ": en " + N + " T<sub>b</sub> sin transición, el receptor no tiene con qué corregir su reloj.");
+    h.push("<br><b>Manchester:</b> " + (cuentaM === N ? '<span class="ok">contó ' + cuentaM + " de " + N + "</span>" : '<span class="mal">contó ' + cuentaM + " de " + N + "</span>") +
+           ": hay una transición a mitad de cada bit y el receptor se reajusta cada T<sub>b</sub>; el error nunca pasa de |ε|·T<sub>b</sub> = " + num(Math.abs(eps), 3) + " T<sub>b</sub>.");
+    var n1 = bits.filter(function (x) { return x; }).length, n0 = bits.length - n1, prom = (n1 - n0) / bits.length;
+    h.push("<br><b>Valor promedio de la trama:</b> NRZ-L (n₁ − n₀)/N · V = (" + n1 + " − " + n0 + ")/" + bits.length + " · V = " +
+           signo(prom, 2) + " V; Manchester 0 V.");
+    h.push('<br><b>Enviados (' + bits.length + "):</b> <span class=\"bits\">" + bits.join("") + "</span>");
+    h.push('<br><b>NRZ-L recibe (' + recN.length + "):</b> <span class=\"bits\">" + recN.join("") + "</span>");
+    h.push('<br><b>Manchester recibe (' + recM.length + "):</b> <span class=\"bits\">" + recM.join("") + "</span>");
+    $("lecturaRacha").innerHTML = h.join("");
+  }
+  function dibujarRacha() {
+    var cv = $("lienzoRacha"), wc = cv.clientWidth || 600, angosto = wc < 560, fs = angosto ? 12 : 15;
+    var bits = tramaRacha(), n = bits.length, eps = R.eps;
+    var P = preparar(cv, angosto ? 1.0 : 0.62), g = P.g, w = P.w, h = P.h;
+    g.clearRect(0, 0, w, h);
+    var mL = angosto ? 30 : 40, mR = 10, x0 = mL, bw = (w - mL - mR) / n, dx = bw / 2;
+    function X(t) { return x0 + t * bw; }
+    var top = 30, pista = (h - top - 8) / 2, amp = pista * 0.22;
+    // Corchete de la racha
+    linea(g, X(3), top - 4, X(3 + R.N), top - 4, C.oro, 3);
+    linea(g, X(3), top - 10, X(3), top + 2, C.oro, 3); linea(g, X(3 + R.N), top - 10, X(3 + R.N), top + 2, C.oro, 3);
+    txt(g, "racha de " + R.N + " " + (R.tipo ? "unos" : "ceros"), X(3 + R.N / 2), top - 10, C.oroTexto, fs, "center", "alphabetic", true);
+    // Rejilla de bits del transmisor
+    for (var i = 0; i <= n; i++) linea(g, X(i), top + 4, X(i), h - 6, "#D3D8E0", 1, [3, 4]);
+    var rn = receptorNRZ(bits, eps), rm = receptorMan(bits, eps);
+    var segR = rn.seg.filter(function (s) { return s.ini === 3; })[0], falla = segR.cuenta !== R.N;
+    var fsBit = Math.max(9, Math.min(fs, bw * 0.85));
+    // --- NRZ-L
+    var yc = top + pista * 0.5, yA = yc - amp, yB = yc + amp;
+    txt(g, "NRZ-L", x0 + 3, yA - amp * 0.6, C.azul, fs, "left", "alphabetic", true);
+    txt(g, "+V", x0 - 5, yA, C.gris, fs - 2, "right", "middle"); txt(g, "−V", x0 - 5, yB, C.gris, fs - 2, "right", "middle");
+    trazo(g, nrz(bits), x0, dx, yA, yB, C.azul, angosto ? 2.4 : 3);
+    var nP = 0; bits.forEach(function (b) { nP += b ? 1 : -1; });
+    var yp = yc - (nP / n) * amp; linea(g, x0, yp, w - mR, yp, C.oroTexto, 2, [8, 5]);
+    rn.muestras.forEach(function (m) {
+      var x = X(m.t), y = m.v ? yA : yB, mala = m.seg === segR && falla;
+      g.beginPath(); g.arc(x, y, Math.max(2.5, Math.min(5, bw * 0.22)), 0, 2 * Math.PI); g.fillStyle = mala ? C.guinda : C.azulOscuro; g.fill();
+      txt(g, String(m.v), x, yB + amp * 0.75 + fsBit / 2, mala ? C.guinda : C.azulOscuro, fsBit, "center", "middle", true);
+    });
+    txt(g, "contó " + segR.cuenta + " de " + R.N, w - mR, yA - amp * 0.6, falla ? C.guinda : C.azul, fs, "right", "alphabetic", true);
+    // --- Manchester
+    yc = top + pista * 1.5; yA = yc - amp; yB = yc + amp;
+    txt(g, "Manchester (IEEE 802.3)", x0 + 3, yA - amp * 0.6, C.guinda, fs, "left", "alphabetic", true);
+    txt(g, "+V", x0 - 5, yA, C.gris, fs - 2, "right", "middle"); txt(g, "−V", x0 - 5, yB, C.gris, fs - 2, "right", "middle");
+    trazo(g, manchester(bits, false), x0, dx, yA, yB, C.guinda, angosto ? 2.4 : 3);
+    linea(g, x0, yc, w - mR, yc, C.oroTexto, 2, [8, 5]);
+    var cuentaM = 0;
+    rm.forEach(function (m) {
+      var x = X(m.t), s = Math.max(3, Math.min(6, bw * 0.25));
+      g.beginPath(); g.moveTo(x, yA - 4 - 2 * s); g.lineTo(x - s, yA - 4 - 3.6 * s); g.lineTo(x + s, yA - 4 - 3.6 * s); g.closePath();
+      g.fillStyle = C.azulOscuro; g.fill();
+      txt(g, String(m.bit), x, yB + amp * 0.75 + fsBit / 2, C.azulOscuro, fsBit, "center", "middle", true);
+      if (m.t > 3 && m.t < 3 + R.N) cuentaM++;
+    });
+    txt(g, "contó " + cuentaM + " de " + R.N, w - mR, yA - amp * 0.6, cuentaM === R.N ? C.azul : C.guinda, fs, "right", "alphabetic", true);
+  }
+
+  // =====================================================================
+  // 3. RETO: LEE LA LÍNEA
+  // =====================================================================
+  var POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  var T = { car: "", bits: [], codigo: "man", revelado: false, resp: null,
+            marc: { nrz: { ok: 0, n: 0 }, man: { ok: 0, n: 0 } } };
+  function nuevoRetoCod() {
+    T.car = POOL[azar(POOL.length)];
+    var c = T.car.charCodeAt(0); T.bits = [];
+    for (var k = 7; k >= 0; k--) T.bits.push((c >> k) & 1);
+    var sel = $("codigoReto").value;
+    T.codigo = sel === "azar" ? (azar(2) ? "man" : "nrz") : sel;
+    T.oculto = sel === "azar"; T.revelado = false; T.resp = null;
+    $("respuesta").value = "";
+    $("lecturaReto").innerHTML = "Lee los 8 bits de la forma de onda (de izquierda a derecha) y escríbelos." +
+      (T.oculto ? " Primero decide qué código es." : "");
+    actualizarReto();
+  }
+  $("nuevoRetoCod").addEventListener("click", nuevoRetoCod);
+  $("codigoReto").addEventListener("change", nuevoRetoCod);
+  $("marcasReto").addEventListener("change", function () { if (vistaActiva === "v3") dibujarReto(); });
+  function verificarReto() {
+    if (T.revelado) { $("lecturaReto").innerHTML = "Este reto ya se verificó: pide uno nuevo."; return; }
+    var s = $("respuesta").value.replace(/\s/g, "");
+    if (!/^[01]{8}$/.test(s)) { $("lecturaReto").innerHTML = '<span class="mal">Escribe exactamente 8 bits (0 y 1).</span>'; return; }
+    var r = s.split("").map(Number), malos = 0;
+    r.forEach(function (x, i) { if (x !== T.bits[i]) malos++; });
+    var mk = T.marc[T.codigo]; mk.n++; if (!malos) mk.ok++;
+    T.revelado = true; T.resp = r;
+    var c = T.car.charCodeAt(0), nom = T.codigo === "man" ? "Manchester (IEEE 802.3)" : "NRZ-L";
+    $("lecturaReto").innerHTML = (malos ? '<span class="mal">' + malos + " bit(s) distintos.</span> " : '<span class="ok">¡Leíste la línea!</span> ') +
+      "Código: " + nom + ". Bits: <span class=\"bits\">" + T.bits.join("") + "</span> = 0x" + c.toString(16).toUpperCase() + " = " + c +
+      ' = "' + T.car + '" en ASCII.' + (T.codigo === "man" ? " En Manchester, bajo → alto a mitad del bit es 1 y alto → bajo es 0." : " En NRZ-L, +V es 1 y −V es 0.");
+    actualizarReto();
+  }
+  $("verificarReto").addEventListener("click", verificarReto);
+  $("respuesta").addEventListener("keydown", function (e) { if (e.key === "Enter") verificarReto(); });
+  function actualizarReto() {
+    var a = T.marc.nrz, b = T.marc.man;
+    $("marcadorCod").innerHTML = "<b>Marcador</b><br>NRZ-L: " + a.ok + " de " + a.n + "<br>Manchester: " + b.ok + " de " + b.n;
+    if (vistaActiva === "v3") dibujarReto();
+  }
+  function dibujarReto() {
+    var cv = $("lienzoReto"), wc = cv.clientWidth || 600, angosto = wc < 560, fs = angosto ? 13 : 16;
+    var P = preparar(cv, angosto ? 0.62 : 0.4), g = P.g, w = P.w, h = P.h, n = 8;
+    g.clearRect(0, 0, w, h);
+    var mL = angosto ? 34 : 46, mR = 14, x0 = mL, bw = (w - mL - mR) / n, dx = bw / 2;
+    var top = 2 * fs + 12, yc = top + (h - top - 2 * fs - 8) / 2, amp = (h - top - 2 * fs - 8) * 0.32, yA = yc - amp, yB = yc + amp;
+    var nom = T.oculto && !T.revelado ? "Código: ?" : (T.codigo === "man" ? "Manchester (IEEE 802.3)" : "NRZ-L");
+    txt(g, nom, x0, fs + 2, T.codigo === "man" && !(T.oculto && !T.revelado) ? C.guinda : C.azulOscuro, fs, "left", "alphabetic", true);
+    if ($("marcasReto").checked) for (var i = 0; i <= n; i++) linea(g, x0 + i * bw, top, x0 + i * bw, h - 2 * fs - 2, "#C9CFD9", 1.2, [4, 4]);
+    linea(g, x0, yc, w - mR, yc, C.grisClaro, 1);
+    txt(g, "+V", x0 - 6, yA, C.gris, fs - 2, "right", "middle"); txt(g, "−V", x0 - 6, yB, C.gris, fs - 2, "right", "middle");
+    var hh = T.codigo === "man" ? manchester(T.bits, false) : nrz(T.bits);
+    trazo(g, hh, x0, dx, yA, yB, T.codigo === "man" ? C.guinda : C.azul, angosto ? 3 : 4);
+    if (T.revelado) {
+      for (i = 0; i < n; i++) {
+        var ok = T.resp && T.resp[i] === T.bits[i];
+        txt(g, String(T.bits[i]), x0 + (i + 0.5) * bw, top - 8, ok ? C.azul : C.guinda, fs + 4, "center", "alphabetic", true);
+        if (T.resp && !ok) txt(g, "tú: " + T.resp[i], x0 + (i + 0.5) * bw, h - fs + 2, C.guinda, fs - 1, "center", "alphabetic", true);
+      }
+      txt(g, '= "' + T.car + '"', w - mR, fs + 2, C.oroTexto, fs + 2, "right", "alphabetic", true);
+    } else {
+      for (i = 0; i < n; i++) txt(g, "?", x0 + (i + 0.5) * bw, top - 8, C.gris, fs + 2, "center", "alphabetic", true);
+    }
+  }
+
+  // =====================================================================
+  function dibujarTodo() {
+    if (vistaActiva === "v1") dibujarCod();
+    else if (vistaActiva === "v2") dibujarRacha();
+    else dibujarReto();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  actualizarCod(); actualizarRacha(); nuevoRetoCod();
+  // Abrir directamente una pestaña con #p1 ... #p3 al final de la dirección
+  var hash = (location.hash || "").replace("#p", "v"), bHash = document.querySelector('nav.pestanas button[data-vista="' + hash + '"]');
+  if (bHash) bHash.click(); else dibujarTodo();
+  // Acceso para pruebas desde la consola
+  window.__sim = { E: E, R: R, T: T, nrz: nrz, manchester: manchester, analizar: analizar, receptorNRZ: receptorNRZ,
+                   receptorMan: receptorMan, tramaRacha: tramaRacha };
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-15-codificacion-de-linea.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h2v1h-2zM13 2h4v1h-4zM18 2h1v1h-1zM20 2h1v1h-1zM23 2h1v1h-1zM25 2h1v1h-1zM27 2h5v1h-5zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM14 3h2v1h-2zM18 3h1v1h-1zM20 3h2v1h-2zM23 3h2v1h-2zM27 3h2v1h-2zM33 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM19 4h2v1h-2zM22 4h1v1h-1zM24 4h2v1h-2zM28 4h2v1h-2zM31 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h4v1h-4zM17 5h3v1h-3zM21 5h1v1h-1zM23 5h1v1h-1zM25 5h2v1h-2zM29 5h1v1h-1zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h2v1h-2zM13 6h1v1h-1zM15 6h1v1h-1zM17 6h2v1h-2zM23 6h1v1h-1zM25 6h1v1h-1zM27 6h1v1h-1zM29 6h4v1h-4zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h2v1h-2zM15 7h1v1h-1zM18 7h1v1h-1zM21 7h1v1h-1zM23 7h1v1h-1zM26 7h3v1h-3zM33 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h3v1h-3zM14 9h1v1h-1zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM6 10h1v1h-1zM8 10h3v1h-3zM12 10h5v1h-5zM18 10h2v1h-2zM23 10h3v1h-3zM31 10h1v1h-1zM33 10h7v1h-7zM42 10h1v1h-1zM4 11h4v1h-4zM10 11h3v1h-3zM15 11h1v1h-1zM17 11h1v1h-1zM19 11h2v1h-2zM25 11h1v1h-1zM27 11h4v1h-4zM32 11h1v1h-1zM36 11h4v1h-4zM42 11h1v1h-1zM3 12h1v1h-1zM5 12h2v1h-2zM8 12h2v1h-2zM12 12h3v1h-3zM16 12h1v1h-1zM20 12h1v1h-1zM22 12h2v1h-2zM25 12h3v1h-3zM29 12h1v1h-1zM34 12h3v1h-3zM42 12h1v1h-1zM2 13h2v1h-2zM5 13h2v1h-2zM9 13h3v1h-3zM14 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM23 13h4v1h-4zM30 13h2v1h-2zM33 13h2v1h-2zM36 13h2v1h-2zM39 13h1v1h-1zM41 13h2v1h-2zM2 14h2v1h-2zM6 14h1v1h-1zM8 14h2v1h-2zM12 14h1v1h-1zM15 14h5v1h-5zM22 14h3v1h-3zM31 14h1v1h-1zM34 14h1v1h-1zM37 14h1v1h-1zM41 14h2v1h-2zM3 15h1v1h-1zM7 15h1v1h-1zM9 15h3v1h-3zM15 15h3v1h-3zM20 15h2v1h-2zM26 15h1v1h-1zM28 15h1v1h-1zM30 15h1v1h-1zM32 15h1v1h-1zM36 15h3v1h-3zM41 15h2v1h-2zM4 16h5v1h-5zM14 16h1v1h-1zM16 16h1v1h-1zM18 16h4v1h-4zM24 16h3v1h-3zM30 16h3v1h-3zM35 16h2v1h-2zM38 16h1v1h-1zM40 16h1v1h-1zM42 16h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM6 17h2v1h-2zM9 17h1v1h-1zM12 17h3v1h-3zM16 17h1v1h-1zM18 17h2v1h-2zM21 17h3v1h-3zM25 17h1v1h-1zM28 17h1v1h-1zM31 17h2v1h-2zM34 17h1v1h-1zM38 17h2v1h-2zM3 18h1v1h-1zM5 18h4v1h-4zM11 18h1v1h-1zM16 18h2v1h-2zM19 18h1v1h-1zM22 18h3v1h-3zM26 18h1v1h-1zM29 18h1v1h-1zM31 18h3v1h-3zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM7 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM16 19h1v1h-1zM18 19h3v1h-3zM22 19h1v1h-1zM25 19h1v1h-1zM28 19h5v1h-5zM34 19h7v1h-7zM42 19h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM7 20h3v1h-3zM11 20h3v1h-3zM16 20h2v1h-2zM20 20h1v1h-1zM23 20h7v1h-7zM31 20h2v1h-2zM34 20h4v1h-4zM39 20h4v1h-4zM2 21h1v1h-1zM5 21h2v1h-2zM9 21h1v1h-1zM12 21h1v1h-1zM14 21h1v1h-1zM16 21h2v1h-2zM21 21h3v1h-3zM27 21h1v1h-1zM31 21h1v1h-1zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h1v1h-1zM5 22h1v1h-1zM7 22h2v1h-2zM10 22h1v1h-1zM12 22h2v1h-2zM15 22h1v1h-1zM17 22h2v1h-2zM22 22h1v1h-1zM26 22h2v1h-2zM29 22h2v1h-2zM32 22h1v1h-1zM34 22h2v1h-2zM39 22h1v1h-1zM2 23h3v1h-3zM7 23h1v1h-1zM9 23h3v1h-3zM13 23h3v1h-3zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM28 23h3v1h-3zM32 23h1v1h-1zM35 23h5v1h-5zM42 23h1v1h-1zM2 24h2v1h-2zM8 24h2v1h-2zM12 24h1v1h-1zM17 24h3v1h-3zM22 24h1v1h-1zM25 24h5v1h-5zM31 24h2v1h-2zM34 24h1v1h-1zM39 24h1v1h-1zM42 24h1v1h-1zM3 25h2v1h-2zM6 25h1v1h-1zM9 25h1v1h-1zM11 25h2v1h-2zM14 25h2v1h-2zM18 25h2v1h-2zM23 25h1v1h-1zM25 25h2v1h-2zM29 25h1v1h-1zM31 25h2v1h-2zM34 25h2v1h-2zM39 25h1v1h-1zM41 25h1v1h-1zM2 26h4v1h-4zM8 26h1v1h-1zM10 26h1v1h-1zM13 26h3v1h-3zM17 26h3v1h-3zM22 26h2v1h-2zM26 26h1v1h-1zM29 26h3v1h-3zM33 26h3v1h-3zM39 26h1v1h-1zM42 26h1v1h-1zM9 27h2v1h-2zM16 27h3v1h-3zM25 27h1v1h-1zM27 27h4v1h-4zM32 27h1v1h-1zM34 27h1v1h-1zM36 27h3v1h-3zM40 27h1v1h-1zM42 27h1v1h-1zM2 28h5v1h-5zM8 28h1v1h-1zM10 28h2v1h-2zM16 28h2v1h-2zM19 28h2v1h-2zM22 28h4v1h-4zM28 28h2v1h-2zM31 28h1v1h-1zM34 28h1v1h-1zM42 28h1v1h-1zM2 29h1v1h-1zM6 29h2v1h-2zM9 29h4v1h-4zM14 29h1v1h-1zM16 29h2v1h-2zM19 29h5v1h-5zM25 29h1v1h-1zM28 29h1v1h-1zM31 29h5v1h-5zM38 29h2v1h-2zM42 29h1v1h-1zM2 30h1v1h-1zM6 30h1v1h-1zM8 30h2v1h-2zM13 30h1v1h-1zM15 30h1v1h-1zM17 30h3v1h-3zM21 30h1v1h-1zM23 30h4v1h-4zM29 30h3v1h-3zM35 30h1v1h-1zM41 30h2v1h-2zM2 31h1v1h-1zM5 31h1v1h-1zM7 31h1v1h-1zM11 31h1v1h-1zM15 31h1v1h-1zM17 31h2v1h-2zM21 31h3v1h-3zM27 31h1v1h-1zM31 31h1v1h-1zM36 31h1v1h-1zM38 31h2v1h-2zM42 31h1v1h-1zM5 32h2v1h-2zM8 32h4v1h-4zM16 32h5v1h-5zM22 32h3v1h-3zM27 32h3v1h-3zM31 32h2v1h-2zM35 32h1v1h-1zM38 32h2v1h-2zM41 32h2v1h-2zM5 33h3v1h-3zM11 33h1v1h-1zM13 33h1v1h-1zM16 33h1v1h-1zM19 33h2v1h-2zM23 33h1v1h-1zM26 33h1v1h-1zM29 33h4v1h-4zM35 33h1v1h-1zM38 33h2v1h-2zM2 34h11v1h-11zM15 34h1v1h-1zM18 34h9v1h-9zM31 34h1v1h-1zM34 34h6v1h-6zM10 35h1v1h-1zM13 35h4v1h-4zM20 35h1v1h-1zM23 35h1v1h-1zM25 35h1v1h-1zM27 35h8v1h-8zM38 35h1v1h-1zM40 35h1v1h-1zM42 35h1v1h-1zM2 36h7v1h-7zM10 36h1v1h-1zM13 36h1v1h-1zM18 36h2v1h-2zM22 36h1v1h-1zM25 36h2v1h-2zM29 36h1v1h-1zM32 36h3v1h-3zM36 36h1v1h-1zM38 36h2v1h-2zM42 36h1v1h-1zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h4v1h-4zM19 37h4v1h-4zM24 37h2v1h-2zM28 37h1v1h-1zM30 37h1v1h-1zM34 37h1v1h-1zM38 37h2v1h-2zM42 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM17 38h1v1h-1zM20 38h1v1h-1zM22 38h1v1h-1zM24 38h5v1h-5zM33 38h7v1h-7zM41 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM11 39h4v1h-4zM16 39h2v1h-2zM23 39h1v1h-1zM25 39h1v1h-1zM27 39h1v1h-1zM29 39h1v1h-1zM31 39h2v1h-2zM34 39h1v1h-1zM37 39h1v1h-1zM41 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM12 40h1v1h-1zM14 40h1v1h-1zM16 40h5v1h-5zM22 40h1v1h-1zM25 40h3v1h-3zM29 40h1v1h-1zM31 40h2v1h-2zM35 40h1v1h-1zM40 40h1v1h-1zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM11 41h4v1h-4zM17 41h3v1h-3zM21 41h1v1h-1zM23 41h2v1h-2zM28 41h1v1h-1zM30 41h8v1h-8zM39 41h1v1h-1zM41 41h2v1h-2zM2 42h7v1h-7zM10 42h2v1h-2zM15 42h1v1h-1zM17 42h1v1h-1zM19 42h6v1h-6zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h4v1h-4zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-15-codificacion-de-linea.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

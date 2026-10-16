@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplexación TDM y FDM</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .valor { color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  select { width:100%; margin-top:4px; }
+  .lectura { overflow-wrap:anywhere; }
+  .fila > * { min-width:0; }
+  .fuentes { margin-top:10px; }
+  .fchip { display:flex; align-items:center; gap:8px; margin-top:6px; font-weight:normal; color:var(--tinta); cursor:pointer; }
+  .fchip input { width:18px; height:18px; margin:0; flex:none; }
+  .swatch { width:16px; height:16px; border-radius:3px; flex:none; border:1px solid rgba(0,0,0,0.15); }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 08 · Multiplexación</div>
+  <h1>Un canal, varias señales: multiplexación TDM y FDM</h1>
+  <p class="sub">Reparte un mismo medio por turnos de tiempo (TDM) o por bandas de frecuencia (FDM), mídele la tasa y descubre por qué multiplexar no es cifrar.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">TDM (por tiempo)</button>
+    <button type="button" data-vista="v2" role="tab">FDM (por frecuencia)</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>El multiplexor por tiempo</h2>
+        <label for="nFuentes">Número de fuentes N (una ranura cada una): <span class="valor" id="nFuentesVal"></span></label>
+        <input id="nFuentes" type="range" min="2" max="4" step="1" value="4">
+        <label for="bits">Bits por ranura b: <span class="valor" id="bitsVal"></span></label>
+        <input id="bits" type="range" min="4" max="16" step="4" value="8">
+        <label for="frames">Tramas por segundo f: <span class="valor" id="framesVal"></span></label>
+        <input id="frames" type="range" min="500" max="4000" step="500" value="1000">
+        <div class="fuentes" id="fuentes"></div>
+        <div class="lectura" id="lectura1"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Flujo multiplexado por tiempo: tramas repetidas con una ranura por fuente; abajo, lo que recupera el demultiplexor de cada fuente"></canvas>
+        <div class="seguridad"><b>Seguridad.</b> Una sola toma física en el medio compartido capta <b>todas</b> las ranuras a la vez (en el enlace E1 del libro, hasta 30 llamadas con una sola derivación): multiplexar concentra el riesgo. Separar las señales en ranuras no las oculta; la confidencialidad exige cifrado. Compartir por turnos también puede abrir un canal encubierto de temporización.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>¿Cuánto cambia R si agregas una fuente (una ranura más)? ¿Y si duplicas f?</li>
+            <li>Apaga una fuente. ¿Baja la tasa del canal? ¿Y la tasa útil? ¿Qué pasa con su ranura?</li>
+            <li>¿Cuántas señales ve a la vez quien interviene físicamente el medio compartido?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>El multiplexor por frecuencia</h2>
+        <label for="nCanales">Número de canales N: <span class="valor" id="nCanalesVal"></span></label>
+        <input id="nCanales" type="range" min="2" max="4" step="1" value="4">
+        <label for="ancho">Ancho de banda de cada canal W: <span class="valor" id="anchoVal"></span></label>
+        <input id="ancho" type="range" min="4" max="24" step="1" value="10">
+        <label for="sep">Separación entre portadoras Δf: <span class="valor" id="sepVal"></span></label>
+        <input id="sep" type="range" min="8" max="26" step="1" value="16">
+        <label for="receptor">Receptor sintonizado a</label>
+        <select id="receptor"></select>
+        <div class="lectura" id="lectura2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Espectro del canal compartido: una banda por fuente separada por bandas de guarda; el filtro del receptor resalta una banda; si las bandas se traslapan aparece interferencia"></canvas>
+        <div class="seguridad"><b>Seguridad.</b> El receptor filtra una sola banda, pero quien intercepta todo el medio ve <b>todas</b> las bandas a la vez. Un atacante puede bloquear (jamming) una sola banda, y una señal puede filtrarse a la vecina (diafonía) si la banda de guarda es pequeña. Multiplexar separa las señales para el receptor legítimo; no las cifra.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Sube el ancho de banda W. ¿Con qué relación entre W y Δf empiezan a traslaparse las bandas?</li>
+            <li>¿Para qué sirve la banda de guarda? ¿Qué ocurre si la dejas en 0?</li>
+            <li>El receptor filtra un solo canal. ¿Qué ve, en cambio, quien intercepta todo el medio?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex (Definición def:multiplexacion; Ecuación eq:tasa-tdm, R = N·b·f) y fase2/cap04 (bandas de guarda). Valores de N, b, f, W y Δf: ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.92)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+
+  // Fuentes (hasta 4): letra, color y un patrón de bits ilustrativo
+  var PALETA = [C.azul, C.guinda, C.oroTexto, C.azulOscuro];
+  var FUENTES = [
+    { letra: "A", patron: "01001010" },
+    { letra: "B", patron: "11000110" },
+    { letra: "C", patron: "10110001" },
+    { letra: "D", patron: "00101101" }
+  ];
+  FUENTES.forEach(function (f, i) { f.color = PALETA[i]; f.activa = true; });
+
+  // ================================================================ Vista 1 TDM
+  function construirFuentes() {
+    var N = Number($("nFuentes").value), cont = $("fuentes");
+    cont.innerHTML = "<label style='margin-top:12px'>Fuentes con datos <small>(apaga una para ver la ranura vacía)</small></label>";
+    for (var i = 0; i < N; i++) {
+      var f = FUENTES[i];
+      var lab = document.createElement("label"); lab.className = "fchip";
+      var chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = f.activa; chk.dataset.idx = i;
+      chk.addEventListener("change", function () { FUENTES[Number(this.dataset.idx)].activa = this.checked; refrescar1(); });
+      var sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = f.color;
+      var tx = document.createElement("span"); tx.textContent = "Fuente " + f.letra;
+      lab.appendChild(chk); lab.appendChild(sw); lab.appendChild(tx); cont.appendChild(lab);
+    }
+  }
+
+  function bitsRanura(f, b) {   // repite el patrón hasta b bits (solo para mostrar)
+    var s = "";
+    while (s.length < b) s += f.patron;
+    return s.slice(0, b);
+  }
+
+  function lectura1() {
+    var N = Number($("nFuentes").value), b = Number($("bits").value), f = Number($("frames").value);
+    $("nFuentesVal").textContent = N;
+    $("bitsVal").textContent = b + " bits";
+    $("framesVal").textContent = num(f, 0) + " tramas/s";
+    var R = N * b * f, tasaFuente = b * f;
+    var activas = 0; for (var i = 0; i < N; i++) if (FUENTES[i].activa) activas++;
+    var util = activas * tasaFuente;
+    var h = "";
+    h += "<span class='formula'>R = N·b·f = " + N + "·" + b + "·" + num(f, 0) + " = <b>" + num(R, 0) + " bps</b></span>";
+    h += " = " + num(R / 1000, 0) + " kbps.<br>";
+    h += "Tasa por fuente = b·f = " + b + "·" + num(f, 0) + " = <b>" + num(tasaFuente, 0) + " bps</b>; " +
+         "suma de " + N + " fuentes = " + num(R / 1000, 0) + " kbps = R.<br>";
+    if (activas < N) {
+      var vacias = N - activas, ranura = vacias === 1 ? "la ranura vacía se desperdicia" : "las " + vacias + " ranuras vacías se desperdician";
+      h += "<span class='mal'>Fuentes activas: " + activas + " de " + N + "</span> → tasa útil = " + num(util / 1000, 0) +
+           " kbps. El canal sigue reservando " + num(R / 1000, 0) + " kbps: " + ranura + " (TDM fija).";
+    } else {
+      h += "<span class='ok'>Las " + N + " fuentes transmiten:</span> la tasa útil (" + num(util / 1000, 0) +
+           " kbps) coincide con la del canal.";
+    }
+    $("lectura1").innerHTML = h;
+    return { N: N, b: b, f: f, R: R };
+  }
+
+  function dibujar1(info) {
+    var cv = $("lienzo1"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.02 : 0.44), g = d.g, w = d.w, h = d.h, N = info.N, b = info.b;
+    g.clearRect(0, 0, w, h);
+    var x0 = 12, x1 = w - 12;
+    // --- flujo multiplexado: 2.5 tramas ---
+    var yTop = 46, altT = angosto ? 42 : 52;
+    texto(g, "Canal compartido (el multiplexor arma las tramas)", x0, 20, C.azulOscuro, angosto ? 14 : 15, "left", "alphabetic", true);
+    var tramasVis = 2.5, slotsVis = N * tramasVis, sw = (x1 - x0) / slotsVis;
+    for (var s = 0; s < Math.ceil(slotsVis); s++) {
+      var i = s % N, f = FUENTES[i], xa = x0 + s * sw, xb = Math.min(x1, xa + sw);
+      if (xa >= x1) break;
+      if (f.activa) {
+        g.save(); g.fillStyle = f.color; g.globalAlpha = 0.85; g.fillRect(xa, yTop, xb - xa, altT); g.restore();
+        texto(g, f.letra, (xa + xb) / 2, yTop + altT / 2 + 6, "#fff", angosto ? 15 : 18, "center", "alphabetic", true);
+      } else {
+        g.save(); g.fillStyle = C.grisClaro; g.fillRect(xa, yTop, xb - xa, altT);
+        g.strokeStyle = C.gris; g.lineWidth = 1; g.setLineDash([4, 3]); g.strokeRect(xa + 1, yTop + 1, xb - xa - 2, altT - 2); g.restore();
+        if (xb - xa > 34) texto(g, "vacía", (xa + xb) / 2, yTop + altT / 2 + 5, C.gris, angosto ? 12 : 13, "center");
+      }
+      linea(g, xa, yTop, xa, yTop + altT, "#fff", 1);
+      // marca de trama: línea gruesa entre tramas (la repetición se explica con la regla "1 trama")
+      if (i === 0) linea(g, xa, yTop - 6, xa, yTop + altT + 6, C.azulOscuro, 2);
+    }
+    linea(g, x0, yTop + altT, x1, yTop + altT, C.azulOscuro, 1.5);
+    // duración de una trama
+    var xtf = x0 + N * sw;
+    linea(g, x0, yTop + altT + 14, xtf, yTop + altT + 14, C.gris, 1.5);
+    linea(g, x0, yTop + altT + 10, x0, yTop + altT + 18, C.gris, 1.5);
+    linea(g, xtf, yTop + altT + 10, xtf, yTop + altT + 18, C.gris, 1.5);
+    etiqueta(g, "1 trama = 1/f = " + num(1000 / info.f, 3) + " ms", (x0 + xtf) / 2, yTop + altT + 32, C.gris, angosto ? 12 : 14, "center");
+    // --- demultiplexor: una fila por fuente ---
+    var yD = yTop + altT + (angosto ? 52 : 58);
+    texto(g, "El demultiplexor separa cada fuente:", x0, yD, C.azulOscuro, angosto ? 14 : 15, "left", "alphabetic", true);
+    yD += 10;
+    var fila = angosto ? 26 : 30;
+    for (var k = 0; k < N; k++) {
+      var ff = FUENTES[k], yy = yD + k * fila + fila * 0.7;
+      g.save(); g.fillStyle = ff.color; g.fillRect(x0, yy - (angosto ? 12 : 14), 16, 16); g.restore();
+      texto(g, "Fuente " + ff.letra + ":", x0 + 24, yy, C.tinta, angosto ? 13 : 15, "left", "alphabetic", true);
+      var etq = ff.activa ? bitsRanura(ff, b) + " …" : "(sin datos)";
+      texto(g, etq, x0 + (angosto ? 86 : 104), yy, ff.activa ? C.azulOscuro : C.gris, angosto ? 13 : 15, "left", "alphabetic", ff.activa);
+    }
+  }
+
+  function refrescar1() { construirFuentesSiHaceFalta(); var info = lectura1(); if ($("v1").classList.contains("activo")) dibujar1(info); }
+  var nActual = -1;
+  function construirFuentesSiHaceFalta() {
+    var N = Number($("nFuentes").value);
+    if (N !== nActual) { construirFuentes(); nActual = N; }
+  }
+  $("nFuentes").addEventListener("input", refrescar1);
+  ["bits", "frames"].forEach(function (id) { $(id).addEventListener("input", refrescar1); });
+
+  // ================================================================ Vista 2 FDM
+  var F0 = 12;   // primera portadora (kHz, ilustrativo)
+  function portadora(i) { return F0 + i * Number($("sep").value); }
+
+  function llenarReceptor() {
+    var N = Number($("nCanales").value), sel = $("receptor"), prev = sel.value;
+    sel.innerHTML = "";
+    for (var i = 0; i < N; i++) {
+      var o = document.createElement("option");
+      o.value = i; o.textContent = "Canal " + FUENTES[i].letra + " (" + num(portadora(i), 0) + " kHz)";
+      sel.appendChild(o);
+    }
+    if (prev !== "" && Number(prev) < N) sel.value = prev; else sel.value = Math.min(1, N - 1);
+  }
+
+  function lectura2() {
+    var N = Number($("nCanales").value), W = Number($("ancho").value), df = Number($("sep").value);
+    $("nCanalesVal").textContent = N;
+    $("anchoVal").textContent = num(W, 0) + " kHz";
+    $("sepVal").textContent = num(df, 0) + " kHz";
+    var guarda = df - W, sel = Number($("receptor").value || 0);
+    var h = "";
+    h += "Cada canal ocupa <b>W = " + num(W, 0) + " kHz</b>; las portadoras están separadas <b>Δf = " + num(df, 0) + " kHz</b>.<br>";
+    h += "<span class='formula'>Banda de guarda = Δf − W = " + num(df, 0) + " − " + num(W, 0) + " = <b>" + num(guarda, 0) + " kHz</b></span><br>";
+    if (guarda > 0) {
+      h += "<span class='ok'>Bandas separadas:</span> el filtro del receptor extrae el canal " + FUENTES[sel].letra +
+           " (centrado en " + num(portadora(sel), 0) + " kHz) sin mezclarse con los vecinos.";
+    } else {
+      h += "<span class='mal'>W ≥ Δf: las bandas se traslapan (" + num(-guarda, 0) + " kHz).</span> " +
+           "La banda de guarda desapareció: el receptor del canal " + FUENTES[sel].letra +
+           " capta también la señal vecina (interferencia).";
+    }
+    $("lectura2").innerHTML = h;
+    return { N: N, W: W, df: df, guarda: guarda, sel: sel };
+  }
+
+  // forma de banda: coseno alzado, pico 1 en la portadora, 0 en los bordes +-W/2
+  function formaBanda(fr, c, W) {
+    var hw = W / 2, u = (fr - c) / hw;
+    if (Math.abs(u) >= 1) return 0;
+    return 0.5 * (1 + Math.cos(Math.PI * u));
+  }
+
+  function dibujar2(info) {
+    var cv = $("lienzo2"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 0.92 : 0.6), g = d.g, w = d.w, h = d.h, N = info.N, W = info.W, df = info.df;
+    g.clearRect(0, 0, w, h);
+    var x0 = angosto ? 34 : 46, x1 = w - 14, y0 = 30, y1 = h - 44;
+    var fmax = portadora(N - 1) + Math.max(W, df) * 0.75 + 6;
+    var fmin = 0;
+    function X(fr) { return x0 + (fr - fmin) / (fmax - fmin) * (x1 - x0); }
+    function Y(a) { return y1 - a * (y1 - y0 - 6); }
+    texto(g, "Espectro del canal compartido (amplitud contra frecuencia)", x0, 20, C.azulOscuro, angosto ? 13 : 15, "left", "alphabetic", true);
+    // eje de frecuencia
+    linea(g, x0, y1, x1, y1, C.gris, 1.5);
+    for (var fq = 0; fq <= fmax + 1e-9; fq += (fmax > 90 ? 20 : 10)) {
+      linea(g, X(fq), y1, X(fq), y1 + 5, C.gris, 1);
+      texto(g, corto(fq, 0), X(fq), y1 + 20, C.gris, angosto ? 12 : 13, "center");
+    }
+    texto(g, "frecuencia (kHz)", x1, y1 + 36, C.tinta, angosto ? 12 : 14, "right");
+    g.save(); g.translate(x0 - (angosto ? 26 : 34), (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "amplitud", 0, 0, C.tinta, angosto ? 12 : 14, "center", "middle"); g.restore();
+    // filtro del receptor (passband sombreado)
+    var cs = portadora(info.sel);
+    g.save(); g.fillStyle = "rgba(184,151,90,0.20)"; g.fillRect(X(cs - W / 2), y0, X(cs + W / 2) - X(cs - W / 2), y1 - y0); g.restore();
+    linea(g, X(cs - W / 2), y0, X(cs - W / 2), y1, C.oro, 1.5, [5, 4]);
+    linea(g, X(cs + W / 2), y0, X(cs + W / 2), y1, C.oro, 1.5, [5, 4]);
+    etiqueta(g, "filtro del receptor", X(cs), y0 + 14, C.oroTexto, angosto ? 12 : 14, "center", true);
+    // bandas
+    var paso = (fmax - fmin) / 420;
+    for (var i = 0; i < N; i++) {
+      var c = portadora(i), col = FUENTES[i].color;
+      g.save(); g.fillStyle = col; g.globalAlpha = 0.45; g.beginPath(); g.moveTo(X(c - W / 2), Y(0));
+      for (var fr = c - W / 2; fr <= c + W / 2 + 1e-9; fr += paso) g.lineTo(X(fr), Y(formaBanda(fr, c, W)));
+      g.lineTo(X(c + W / 2), Y(0)); g.closePath(); g.fill(); g.restore();
+      g.save(); g.strokeStyle = col; g.lineWidth = 2; g.beginPath();
+      for (fr = c - W / 2; fr <= c + W / 2 + 1e-9; fr += paso) { var yy = Y(formaBanda(fr, c, W)); if (fr === c - W / 2) g.moveTo(X(fr), yy); else g.lineTo(X(fr), yy); }
+      g.stroke(); g.restore();
+      etiqueta(g, FUENTES[i].letra, X(c), Y(1) - 6, col, angosto ? 13 : 15, "center", true);
+    }
+    // bandas de guarda o traslape
+    for (i = 0; i < N - 1; i++) {
+      var ca = portadora(i), cb = portadora(i + 1), borde = ca + W / 2, bini = cb - W / 2;
+      var ymb = y1 - (angosto ? 18 : 22);
+      if (info.guarda > 0) {
+        linea(g, X(borde), ymb, X(bini), ymb, C.gris, 1.5);
+        if (X(bini) - X(borde) > 30) etiqueta(g, "guarda", (X(borde) + X(bini)) / 2, ymb - 4, C.gris, angosto ? 11 : 12, "center");
+      } else {
+        g.save(); g.fillStyle = "rgba(140,29,53,0.28)"; g.fillRect(X(bini), y0, X(borde) - X(bini), y1 - y0); g.restore();
+      }
+    }
+    if (info.guarda <= 0) etiqueta(g, "interferencia", X((portadora(0) + portadora(1)) / 2), y0 + 32, C.guinda, angosto ? 13 : 15, "center", true);
+  }
+
+  function refrescar2() { llenarReceptorSiHaceFalta(); var info = lectura2(); if ($("v2").classList.contains("activo")) dibujar2(info); }
+  var nCanalesActual = -1;
+  function llenarReceptorSiHaceFalta() {
+    var N = Number($("nCanales").value);
+    if (N !== nCanalesActual) { llenarReceptor(); nCanalesActual = N; }
+  }
+  ["nCanales", "ancho", "sep"].forEach(function (id) { $(id).addEventListener("input", refrescar2); });
+  $("receptor").addEventListener("change", refrescar2);
+
+  // ================================================================ General
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) refrescar1();
+    if ($("v2").classList.contains("activo")) refrescar2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  refrescar1(); refrescar2();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-08-multiplexacion.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM14 2h2v1h-2zM20 2h3v1h-3zM24 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM15 3h4v1h-4zM22 3h2v1h-2zM26 3h2v1h-2zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM13 4h2v1h-2zM17 4h1v1h-1zM23 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h3v1h-3zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h3v1h-3zM15 6h1v1h-1zM18 6h8v1h-8zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h3v1h-3zM14 7h1v1h-1zM16 7h2v1h-2zM19 7h1v1h-1zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h6v1h-6zM17 9h2v1h-2zM21 9h1v1h-1zM23 9h1v1h-1zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h2v1h-2zM14 10h3v1h-3zM19 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM2 11h1v1h-1zM6 11h1v1h-1zM10 11h3v1h-3zM15 11h1v1h-1zM17 11h2v1h-2zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h1v1h-1zM5 12h2v1h-2zM8 12h3v1h-3zM13 12h1v1h-1zM16 12h1v1h-1zM22 12h3v1h-3zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM6 13h1v1h-1zM15 13h1v1h-1zM18 13h1v1h-1zM21 13h1v1h-1zM23 13h2v1h-2zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM6 14h3v1h-3zM11 14h2v1h-2zM14 14h2v1h-2zM19 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM3 15h1v1h-1zM6 15h2v1h-2zM10 15h2v1h-2zM14 15h3v1h-3zM18 15h5v1h-5zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM4 16h1v1h-1zM8 16h1v1h-1zM11 16h2v1h-2zM14 16h2v1h-2zM17 16h1v1h-1zM19 16h1v1h-1zM23 16h1v1h-1zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM4 17h4v1h-4zM11 17h2v1h-2zM15 17h2v1h-2zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h2v1h-2zM7 18h4v1h-4zM12 18h3v1h-3zM17 18h1v1h-1zM19 18h2v1h-2zM24 18h2v1h-2zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h1v1h-1zM5 19h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM16 19h2v1h-2zM20 19h6v1h-6zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM4 20h1v1h-1zM6 20h6v1h-6zM13 20h3v1h-3zM17 20h1v1h-1zM19 20h2v1h-2zM22 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h2v1h-2zM6 21h1v1h-1zM11 21h3v1h-3zM17 21h2v1h-2zM20 21h1v1h-1zM23 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM4 22h2v1h-2zM8 22h1v1h-1zM10 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM22 22h1v1h-1zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h1v1h-1zM6 23h1v1h-1zM10 23h2v1h-2zM13 23h1v1h-1zM16 23h1v1h-1zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM2 24h4v1h-4zM8 24h1v1h-1zM10 24h1v1h-1zM12 24h3v1h-3zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h2v1h-2zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h1v1h-1zM4 25h1v1h-1zM7 25h1v1h-1zM11 25h1v1h-1zM13 25h1v1h-1zM16 25h2v1h-2zM20 25h4v1h-4zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h2v1h-2zM6 26h3v1h-3zM10 26h1v1h-1zM17 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h2v1h-2zM6 27h2v1h-2zM14 27h2v1h-2zM18 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h2v1h-2zM8 28h1v1h-1zM10 28h2v1h-2zM16 28h3v1h-3zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM5 29h3v1h-3zM9 29h2v1h-2zM14 29h1v1h-1zM16 29h3v1h-3zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM7 30h2v1h-2zM11 30h1v1h-1zM13 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM21 30h1v1h-1zM24 30h13v1h-13zM38 30h1v1h-1zM10 31h3v1h-3zM16 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM13 32h2v1h-2zM17 32h2v1h-2zM20 32h1v1h-1zM22 32h3v1h-3zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h4v1h-4zM17 33h2v1h-2zM20 33h4v1h-4zM25 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h1v1h-1zM12 34h1v1h-1zM15 34h2v1h-2zM19 34h1v1h-1zM21 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h1v1h-1zM15 35h1v1h-1zM18 35h1v1h-1zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM16 36h2v1h-2zM19 36h2v1h-2zM22 36h2v1h-2zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM14 37h1v1h-1zM16 37h3v1h-3zM22 37h3v1h-3zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM13 38h5v1h-5zM19 38h2v1h-2zM24 38h4v1h-4zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-08-multiplexacion.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

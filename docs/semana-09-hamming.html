@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Hamming (7,4)</title>
+<style>
+  :root {
+    --navy: #0A2A57; --navy-dark: #0A2A57; --teal: #00408F; --teal-l: #E8EEF7;
+    --amber: #9C7A3C; --amber-l: #F7F1E6; --red: #8C1D35; --red-l: #F5E6EA;
+    --ink: #1B1F2A; --gray: #5B6472; --gray-l: #E9ECF1; --bg: #FFFFFF; --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 18px; }
+  header { background:linear-gradient(#B8975A,#B8975A) top/100% 3px no-repeat,#fff; color:#0A2A57; border-top:8px solid #00408F; padding:14px 24px 8px; }
+  header h1 { margin: 0; font-family: Cambria, Georgia, serif; font-size: 28px; }
+  header p { margin: 4px 0 0; color: var(--teal); font-style: italic; font-size: 16px; }
+  main { max-width: 1280px; margin: 0 auto; padding: 18px 20px 28px; }
+  .modos { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .modos button, .acciones button {
+    font: inherit; font-size: 16px; border: 2px solid var(--navy); background: var(--white);
+    color: var(--navy); border-radius: 8px; padding: 6px 14px; cursor: pointer; font-weight: bold; }
+  .modos button.activo { background: var(--navy); color: var(--white); }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .acciones button.ruido { border-color: var(--red); color: var(--red); }
+  .grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  section { background: var(--white); border: 1.5px solid var(--gray-l); border-radius: 14px;
+            padding: 14px 18px; margin-bottom: 16px; }
+  section h2 { margin: 0 0 10px; font-family: Cambria, Georgia, serif; color: var(--navy);
+               font-size: 22px; display: flex; align-items: center; gap: 10px; }
+  .pill { font-family: Calibri, Arial, sans-serif; font-size: 14px; font-weight: bold;
+          text-transform: uppercase; letter-spacing: .04em; color: var(--teal); }
+  .pill.amber { color: var(--amber); }
+  .pill.red { color: var(--red); }
+  .fila { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .celda { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .celda .pos { font-size: 13px; color: var(--gray); }
+  .celda .rol { font-size: 14px; font-weight: bold; color: var(--navy); }
+  .bit { width: 58px; height: 58px; border-radius: 12px; border: 2.5px solid var(--navy);
+         display: flex; align-items: center; justify-content: center; font-size: 30px;
+         font-weight: bold; color: var(--navy); background: var(--white);
+         font-family: Consolas, "Courier New", monospace; user-select: none; }
+  .bit.paridad { background: var(--amber-l); border-color: var(--amber); }
+  button.bit { cursor: pointer; }
+  button.bit:hover { box-shadow: 0 0 0 3px var(--teal-l); }
+  .bit.volteado { border-color: var(--red); color: var(--red); background: var(--red-l); }
+  .bit.senalado { outline: 4px solid var(--red); outline-offset: 2px; }
+  .bit.corregido { border-color: var(--teal); background: var(--teal-l); }
+  .calc { margin: 12px 0 0; padding: 0; list-style: none; }
+  .calc li { padding: 5px 0; border-top: 1px dashed var(--gray-l); font-size: 17px; }
+  .calc li:first-child { border-top: none; }
+  .ok { color: #00408F; font-weight: bold; }
+  .mal { color: var(--red); font-weight: bold; }
+  .resultado { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: var(--teal-l);
+               border: 1.5px solid var(--teal); font-size: 18px; }
+  .resultado.alerta { background: var(--red-l); border-color: var(--red); }
+  .nota { font-size: 14px; color: var(--gray); font-style: italic; margin-top: 8px; }
+  input[type=text] { font: inherit; font-family: Consolas, monospace; font-size: 26px; width: 190px;
+                     letter-spacing: 4px; padding: 4px 10px; border: 2px solid var(--navy);
+                     border-radius: 10px; }
+  label.check { font-size: 16px; color: var(--navy); display: inline-flex; gap: 6px;
+                align-items: center; margin-top: 8px; cursor: pointer; }
+  #venn { width: 100%; max-width: 420px; display: block; margin: 0 auto; }
+  .oculto { filter: blur(9px); pointer-events: none; }
+  .error-input { color: var(--red); font-size: 15px; margin-left: 10px; }
+  footer { text-align: center; color: var(--gray); font-size: 13px; padding: 8px 0 18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulador de Hamming (7,4)</h1>
+  <p>Semana 9 · Método del libro: bits de paridad en las posiciones 1, 2 y 4 · Señales de Transmisión</p>
+</header>
+<main>
+  <div class="modos" role="tablist" aria-label="Modo del simulador">
+    <button id="modoCompleto" class="activo" role="tab" aria-selected="true">Emisor → canal → receptor</button>
+    <button id="modoReceptor" role="tab" aria-selected="false">Solo receptor: analizar un código recibido</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <section id="secEmisor">
+        <h2><span class="pill">1 · Emisor</span> Mensaje de 4 bits</h2>
+        <div class="fila" id="datos"></div>
+        <div class="acciones"><button id="aleatorio">Mensaje aleatorio</button></div>
+        <h2 style="margin-top:16px"><span class="pill amber">Código</span> 7 bits enviados</h2>
+        <div class="fila" id="codigoEnviado"></div>
+        <ul class="calc" id="calcEmisor"></ul>
+      </section>
+
+      <section id="secEntrada" hidden>
+        <h2><span class="pill">Receptor</span> Escribe el código recibido (7 bits)</h2>
+        <input type="text" id="entrada" maxlength="7" value="0110111" aria-label="Código recibido de 7 bits">
+        <span class="error-input" id="errorEntrada"></span>
+        <p class="nota">Ejemplo del libro: llega 0110111 en lugar de 0110011.</p>
+      </section>
+
+      <section id="secCanal">
+        <h2><span class="pill red">2 · Canal</span> Haz clic en un bit para simular ruido</h2>
+        <div class="fila" id="codigoCanal"></div>
+        <div class="acciones">
+          <button class="ruido" id="ruido1">Ruido: voltear 1 bit al azar</button>
+          <button class="ruido" id="ruido2">Ruido: voltear 2 bits al azar</button>
+          <button id="limpiar">Canal limpio</button>
+        </div>
+        <p class="nota" id="notaCanal"></p>
+      </section>
+    </div>
+
+    <div>
+      <section>
+        <h2><span class="pill">3 · Receptor</span> Recalcula cada grupo</h2>
+        <label class="check"><input type="checkbox" id="ocultar"> Ocultar resultado (para que el grupo lo calcule primero)</label>
+        <div id="panelReceptor">
+          <ul class="calc" id="calcReceptor"></ul>
+          <div class="resultado" id="resultado"></div>
+          <svg id="venn" viewBox="0 0 360 335" role="img" aria-label="Diagrama de Venn de los tres grupos de paridad"></svg>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+<footer>Funciona sin internet. Verificación rápida: el mensaje 1011 produce 0110011 y el mensaje 1100 produce 0111100 (fase2/cap01_evolucion_comunicacion.tex). · <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a></footer>
+
+<script>
+(function () {
+  "use strict";
+  var GRUPOS = { 1: [1, 3, 5, 7], 2: [2, 3, 6, 7], 4: [4, 5, 6, 7] };
+  var ROLES = ["P1", "P2", "D1", "P4", "D2", "D3", "D4"];
+  var POS_DATOS = [3, 5, 6, 7];
+  var estado = { modo: "completo", datos: [1, 0, 1, 1], volteados: [] };
+
+  function codificar(d) {
+    var c = [null, 0, 0, d[0], 0, d[1], d[2], d[3]];
+    c[1] = c[3] ^ c[5] ^ c[7];
+    c[2] = c[3] ^ c[6] ^ c[7];
+    c[4] = c[5] ^ c[6] ^ c[7];
+    return c; // índice 1..7
+  }
+
+  function analizar(r) {
+    var suma = 0, fallas = {};
+    [1, 2, 4].forEach(function (p) {
+      var x = 0;
+      GRUPOS[p].forEach(function (i) { x ^= r[i]; });
+      fallas[p] = x === 1;
+      if (x === 1) suma += p;
+    });
+    var corregido = r.slice();
+    if (suma > 0) corregido[suma] ^= 1;
+    return { suma: suma, fallas: fallas, corregido: corregido };
+  }
+
+  function texto(c) { return c.slice(1).join(""); }
+  function datosDe(c) { return POS_DATOS.map(function (i) { return c[i]; }).join(""); }
+
+  function recibido() {
+    if (estado.modo === "receptor") {
+      var v = document.getElementById("entrada").value.trim();
+      if (!/^[01]{7}$/.test(v)) return null;
+      return [null].concat(v.split("").map(Number));
+    }
+    var c = codificar(estado.datos);
+    var r = c.slice();
+    estado.volteados.forEach(function (i) { r[i] ^= 1; });
+    return r;
+  }
+
+  function celda(pos, valor, clases, esBoton, alHacerClic) {
+    var cont = document.createElement("div");
+    cont.className = "celda";
+    var p = document.createElement("span"); p.className = "pos"; p.textContent = "pos. " + pos;
+    var rol = document.createElement("span"); rol.className = "rol"; rol.textContent = ROLES[pos - 1];
+    var b = document.createElement(esBoton ? "button" : "div");
+    b.className = "bit " + clases;
+    b.textContent = valor;
+    if (esBoton) {
+      b.type = "button";
+      b.setAttribute("aria-label", "Voltear el bit de la posición " + pos);
+      b.addEventListener("click", alHacerClic);
+    }
+    cont.appendChild(p); cont.appendChild(rol); cont.appendChild(b);
+    return cont;
+  }
+
+  function pintarEmisor() {
+    var cont = document.getElementById("datos");
+    cont.innerHTML = "";
+    estado.datos.forEach(function (v, k) {
+      var c = document.createElement("div"); c.className = "celda";
+      var r = document.createElement("span"); r.className = "rol"; r.textContent = "D" + (k + 1);
+      var b = document.createElement("button"); b.type = "button"; b.className = "bit";
+      b.textContent = v; b.setAttribute("aria-label", "Cambiar el bit de datos D" + (k + 1));
+      b.addEventListener("click", function () {
+        estado.datos[k] ^= 1; estado.volteados = []; pintar();
+      });
+      c.appendChild(r); c.appendChild(b); cont.appendChild(c);
+    });
+    var cod = codificar(estado.datos);
+    var env = document.getElementById("codigoEnviado");
+    env.innerHTML = "";
+    for (var i = 1; i <= 7; i++) {
+      env.appendChild(celda(i, cod[i], [1, 2, 4].indexOf(i) >= 0 ? "paridad" : "", false));
+    }
+    var calc = document.getElementById("calcEmisor");
+    calc.innerHTML = "";
+    [1, 2, 4].forEach(function (p) {
+      var otras = GRUPOS[p].filter(function (i) { return i !== p; });
+      var li = document.createElement("li");
+      li.innerHTML = "<b>P" + p + "</b> = pos" + otras.join(" ⊕ pos") + " = " +
+        otras.map(function (i) { return cod[i]; }).join(" ⊕ ") + " = <b>" + cod[p] + "</b>";
+      calc.appendChild(li);
+    });
+  }
+
+  function pintarCanal(r) {
+    var cont = document.getElementById("codigoCanal");
+    cont.innerHTML = "";
+    for (var i = 1; i <= 7; i++) {
+      (function (pos) {
+        var volteado = estado.volteados.indexOf(pos) >= 0;
+        var clases = ([1, 2, 4].indexOf(pos) >= 0 ? "paridad " : "") + (volteado ? "volteado" : "");
+        cont.appendChild(celda(pos, r[pos], clases, true, function () {
+          var k = estado.volteados.indexOf(pos);
+          if (k >= 0) estado.volteados.splice(k, 1); else estado.volteados.push(pos);
+          pintar();
+        }));
+      })(i);
+    }
+    var n = estado.volteados.length;
+    document.getElementById("notaCanal").textContent = n === 0 ?
+      "El canal no alteró ningún bit." :
+      "El ruido volteó " + n + (n === 1 ? " bit" : " bits") + " (posición " +
+      estado.volteados.slice().sort().join(" y ") + ").";
+  }
+
+  function pintarReceptor(r) {
+    var calc = document.getElementById("calcReceptor");
+    var res = document.getElementById("resultado");
+    calc.innerHTML = "";
+    if (!r) {
+      res.className = "resultado alerta";
+      res.textContent = "Escribe exactamente 7 bits (solo 0 y 1).";
+      pintarVenn(null, null);
+      return;
+    }
+    var a = analizar(r);
+    [1, 2, 4].forEach(function (p) {
+      var li = document.createElement("li");
+      var suma = GRUPOS[p].map(function (i) { return r[i]; });
+      var x = suma.reduce(function (s, v) { return s ^ v; }, 0);
+      li.innerHTML = "Grupo P" + p + " (pos. " + GRUPOS[p].join(", ") + "): " + suma.join(" ⊕ ") +
+        " = " + x + " → " + (a.fallas[p] ? "<span class='mal'>✗ inconsistente (+" + p + ")</span>" :
+                                             "<span class='ok'>✓ consistente</span>");
+      calc.appendChild(li);
+    });
+    var html = "";
+    if (a.suma === 0) {
+      html = "Suma = 0 → <b>no se detectó error</b>. Mensaje recibido: <b>" + datosDe(r) + "</b>";
+    } else {
+      var partes = [1, 2, 4].filter(function (p) { return a.fallas[p]; });
+      html = "Suma = " + (partes.length > 1 ? partes.join(" + ") + " = " : "") + "<b>" + a.suma +
+        "</b> → el bit de la <b>posición " +
+        a.suma + "</b> está corrupto.<br>Código corregido: <b>" + texto(a.corregido) +
+        "</b> · Mensaje recuperado: <b>" + datosDe(a.corregido) + "</b>";
+      if ([1, 2, 4].indexOf(a.suma) >= 0) html += "<br><i>El error cayó en un bit de paridad: los datos llegaron intactos.</i>";
+    }
+    var alerta = false;
+    if (estado.modo === "completo") {
+      var original = datosDe(codificar(estado.datos));
+      if (datosDe(a.corregido) === original) {
+        html += "<br><span class='ok'>✓ Coincide con el mensaje enviado (" + original + ").</span>";
+      } else {
+        alerta = true;
+        html += "<br><span class='mal'>✗ No coincide con el mensaje enviado (" + original +
+          "): con 2 o más errores, el atajo señala una posición equivocada.</span>";
+      }
+    }
+    res.className = "resultado" + (alerta ? " alerta" : "");
+    res.innerHTML = html;
+    pintarVenn(r, a);
+  }
+
+  var CENTROS = { 1: [135, 128], 2: [225, 128], 4: [180, 206] };
+  var REGIONES = { 1: [100, 104], 2: [260, 104], 4: [180, 246], 3: [180, 92], 5: [137, 180],
+                   6: [223, 180], 7: [180, 146] };
+  var ETIQUETAS = { 1: [52, 40], 2: [308, 40], 4: [180, 322] };
+
+  function pintarVenn(r, a) {
+    var svg = document.getElementById("venn");
+    var ns = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    function el(tipo, attrs, txt) {
+      var e = document.createElementNS(ns, tipo);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (txt !== undefined) e.textContent = txt;
+      svg.appendChild(e);
+      return e;
+    }
+    [1, 2, 4].forEach(function (p) {
+      var mal = a && a.fallas[p];
+      el("circle", { cx: CENTROS[p][0], cy: CENTROS[p][1], r: 82,
+                     fill: mal ? "rgba(192,57,43,0.14)" : "rgba(46,196,182,0.13)",
+                     stroke: mal ? "#8C1D35" : "#0A2A57", "stroke-width": 3 });
+      el("text", { x: ETIQUETAS[p][0], y: ETIQUETAS[p][1], "text-anchor": "middle",
+                   "font-size": 16, "font-weight": "bold", fill: mal ? "#8C1D35" : "#0A2A57" },
+         "Grupo P" + p + (a ? (mal ? " ✗" : " ✓") : ""));
+    });
+    for (var pos = 1; pos <= 7; pos++) {
+      var xy = REGIONES[pos];
+      var senalado = a && a.suma === pos;
+      var paridad = [1, 2, 4].indexOf(pos) >= 0;
+      el("circle", { cx: xy[0], cy: xy[1], r: 17,
+                     fill: senalado ? "#8C1D35" : (paridad ? "#9C7A3C" : "#FFFFFF"),
+                     stroke: senalado ? "#8C1D35" : "#0A2A57", "stroke-width": 2 });
+      el("text", { x: xy[0], y: xy[1] + 7, "text-anchor": "middle", "font-size": 20,
+                   "font-weight": "bold", fill: senalado ? "#FFFFFF" : "#0A2A57",
+                   "font-family": "Consolas, monospace" }, r ? r[pos] : "?");
+      el("text", { x: xy[0], y: xy[1] + 31, "text-anchor": "middle", "font-size": 11.5,
+                   "font-weight": "bold", fill: senalado ? "#8C1D35" : "#5B6472",
+                   stroke: "#FFFFFF", "stroke-width": 3.5, "paint-order": "stroke" }, "pos. " + pos);
+    }
+  }
+
+  function pintar() {
+    var completo = estado.modo === "completo";
+    document.getElementById("secEmisor").hidden = !completo;
+    document.getElementById("secCanal").hidden = !completo;
+    document.getElementById("secEntrada").hidden = completo;
+    var r = recibido();
+    if (completo) { pintarEmisor(); pintarCanal(r); }
+    document.getElementById("errorEntrada").textContent =
+      (!completo && !r) ? "Deben ser 7 bits (0 y 1)." : "";
+    pintarReceptor(r);
+    document.getElementById("panelReceptor").className =
+      document.getElementById("ocultar").checked ? "oculto" : "";
+  }
+
+  function voltearAlAzar(n) {
+    var libres = [1, 2, 3, 4, 5, 6, 7];
+    estado.volteados = [];
+    for (var k = 0; k < n; k++) {
+      var j = Math.floor(Math.random() * libres.length);
+      estado.volteados.push(libres.splice(j, 1)[0]);
+    }
+    pintar();
+  }
+
+  function cambiarModo(modo) {
+    estado.modo = modo;
+    document.getElementById("modoCompleto").className = modo === "completo" ? "activo" : "";
+    document.getElementById("modoReceptor").className = modo === "receptor" ? "activo" : "";
+    document.getElementById("modoCompleto").setAttribute("aria-selected", modo === "completo");
+    document.getElementById("modoReceptor").setAttribute("aria-selected", modo === "receptor");
+    pintar();
+  }
+
+  document.getElementById("modoCompleto").addEventListener("click", function () { cambiarModo("completo"); });
+  document.getElementById("modoReceptor").addEventListener("click", function () { cambiarModo("receptor"); });
+  document.getElementById("aleatorio").addEventListener("click", function () {
+    estado.datos = [0, 1, 2, 3].map(function () { return Math.random() < 0.5 ? 0 : 1; });
+    estado.volteados = []; pintar();
+  });
+  document.getElementById("ruido1").addEventListener("click", function () { voltearAlAzar(1); });
+  document.getElementById("ruido2").addEventListener("click", function () { voltearAlAzar(2); });
+  document.getElementById("limpiar").addEventListener("click", function () { estado.volteados = []; pintar(); });
+  document.getElementById("entrada").addEventListener("input", pintar);
+  document.getElementById("ocultar").addEventListener("change", pintar);
+
+  // Autoverificación con los ejemplos del libro (se reporta en la consola).
+  console.assert(texto(codificar([1, 0, 1, 1])) === "0110011", "1011 -> 0110011");
+  console.assert(texto(codificar([1, 1, 0, 0])) === "0111100", "1100 -> 0111100");
+  console.assert(analizar([null, 0, 1, 1, 0, 1, 1, 1]).suma === 5, "0110111 -> posición 5");
+  console.assert(analizar([null, 0, 1, 1, 1, 1, 1, 0]).suma === 6, "0111110 -> posición 6");
+
+  pintar();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-09-hamming.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM15 2h1v1h-1zM20 2h1v1h-1zM25 2h1v1h-1zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM14 3h1v1h-1zM16 3h2v1h-2zM23 3h1v1h-1zM27 3h1v1h-1zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM13 4h1v1h-1zM16 4h3v1h-3zM22 4h2v1h-2zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h5v1h-5zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM16 6h1v1h-1zM19 6h4v1h-4zM24 6h2v1h-2zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h2v1h-2zM15 7h5v1h-5zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h2v1h-2zM13 9h2v1h-2zM19 9h3v1h-3zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM13 10h1v1h-1zM15 10h2v1h-2zM18 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM32 10h5v1h-5zM3 11h1v1h-1zM6 11h2v1h-2zM9 11h1v1h-1zM12 11h1v1h-1zM14 11h1v1h-1zM16 11h2v1h-2zM20 11h4v1h-4zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM4 12h2v1h-2zM8 12h1v1h-1zM10 12h1v1h-1zM12 12h2v1h-2zM16 12h3v1h-3zM22 12h3v1h-3zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h4v1h-4zM9 13h7v1h-7zM17 13h1v1h-1zM22 13h3v1h-3zM26 13h1v1h-1zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h6v1h-6zM13 14h1v1h-1zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h1v1h-1zM4 15h4v1h-4zM11 15h1v1h-1zM13 15h1v1h-1zM15 15h1v1h-1zM18 15h1v1h-1zM20 15h3v1h-3zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM2 16h5v1h-5zM8 16h2v1h-2zM13 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h1v1h-1zM29 16h7v1h-7zM37 16h2v1h-2zM3 17h1v1h-1zM5 17h3v1h-3zM11 17h1v1h-1zM14 17h1v1h-1zM16 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h4v1h-4zM7 18h4v1h-4zM15 18h1v1h-1zM17 18h1v1h-1zM20 18h1v1h-1zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h1v1h-1zM5 19h1v1h-1zM14 19h5v1h-5zM21 19h3v1h-3zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM2 20h1v1h-1zM6 20h1v1h-1zM8 20h2v1h-2zM15 20h1v1h-1zM19 20h2v1h-2zM26 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM4 21h1v1h-1zM6 21h1v1h-1zM10 21h1v1h-1zM15 21h2v1h-2zM18 21h1v1h-1zM20 21h1v1h-1zM22 21h2v1h-2zM26 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM5 22h4v1h-4zM11 22h1v1h-1zM14 22h1v1h-1zM16 22h1v1h-1zM18 22h2v1h-2zM22 22h1v1h-1zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM4 23h4v1h-4zM9 23h3v1h-3zM13 23h1v1h-1zM16 23h1v1h-1zM18 23h5v1h-5zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM4 24h5v1h-5zM12 24h2v1h-2zM15 24h1v1h-1zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h1v1h-1zM7 25h1v1h-1zM10 25h4v1h-4zM15 25h3v1h-3zM19 25h5v1h-5zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h3v1h-3zM7 26h2v1h-2zM15 26h4v1h-4zM21 26h2v1h-2zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM5 27h2v1h-2zM9 27h6v1h-6zM16 27h2v1h-2zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h4v1h-4zM15 28h4v1h-4zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM7 29h1v1h-1zM9 29h2v1h-2zM12 29h2v1h-2zM16 29h2v1h-2zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM5 30h1v1h-1zM7 30h6v1h-6zM16 30h4v1h-4zM21 30h1v1h-1zM24 30h14v1h-14zM10 31h2v1h-2zM13 31h1v1h-1zM15 31h2v1h-2zM18 31h1v1h-1zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM11 32h2v1h-2zM15 32h4v1h-4zM20 32h1v1h-1zM22 32h1v1h-1zM24 32h1v1h-1zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM17 33h2v1h-2zM21 33h5v1h-5zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h4v1h-4zM15 34h1v1h-1zM20 34h2v1h-2zM25 34h3v1h-3zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h2v1h-2zM13 35h2v1h-2zM17 35h2v1h-2zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM38 35h1v1h-1zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h2v1h-2zM13 36h1v1h-1zM19 36h2v1h-2zM23 36h1v1h-1zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h2v1h-2zM15 37h1v1h-1zM18 37h1v1h-1zM21 37h4v1h-4zM26 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM19 38h3v1h-3zM24 38h4v1h-4zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-09-hamming.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

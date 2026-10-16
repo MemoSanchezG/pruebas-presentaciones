@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Efecto pelicular y blindaje</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+  /* Propios de este simulador */
+  @media (max-width: 820px) { .fila { grid-template-columns:minmax(0, 1fr); } }
+  select { max-width:100%; }
+  label output { float:right; color:var(--guinda); font-weight:bold; }
+  canvas + canvas { margin-top:12px; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  .casilla { font-weight:normal; color:var(--tinta); }
+  .casilla input { margin-right:6px; }
+  .presets { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .presets button { font:inherit; font-size:15px; border:1px solid var(--borde); background:#fff; color:var(--azul-oscuro);
+                    border-radius:6px; padding:3px 8px; cursor:pointer; }
+  .presets button:hover, .presets button:focus-visible { border-color:var(--azul); background:var(--azul-claro); outline:none; }
+  .lectura .formula { display:block; margin:2px 0; }
+  .lectura hr { border:none; border-top:1px solid #E3D6BD; margin:8px 0; }
+  .ilustrativo { color:var(--oro-texto); font-style:italic; }
+  .veredicto { margin-top:10px; padding:8px 12px; border-radius:8px; font-weight:bold; font-size:1.05rem; }
+  .veredicto.aislado { background:var(--azul-claro); color:var(--azul-oscuro); border-left:4px solid var(--azul); }
+  .veredicto.fuga { background:var(--guinda-claro); color:var(--guinda); border-left:4px solid var(--guinda); }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 2 · Blindaje electromagnético, conductores y dieléctricos</div>
+  <h1>Efecto pelicular y jaula de Faraday</h1>
+  <p class="sub">La misma profundidad pelicular δ concentra la corriente en la superficie de un cable y decide cuánto absorbe la lámina de una bolsa de Faraday.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Efecto pelicular</button>
+    <button type="button" data-vista="v2" role="tab">2. Jaula de Faraday</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <p class="nota" style="margin-top:0">Material: cobre, σ = 5.8×10⁷ S/m, ρ = 1.72×10⁻⁸ Ω·m, μ = μ<sub>0</sub>.</p>
+        <label for="f1">Frecuencia f <output id="f1v"></output></label>
+        <input id="f1" type="range" min="1" max="10" step="0.01" value="8">
+        <div class="presets" id="pre1"></div>
+        <label for="a1">Radio del alambre a <small>(mm)</small> <output id="a1v"></output></label>
+        <input id="a1" type="range" min="0.05" max="3" step="0.005" value="0.2555">
+        <div class="presets"><button type="button" id="awg24">AWG 24 (a = 0.2555 mm, libro)</button></div>
+        <label for="L1">Longitud L <small>(m)</small> <output id="L1v"></output></label>
+        <input id="L1" type="range" min="1" max="300" step="1" value="100">
+        <div class="lectura" id="lec1">…</div>
+      </div>
+      <div class="panel">
+        <canvas id="corte" aria-label="Corte transversal del alambre con la densidad de corriente concentrada cerca de la superficie y su perfil a lo largo de un diámetro"></canvas>
+        <canvas id="gdelta" aria-label="Gráfica logarítmica de la profundidad pelicular del cobre contra la frecuencia, con el radio del alambre como referencia"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si la frecuencia sube 100 veces, ¿δ se hace 100 veces más pequeña? Compruébalo con 1 MHz y 100 MHz.</li>
+            <li>¿Por debajo de qué frecuencia la corriente usa todo el alambre AWG 24? Busca el cruce de la curva con la línea del radio.</li>
+            <li>Duplica el radio del alambre a 100 MHz. ¿Cuánto baja R<sub>CD</sub>? ¿Y R<sub>CA</sub>?</li>
+            <li>¿Por qué la resistencia en CA de un tramo de Ethernet de 100 m importa para la seguridad de la información?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad.</b> La fórmula R = ρL/A supone corriente uniforme; en CA la corriente se concentra en una corona de espesor δ y la resistencia efectiva sube. Esa resistencia contribuye a la atenuación que limita un enlace Ethernet de par trenzado a 100 m: un tramo más largo provoca errores y retransmisiones, es decir, un problema de <b>disponibilidad</b>. La misma δ fija la absorción de un blindaje (pestaña 2).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles</h2>
+        <label for="senal">Señal</label>
+        <select id="senal"></select>
+        <label for="f2">Frecuencia f <output id="f2v"></output></label>
+        <input id="f2" type="range" min="1" max="10.7" step="0.01" value="9.38">
+        <label for="t2">Espesor de la lámina de cobre t <output id="t2v"></output></label>
+        <input id="t2" type="range" min="0" max="4" step="0.01" value="1.54">
+        <div class="presets">
+          <button type="button" id="t35">35 μm (lámina del libro)</button>
+          <button type="button" id="t1mm">1 mm (jaula del libro)</button>
+        </div>
+        <label for="l2">Abertura más grande ℓ <small>(costura, rejilla)</small> <output id="l2v"></output></label>
+        <input id="l2" type="range" min="0" max="40" step="0.5" value="0">
+        <label class="casilla"><input type="checkbox" id="cable2">Un cable sin filtro atraviesa la bolsa</label>
+        <label for="m2">Margen de la señal del teléfono <output id="m2v"></output></label>
+        <input id="m2" type="range" min="10" max="120" step="5" value="50">
+        <p class="nota ilustrativo">Valor ilustrativo: cuántos dB puede perder la señal antes de que el teléfono quede sin servicio. Depende de la red y del lugar; el libro no da un valor.</p>
+        <div>
+          <button type="button" class="accion" id="llamar">Llamar al teléfono (prueba de aislamiento)</button>
+        </div>
+        <div class="lectura" id="lec2">…</div>
+      </div>
+      <div class="panel">
+        <canvas id="escena2" aria-label="Una onda llega a la lámina de cobre de una bolsa de Faraday: se atenúa dentro de la lámina y puede colarse por una abertura o por un cable"></canvas>
+        <div class="veredicto" id="veredicto"></div>
+        <canvas id="gA" aria-label="Gráfica logarítmica de la absorción de la lámina contra la frecuencia, con las señales comunes marcadas"></canvas>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con la lámina de 35 μm, compara Wi-Fi de 2.4 GHz con el campo de 50 Hz de ODINI. ¿Por qué la misma lámina bloquea una señal y deja pasar la otra?</li>
+            <li>Abre la costura poco a poco con Wi-Fi de 5 GHz y luego con 5G de 28 GHz. ¿Desde qué abertura deja de servir la bolsa en cada caso?</li>
+            <li>Activa el cable sin filtro. ¿Por qué la bolsa deja de aislar aunque la lámina absorba cientos de dB?</li>
+            <li>¿Qué espesor de cobre haría falta para atenuar 20 dB un campo de 1 kHz? ¿Es práctico?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad: custodia de evidencia digital.</b> En informática forense se usan bolsas y jaulas de Faraday para aislar teléfonos, laptops o tarjetas antes de su análisis, de modo que la evidencia no se altere por señales entrantes o salientes durante la custodia (por ejemplo, una orden de borrado remoto). Para verificar el aislamiento se llama al teléfono, o se busca su Wi-Fi o Bluetooth, ya dentro de la bolsa: si responde, la bolsa tiene fugas. Un teléfono aislado busca la red con más potencia y agota antes su batería. Cualquier cable que entre sin filtrar puede comportarse como antena. Las bolsas antiestáticas de los módulos de memoria <b>no</b> son bolsas de Faraday. Y una jaula de Faraday <b>no protege contra ataques cibernéticos</b> en sí misma: si el equipo ya contiene malware o el atacante tiene acceso físico, el blindaje no lo impide. Tampoco detiene los campos magnéticos de baja frecuencia: en el ataque ODINI, un malware modula el campo de menos de 50 Hz de la CPU y un sensor magnético lo capta a través de la jaula (de 1 a 40 bit/s, hasta 1.5 m).
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap01_electricidad.tex (Ecuaciones eq:profundidad-pelicular, eq:resistencia, eq:resistencia-ca, eq:absorcion-blindaje y eq:abertura-max) y fase1/cap02_campos_magneticos.tex (eq:pelicular-blindaje-magnetico). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            oroClaro:"#F7F1E6", guindaClaro:"#F5E6EA" };
+  var MU0 = 4 * Math.PI * 1e-7, SIGMA = 5.8e7, RHO = 1.72e-8, CLUZ = 3e8;
+
+  // Pestañas (también se abre una pestaña directa con #2 al final de la dirección)
+  function activarVista(id) {
+    var b = document.querySelector('nav.pestanas button[data-vista="' + id + '"]');
+    if (!b) return;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+    b.classList.add("activo");
+    document.getElementById(id).classList.add("activo");
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activarVista(b.dataset.vista); dibujarTodo(); });
+  });
+  if (/^#\d$/.test(location.hash)) activarVista("v" + location.hash.slice(1));
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c]; }).join(""); }
+  // Notación científica del libro, sin ceros sobrantes: 2.4×10⁹, 6.61×10⁻⁶
+  function sci(x, cifras) {
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = (x / Math.pow(10, e)).toFixed((cifras || 3) - 1);
+    if (Math.abs(parseFloat(m)) >= 10) { e += 1; m = (x / Math.pow(10, e)).toFixed((cifras || 3) - 1); }
+    if (m.indexOf(".") >= 0) m = m.replace(/0+$/, "").replace(/\.$/, "");
+    return (e === 0 ? m : m + "×10" + sup(e)).replace("-", "−");
+  }
+  // Cifras significativas en notación normal (sin ceros sobrantes)
+  function sig(x, cifras) {
+    if (x === 0) return "0";
+    var dec = Math.max(0, cifras - 1 - Math.floor(Math.log10(Math.abs(x))));
+    var s = num(x, dec);
+    return s.indexOf(".") >= 0 ? s.replace(/0+$/, "").replace(/\.$/, "") : s;
+  }
+  function frec(f) {
+    if (f >= 1e9) return sig(f / 1e9, 4) + " GHz";
+    if (f >= 1e6) return sig(f / 1e6, 4) + " MHz";
+    if (f >= 1e3) return sig(f / 1e3, 3) + " kHz";
+    return sig(f, 3) + " Hz";
+  }
+  function longitud(m, cifras) {
+    cifras = cifras || 3;
+    var a = Math.abs(m);
+    if (a >= 1000) return sig(m / 1000, cifras) + " km";
+    if (a >= 1) return sig(m, cifras) + " m";
+    if (a >= 0.01) return sig(m * 100, cifras) + " cm";
+    if (a >= 1e-3) return sig(m * 1e3, cifras) + " mm";
+    if (a >= 1e-6) return sig(m * 1e6, cifras) + " μm";
+    return sig(m * 1e9, cifras) + " nm";
+  }
+  function ohm(R) { return sig(R, R < 10 ? 3 : (R < 1000 ? 3 : 4)) + " Ω"; }
+  function delta(f) { return Math.sqrt(2 / (2 * Math.PI * f * MU0 * SIGMA)); }
+
+  // ---------------------------------------------------------------- dibujo básico
+  function letra(w) { return Math.max(13, Math.min(17, w / 50)); }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1;
+    if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function flecha(g, x0, y0, x1, y1, color, ancho) {
+    var ang = Math.atan2(y1 - y0, x1 - x0), largo = Math.hypot(x1 - x0, y1 - y0);
+    if (largo < 0.5) return;
+    var p = Math.min(12 + (ancho || 2), largo * 0.55);
+    linea(g, x0, y0, x1 - p * 0.7 * Math.cos(ang), y1 - p * 0.7 * Math.sin(ang), color, ancho);
+    g.save(); g.fillStyle = color; g.beginPath(); g.moveTo(x1, y1);
+    g.lineTo(x1 - p * Math.cos(ang - 0.4), y1 - p * Math.sin(ang - 0.4));
+    g.lineTo(x1 - p * Math.cos(ang + 0.4), y1 - p * Math.sin(ang + 0.4));
+    g.closePath(); g.fill(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color;
+    g.font = (negrita ? "bold " : "") + tam + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {
+    g.save(); g.font = (negrita ? "bold " : "") + tam + "px Calibri, 'Segoe UI', sans-serif";
+    var a = g.measureText(t).width, x0 = alin === "center" ? x - a / 2 : (alin === "right" ? x - a : x);
+    g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(x0 - 4, y - tam * 0.95, a + 8, tam * 1.3); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  function caja(g, x, y, w, h, r, relleno, borde, ancho, guiones) {
+    g.save(); g.beginPath();
+    r = Math.min(r, h / 2, w / 2);
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+    if (relleno) { g.fillStyle = relleno; g.fill(); }
+    if (borde) { g.strokeStyle = borde; g.lineWidth = ancho || 2; if (guiones) g.setLineDash(guiones); g.stroke(); }
+    g.restore();
+  }
+  function mezcla(c1, c2, u) {   // de c1 (u = 0) a c2 (u = 1); colores "#RRGGBB"
+    function rgb(c) { return [parseInt(c.substr(1, 2), 16), parseInt(c.substr(3, 2), 16), parseInt(c.substr(5, 2), 16)]; }
+    var a = rgb(c1), b = rgb(c2);
+    return "rgb(" + [0, 1, 2].map(function (i) { return Math.round(a[i] + (b[i] - a[i]) * u); }).join(",") + ")";
+  }
+  // Ejes log-log comunes
+  function ejeLog(g, izq, der, arr, abj, x0, x1, y0, y1, fs, etiquetaX, etiquetaY, fmtX, fmtY) {
+    function X(v) { return izq + (Math.log10(v) - x0) / (x1 - x0) * (der - izq); }
+    function Y(v) { return abj - (Math.log10(v) - y0) / (y1 - y0) * (abj - arr); }
+    for (var e = Math.ceil(x0); e <= Math.floor(x1); e++) {
+      linea(g, X(Math.pow(10, e)), arr, X(Math.pow(10, e)), abj, "#E6E9EF", 1);
+      if (fmtX(e)) texto(g, fmtX(e), X(Math.pow(10, e)), abj + fs + 4, C.gris, fs - 1, "center");
+    }
+    for (var k = Math.ceil(y0); k <= Math.floor(y1); k++) {
+      linea(g, izq, Y(Math.pow(10, k)), der, Y(Math.pow(10, k)), "#E6E9EF", 1);
+      texto(g, fmtY(k), izq - 6, Y(Math.pow(10, k)) + fs * 0.35, C.gris, fs - 1, "right");
+    }
+    linea(g, izq, abj, der, abj, C.gris, 1.5); linea(g, izq, arr, izq, abj, C.gris, 1.5);
+    texto(g, etiquetaX, der, abj + fs * 2.4, C.gris, fs, "right");
+    texto(g, etiquetaY, izq, arr - 6, C.gris, fs, "left");
+    return { X: X, Y: Y };
+  }
+  function fmtFrecDec(e) { return ["1 Hz", "10 Hz", "100 Hz", "1 kHz", "10 kHz", "100 kHz", "1 MHz", "10 MHz", "100 MHz", "1 GHz", "10 GHz", "100 GHz"][e]; }
+
+  // =================================================================== VISTA 1
+  var PRE1 = [[60, "60 Hz"], [1e3, "1 kHz"], [1e6, "1 MHz"], [10e6, "10 MHz"], [100e6, "100 MHz"], [2.4e9, "2.4 GHz"]];
+  var A_AWG24 = 0.2555;   // mm
+  var v1 = { f: 100e6, a: A_AWG24, L: 100 };
+  var in1 = { f: document.getElementById("f1"), a: document.getElementById("a1"), L: document.getElementById("L1") };
+  var cvCorte = document.getElementById("corte"), cvDelta = document.getElementById("gdelta");
+  PRE1.forEach(function (p) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = p[1];
+    b.addEventListener("click", function () { v1.f = p[0]; actualizar1(); });
+    document.getElementById("pre1").appendChild(b);
+  });
+  in1.f.addEventListener("input", function () { v1.f = Math.pow(10, Number(in1.f.value)); actualizar1(); });
+  in1.a.addEventListener("input", function () { v1.a = Number(in1.a.value); actualizar1(); });
+  in1.L.addEventListener("input", function () { v1.L = Number(in1.L.value); actualizar1(); });
+  document.getElementById("awg24").addEventListener("click", function () { v1.a = A_AWG24; actualizar1(); });
+
+  function calculo1() {
+    var a = v1.a * 1e-3, d = delta(v1.f), Rcd = RHO * v1.L / (Math.PI * a * a), Rcorona = RHO * v1.L / (2 * Math.PI * a * d);
+    var razon = d / a, valida = razon < 0.5;
+    return { a: a, d: d, Rcd: Rcd, Rca: valida ? Rcorona : Rcd, Rcorona: Rcorona, razon: razon, valida: valida };
+  }
+
+  function dibujarCorte() {
+    var angosto = cvCorte.clientWidth < 600;
+    var dd = preparar(cvCorte, angosto ? 1.15 : 0.42), g = dd.g, w = dd.w, h = dd.h, fs = letra(w);
+    var c = calculo1();
+    // corte transversal (izquierda o arriba)
+    var R, cx, cy;
+    if (!angosto) { R = Math.min(h * 0.40, w * 0.2); cx = w * 0.24; cy = h * 0.5; }
+    else { R = Math.min(w * 0.26, h * 0.2); cx = w * 0.5; cy = h * 0.26; }
+    var N = 160;
+    for (var i = 0; i <= N; i++) {
+      var r = R * (1 - i / N), prof = (R - r) / R * c.a, J = Math.exp(-prof / c.d);
+      g.beginPath(); g.arc(cx, cy, r, 0, 2 * Math.PI); g.fillStyle = mezcla("#FFFFFF", C.azul, J); g.fill();
+    }
+    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 2 * Math.PI); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.stroke(); g.restore();
+    if (c.razon < 1) {
+      var rd = R * (1 - c.razon);
+      g.save(); g.beginPath(); g.arc(cx, cy, Math.max(rd, 0), 0, 2 * Math.PI); g.strokeStyle = C.guinda; g.lineWidth = 2; g.setLineDash([6, 4]); g.stroke(); g.restore();
+    }
+    etiqueta(g, "a = " + sig(v1.a, 4) + " mm", cx, cy + R + fs + 8, C.tinta, fs, "center", true);
+    etiqueta(g, "δ = " + longitud(c.d, 3) + (c.razon >= 1 ? " (mayor que a)" : ""), cx, cy - R - 10, C.guinda, fs, "center", true);
+    if (!angosto) texto(g, "corte del alambre (a escala)", 10, fs + 4, C.gris, fs - 1, "left");
+    else texto(g, "corte del alambre (a escala)", cx, cy + R + 2 * fs + 10, C.gris, fs - 1, "center");
+    // perfil contra la profundidad x desde la superficie (acercamiento a los primeros 5δ)
+    var izq, der, arr, abj;
+    if (!angosto) { izq = w * 0.53; der = w - 20; arr = h * 0.16; abj = h * 0.78; }
+    else { izq = w * 0.12; der = w - 14; arr = h * 0.62; abj = h * 0.82; }
+    var xMax = Math.min(c.a, 5 * c.d), alCentro = xMax >= c.a;
+    function X(x) { return izq + x / xMax * (der - izq); }
+    function Y(j) { return abj - j * (abj - arr); }
+    linea(g, izq, abj, der, abj, C.gris, 1.5); linea(g, izq, arr - 4, izq, abj, C.gris, 1.5);
+    [0.25, 0.5, 0.75, 1].forEach(function (j) { linea(g, izq, Y(j), der, Y(j), "#EEF0F4", 1); });
+    texto(g, "1", izq - 6, Y(1) + fs * 0.35, C.gris, fs - 1, "right");
+    texto(g, "0.5", izq - 6, Y(0.5) + fs * 0.35, C.gris, fs - 1, "right");
+    texto(g, "0", izq - 6, Y(0) + fs * 0.35, C.gris, fs - 1, "right");
+    texto(g, "J / J en la superficie ≈ e^(−x/δ)", izq, arr - 10, C.gris, fs - 1, "left");
+    // marcas en múltiplos de δ
+    for (var m = 0; m <= 5; m++) {
+      var xm = m * c.d;
+      if (xm > xMax * 1.0001) break;
+      linea(g, X(xm), abj, X(xm), abj + 5, C.gris, 1.5);
+      texto(g, m === 0 ? "superficie" : (m === 1 ? "δ" : m + "δ"), X(xm), abj + fs + 6, m === 1 ? C.guinda : C.gris, fs - 1, m === 0 ? "left" : "center", "alphabetic", m === 1);
+    }
+    if (alCentro) texto(g, "centro", X(c.a), abj + fs + 6, C.gris, fs - 1, "right");
+    texto(g, "x (" + (alCentro ? "hasta el centro del alambre" : (angosto ? "primeros 5δ = " : "acercamiento: primeros 5δ = ") + longitud(5 * c.d, 3)) + ")", der, abj + 2 * fs + 10, C.gris, fs - 1, "right");
+    // curva J = e^(−x/δ) con la zona de la corona sombreada
+    g.save(); g.beginPath(); g.moveTo(X(0), Y(0));
+    var lim = Math.min(c.d, xMax);
+    for (var k = 0; k <= 100; k++) { var xs = lim * k / 100; g.lineTo(X(xs), Y(Math.exp(-xs / c.d))); }
+    g.lineTo(X(lim), Y(0)); g.closePath(); g.fillStyle = "rgba(140,29,53,0.15)"; g.fill(); g.restore();
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    for (var k2 = 0; k2 <= 300; k2++) { var x2 = xMax * k2 / 300, y2 = Y(Math.exp(-x2 / c.d)); if (k2 === 0) g.moveTo(X(x2), y2); else g.lineTo(X(x2), y2); }
+    g.stroke(); g.restore();
+    if (c.d <= xMax) {
+      var y37 = Y(Math.exp(-1));
+      linea(g, X(c.d), y37, X(c.d), abj, C.guinda, 1.5, [5, 4]);
+      g.save(); g.beginPath(); g.arc(X(c.d), y37, 6, 0, 2 * Math.PI); g.fillStyle = C.guinda; g.fill(); g.restore();
+      etiqueta(g, "en x = δ, J cae a 37 %", X(c.d) + 10, y37 - 8, C.guinda, fs - 1, "left", true);
+    }
+    var nota = c.valida ? (c.razon < 0.1 ? "La corriente circula en una corona de espesor ≈ δ" : "δ no es mucho menor que a: aproximación gruesa")
+                        : "δ comparable o mayor que a: la corriente ocupa casi todo el alambre";
+    texto(g, nota, angosto ? w / 2 : (izq + der) / 2, h - 8, c.valida ? C.azulOscuro : C.guinda, fs - 1, "center", "alphabetic", true);
+  }
+
+  function dibujarDelta() {
+    var angosto = cvDelta.clientWidth < 600;
+    var dd = preparar(cvDelta, angosto ? 0.8 : 0.36), g = dd.g, w = dd.w, h = dd.h, fs = letra(w);
+    var izq = 14 + fs * 3.8, der = w - 34, arr = fs * 1.8, abj = h - fs * 2.8;
+    var ax = ejeLog(g, izq, der, arr, abj, 1, 10, -7, -1, fs, "frecuencia", "profundidad pelicular δ del cobre",
+      function (e) { return angosto && e % 3 ? "" : fmtFrecDec(e); },
+      function (k) { return { "-7": "0.1 μm", "-6": "1 μm", "-5": "10 μm", "-4": "0.1 mm", "-3": "1 mm", "-2": "1 cm", "-1": "10 cm" }[k]; });
+    // radio del alambre
+    var a = v1.a * 1e-3, ya = ax.Y(a);
+    linea(g, izq, ya, der, ya, C.oroTexto, 2, [8, 5]);
+    etiqueta(g, "radio a = " + sig(v1.a, 4) + " mm", der - 4, ya - 6, C.oroTexto, fs - 1, "right", true);
+    // curva δ(f)
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    for (var i = 0; i <= 300; i++) { var f = Math.pow(10, 1 + 9 * i / 300), y = ax.Y(delta(f)); if (i === 0) g.moveTo(ax.X(f), y); else g.lineTo(ax.X(f), y); }
+    g.stroke(); g.restore();
+    // puntos del libro
+    [[60, "60 Hz"], [1e3, "1 kHz"], [1e6, "1 MHz"], [100e6, "100 MHz"], [2.4e9, "2.4 GHz"]].forEach(function (p) {
+      g.save(); g.beginPath(); g.arc(ax.X(p[0]), ax.Y(delta(p[0])), 4, 0, 2 * Math.PI); g.fillStyle = C.gris; g.fill(); g.restore();
+    });
+    var fx = ax.X(v1.f), fy = ax.Y(delta(v1.f));
+    linea(g, fx, fy, fx, abj, C.guinda, 1.5, [4, 4]);
+    g.save(); g.beginPath(); g.arc(fx, fy, 8, 0, 2 * Math.PI); g.fillStyle = C.guinda; g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.restore();
+    var alDer = fx < (izq + der) * 0.62;
+    etiqueta(g, frec(v1.f) + ": δ = " + longitud(delta(v1.f), 3), fx + (alDer ? 12 : -12), fy - 10, C.guinda, fs, alDer ? "left" : "right", true);
+  }
+
+  function lectura1() {
+    var c = calculo1(), w = 2 * Math.PI * v1.f;
+    var h = "<b>Profundidad pelicular</b> (Ec. eq:profundidad-pelicular)" +
+      "<span class='formula'>δ = √(2 / (ωμσ)), ω = 2πf = " + sci(w, 3) + " rad/s</span>" +
+      "<span class='formula'>δ = √(2 / [(" + sci(w, 3) + ")(4π×10⁻⁷)(5.8×10⁷)])</span>" +
+      "<span class='formula'>δ = <b>" + longitud(c.d, 3) + "</b></span>" +
+      "δ / a = " + sig(c.razon, 3) + "<hr>" +
+      "<b>Resistencia en corriente directa</b> (Ec. eq:resistencia)" +
+      "<span class='formula'>R<sub>CD</sub> = ρL / (πa²) = 1.72×10⁻⁸ · " + v1.L + " / [π(" + sci(c.a, 4) + ")²]</span>" +
+      "<span class='formula'>R<sub>CD</sub> = <b>" + ohm(c.Rcd) + "</b></span><hr>" +
+      "<b>Resistencia en corriente alterna</b> (Ec. eq:resistencia-ca)";
+    if (c.valida) {
+      h += "<span class='formula'>R<sub>CA</sub> ≈ ρL / (2πaδ) = 1.72×10⁻⁸ · " + v1.L + " / [2π(" + sci(c.a, 4) + ")(" + sci(c.d, 3) + ")]</span>" +
+        "<span class='formula'>R<sub>CA</sub> ≈ <b>" + ohm(c.Rca) + "</b></span>" +
+        "R<sub>CA</sub> / R<sub>CD</sub> = a / (2δ) = <b>" + sig(c.Rca / c.Rcd, 3) + "</b> veces" +
+        (c.razon < 0.1 ? "<br><span class='ok'>δ ≪ a: la aproximación de la corona es buena.</span>"
+                       : "<br><span class='mal'>δ no es mucho menor que a: aproximación gruesa.</span>");
+    } else {
+      h += "<br><span class='mal'>δ ≥ a/2: la fórmula de la corona no aplica (daría " + ohm(c.Rcorona) + ", menos que R<sub>CD</sub>).</span>" +
+        "<br>La corriente ocupa casi todo el alambre: R<sub>CA</sub> ≈ R<sub>CD</sub> = <b>" + ohm(c.Rcd) + "</b>";
+    }
+    document.getElementById("lec1").innerHTML = h;
+  }
+  function sincronizar1() {
+    in1.f.value = Math.log10(v1.f); in1.a.value = v1.a; in1.L.value = v1.L;
+    document.getElementById("f1v").textContent = frec(v1.f);
+    document.getElementById("a1v").textContent = sig(v1.a, 4) + " mm";
+    document.getElementById("L1v").textContent = v1.L + " m";
+  }
+  function actualizar1() { sincronizar1(); lectura1(); dibujarCorte(); dibujarDelta(); }
+
+  // =================================================================== VISTA 2
+  var SENALES = [
+    { id: "odini", f: 50, nombre: "Campo magnético de una CPU (ODINI), 50 Hz", mag: true },
+    { id: "red", f: 60, nombre: "Línea de energía, 60 Hz", mag: true },
+    { id: "k1", f: 1e3, nombre: "Campo magnético de 1 kHz", mag: true },
+    { id: "fm", f: 100e6, nombre: "Radio FM, 100 MHz" },
+    { id: "cel", f: 900e6, nombre: "Celular, 900 MHz" },
+    { id: "gps", f: 1575.42e6, nombre: "GPS L1, 1575.42 MHz" },
+    { id: "wifi24", f: 2.4e9, nombre: "Wi-Fi, 2.4 GHz" },
+    { id: "g5fr1", f: 3.5e9, nombre: "5G, 3.5 GHz" },
+    { id: "wifi5", f: 5e9, nombre: "Wi-Fi, 5 GHz" },
+    { id: "mm28", f: 28e9, nombre: "5G de ondas milimétricas, 28 GHz" },
+    { id: "otra", f: null, nombre: "Otra frecuencia (usa el control)" }
+  ];
+  var selSenal = document.getElementById("senal");
+  SENALES.forEach(function (s) { var o = document.createElement("option"); o.value = s.id; o.textContent = s.nombre; selSenal.appendChild(o); });
+  var INI2 = { senal: "wifi24", f: 2.4e9, t: 35e-6, l: 0, cable: false, margen: 50 };
+  var v2 = { senal: "wifi24", f: 2.4e9, t: 35e-6, l: 0, cable: false, margen: 50, llamada: null };
+  var in2 = { f: document.getElementById("f2"), t: document.getElementById("t2"), l: document.getElementById("l2"),
+              cable: document.getElementById("cable2"), m: document.getElementById("m2") };
+  var cvEsc = document.getElementById("escena2"), cvA = document.getElementById("gA");
+
+  function senalActual() { for (var i = 0; i < SENALES.length; i++) if (SENALES[i].id === v2.senal) return SENALES[i]; return SENALES[SENALES.length - 1]; }
+  function esMagnetica() { var s = senalActual(); return s.f ? !!s.mag : v2.f < 1e5; }
+  selSenal.addEventListener("change", function () {
+    v2.senal = selSenal.value; var s = senalActual(); if (s.f) v2.f = s.f; v2.llamada = null; actualizar2();
+  });
+  in2.f.addEventListener("input", function () { v2.f = Math.pow(10, Number(in2.f.value)); v2.senal = "otra"; v2.llamada = null; actualizar2(); });
+  in2.t.addEventListener("input", function () { v2.t = Math.pow(10, Number(in2.t.value)) * 1e-6; v2.llamada = null; actualizar2(); });
+  in2.l.addEventListener("input", function () { v2.l = Number(in2.l.value) * 1e-3; v2.llamada = null; actualizar2(); });
+  in2.cable.addEventListener("change", function () { v2.cable = in2.cable.checked; v2.llamada = null; actualizar2(); });
+  in2.m.addEventListener("input", function () { v2.margen = Number(in2.m.value); v2.llamada = null; actualizar2(); });
+  document.getElementById("t35").addEventListener("click", function () { v2.t = 35e-6; v2.llamada = null; actualizar2(); });
+  document.getElementById("t1mm").addEventListener("click", function () { v2.t = 1e-3; v2.llamada = null; actualizar2(); });
+  document.getElementById("llamar").addEventListener("click", function () {
+    if (esMagnetica()) return;
+    v2.llamada = calculo2().suena ? "suena" : "nosuena"; actualizar2();
+  });
+
+  function calculo2() {
+    var lam = CLUZ / v2.f, lmax = lam / 20, d = delta(v2.f), A = 8.686 * v2.t / d, campo = Math.pow(10, -A / 20);
+    var mag = esMagnetica(), fugaAb = !mag && v2.l > 0 && v2.l >= lmax, fugaCable = !mag && v2.cable;
+    var causa, suena;
+    if (mag) { causa = "magnetico"; suena = null; }
+    else if (fugaCable) { causa = "cable"; suena = true; }
+    else if (fugaAb) { causa = "abertura"; suena = true; }
+    else if (A < v2.margen) { causa = "delgada"; suena = true; }
+    else { causa = "aislado"; suena = false; }
+    var barras = 0;
+    if (!mag) barras = causa === "aislado" ? 0 : (causa === "delgada" ? Math.max(1, Math.round(4 * (1 - A / v2.margen))) : 3);
+    return { lam: lam, lmax: lmax, d: d, A: A, campo: campo, mag: mag, fugaAb: fugaAb, causa: causa, suena: suena, barras: barras };
+  }
+
+  // Escena: la onda llega a la lámina; dentro decae como e^(−t/δ); puede colarse por la abertura o por un cable
+  var fase = 0;
+  function dibujarEscena2() {
+    var angosto = cvEsc.clientWidth < 600;
+    var dd = preparar(cvEsc, angosto ? 0.82 : 0.40), g = dd.g, w = dd.w, h = dd.h, fs = letra(w);
+    var c = calculo2(), mag = c.mag;
+    var xw = w * 0.5, grosor = Math.max(10, Math.min(40, 14 + 6.5 * Math.log10(v2.t / 1e-6)));
+    var arriba = h * 0.16, abajo = h * 0.86, yc = h * 0.52, A0 = h * 0.17, lamPx = Math.max(36, w * 0.06);
+    // recinto: bolsa (derecha) para radio; jaula (izquierda) para el campo de la CPU
+    var dentroDer = !mag;
+    var rx0 = dentroDer ? xw : w * 0.03, rx1 = dentroDer ? w * 0.97 : xw + grosor;
+    caja(g, rx0, arriba, rx1 - rx0, abajo - arriba, 14, dentroDer ? C.azulClaro : C.azulClaro, null);
+    if (dentroDer) texto(g, angosto ? "dentro de la bolsa" : "dentro de la bolsa de Faraday", w * 0.97 - 8, arriba + fs + 4, C.azulOscuro, fs - 1, "right", "alphabetic", true);
+    else texto(g, angosto ? "dentro de la jaula" : "dentro de la jaula de Faraday", w * 0.03 + 8, arriba + fs + 4, C.azulOscuro, fs - 1, "left", "alphabetic", true);
+    texto(g, "fuera", dentroDer ? w * 0.25 : w * 0.76, arriba + fs + 4, C.gris, fs - 1, "center", "alphabetic", true);
+    // abertura (hueco en la parte alta de la pared)
+    var hueco = v2.l > 0 ? Math.max(6, Math.min(abajo - arriba - 40, 6 + v2.l * 1e3 * 2.2)) : 0;
+    var yh0 = arriba + 10, yh1 = yh0 + hueco;
+    // pared de cobre
+    g.save(); g.fillStyle = C.oro;
+    g.fillRect(xw, arriba, grosor, (hueco ? yh0 : abajo) - arriba);
+    if (hueco) g.fillRect(xw, yh1, grosor, abajo - yh1);
+    g.restore();
+    etiqueta(g, "cobre, t = " + longitud(v2.t, 3), xw + grosor / 2, abajo + fs + 6, C.oroTexto, fs - 1, "center", true);
+    // fuente y receptor
+    var xs = w * 0.08, xr = w * 0.88;
+    if (!mag) {
+      linea(g, xs, yc + h * 0.16, xs, yc - h * 0.06, C.azulOscuro, 3);
+      linea(g, xs - 12, yc + h * 0.16, xs, yc - h * 0.06, C.azulOscuro, 2); linea(g, xs + 12, yc + h * 0.16, xs, yc - h * 0.06, C.azulOscuro, 2);
+      texto(g, "antena", xs, yc + h * 0.16 + fs + 2, C.azulOscuro, fs - 1, "center", "alphabetic", true);
+    } else {
+      caja(g, xs - 22, yc - 22, 44, 44, 6, C.azulOscuro, null);
+      texto(g, "CPU", xs, yc + 1, "#fff", fs - 1, "center", "middle", true);
+    }
+    // onda incidente (sin escala): de la fuente a la pared
+    var x0 = xs + 26;
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 2.5; g.beginPath();
+    for (var x = x0; x <= xw; x += 2) { var y = yc - A0 * Math.sin(2 * Math.PI * (x - x0) / lamPx - fase); if (x === x0) g.moveTo(x, y); else g.lineTo(x, y); }
+    g.stroke(); g.restore();
+    // dentro de la pared: envolvente e^(−t/δ) dibujada a lo ancho del grosor
+    var frac = c.campo;
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 1.5; g.setLineDash([3, 3]); g.beginPath();
+    for (var k = 0; k <= 20; k++) { var xx = xw + grosor * k / 20, env = A0 * Math.pow(frac, k / 20); if (k === 0) g.moveTo(xx, yc - env); else g.lineTo(xx, yc - env); }
+    g.stroke(); g.restore();
+    // onda transmitida
+    var At = A0 * frac;
+    g.save(); g.strokeStyle = At > 1 ? C.azul : "#A8AFBA"; g.lineWidth = 2.5; g.beginPath();
+    for (var x2 = xw + grosor; x2 <= xr - 26; x2 += 2) { var y2 = yc - At * Math.sin(2 * Math.PI * (x2 - x0) / lamPx - fase); if (x2 === xw + grosor) g.moveTo(x2, y2); else g.lineTo(x2, y2); }
+    g.stroke(); g.restore();
+    var txtTrans = frac > 0.01 ? "pasa el " + sig(100 * frac, 3) + " % del campo" : "pasa ≈ 0 % del campo";
+    etiqueta(g, txtTrans, xr - 40, yc + A0 + fs + 6, frac > 0.01 ? C.azulOscuro : C.gris, fs - 1, "right", true);
+    // fuga por la abertura
+    if (hueco) {
+      var ymid = (yh0 + yh1) / 2;
+      if (c.fugaAb) {
+        for (var r = 1; r <= 3; r++) {
+          g.save(); g.beginPath(); g.arc(xw + grosor, ymid, r * 12, -Math.PI / 2.4, Math.PI / 2.4);
+          g.strokeStyle = C.guinda; g.lineWidth = 2.5; g.globalAlpha = 1 - r * 0.2; g.stroke(); g.restore();
+        }
+        etiqueta(g, "fuga: ℓ ≥ λ/20", xw + grosor + 44, ymid + 5, C.guinda, fs - 1, "left", true);
+      } else if (!mag) {
+        etiqueta(g, "ℓ < λ/20", xw + grosor + 8, ymid + 5, C.gris, fs - 2, "left");
+      }
+    }
+    // cable sin filtro
+    if (v2.cable && !mag) {
+      var yC = abajo - 10;
+      linea(g, w * 0.3, yC, xr - 30, yC, "#333", 3.5);
+      for (var q = 1; q <= 3; q++) {
+        g.save(); g.beginPath(); g.arc(xw + grosor + 50, yC, q * 9, Math.PI * 1.1, Math.PI * 1.9);
+        g.strokeStyle = C.guinda; g.lineWidth = 2; g.globalAlpha = 1 - q * 0.22; g.stroke(); g.restore();
+      }
+      etiqueta(g, "cable sin filtro = antena", w * 0.3, yC - 10, C.guinda, fs - 1, "left", true);
+    }
+    // receptor: teléfono con barras (ilustrativas) o sensor magnético
+    if (!mag) {
+      var tw = Math.max(34, w * 0.045), th = tw * 1.9;
+      caja(g, xr - tw / 2, yc - th / 2, tw, th, 7, "#fff", C.azulOscuro, 2.5);
+      for (var b = 0; b < 4; b++) {
+        var bh = (b + 1) * th * 0.09;
+        g.fillStyle = b < c.barras ? C.azul : "#D5DAE2";
+        g.fillRect(xr - tw * 0.32 + b * tw * 0.17, yc - th * 0.12 - bh, tw * 0.12, bh);
+      }
+      texto(g, c.barras ? "con señal" : "sin servicio", xr, yc + th / 2 + fs + 4, c.barras ? C.azulOscuro : C.guinda, fs - 1, "center", "alphabetic", true);
+      texto(g, "teléfono", xr, yc - th / 2 - 6, C.gris, fs - 2, "center");
+    } else {
+      g.save(); g.beginPath(); g.arc(xr, yc, 22, 0, 2 * Math.PI); g.fillStyle = "#fff"; g.fill(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2.5; g.stroke(); g.restore();
+      texto(g, "B", xr, yc + 1, C.azulOscuro, fs + 2, "center", "middle", true);
+      texto(g, "sensor magnético", xr, yc + 22 + fs + 4, C.azulOscuro, fs - 1, "center", "alphabetic", true);
+    }
+    texto(g, frec(v2.f) + " · λ = " + longitud(c.lam, 3) + " (dibujo sin escala)", 10, h - 8, C.gris, fs - 2, "left");
+    // globo de la llamada de prueba
+    if (v2.llamada && !mag) {
+      var msj = v2.llamada === "suena" ? "¡Ring! Suena: la bolsa tiene fugas" : "No suena: aislamiento verificado";
+      g.save(); g.font = "bold " + fs + "px Calibri, 'Segoe UI', sans-serif"; var ancho = g.measureText(msj).width + 24; g.restore();
+      var bx = Math.min(w - ancho - 8, Math.max(8, xr - ancho / 2 - 30));
+      caja(g, bx, h * 0.03, ancho, fs * 1.9, 10, v2.llamada === "suena" ? C.guinda : C.azul, null);
+      texto(g, msj, bx + ancho / 2, h * 0.03 + fs * 0.95, "#fff", fs, "center", "middle", true);
+    }
+  }
+
+  function dibujarA() {
+    var angosto = cvA.clientWidth < 600;
+    var dd = preparar(cvA, angosto ? 0.85 : 0.36), g = dd.g, w = dd.w, h = dd.h, fs = letra(w);
+    var izq = 14 + fs * 3.6, der = w - 34, arr = fs * 1.8, abj = h - fs * 2.8;
+    var ax = ejeLog(g, izq, der, arr, abj, 1, 11, -3, 5, fs, "frecuencia", "absorción A de la lámina (dB)",
+      function (e) { return angosto && e % 3 ? "" : fmtFrecDec(e); },
+      function (k) { return { "-3": "0.001", "-2": "0.01", "-1": "0.1", "0": "1", "1": "10", "2": "100", "3": "1000", "4": "10 000", "5": "100 000" }[k]; });
+    // zona en la que δ > t (la lámina mide menos que δ)
+    var fCruce = 2 / (2 * Math.PI * MU0 * SIGMA * v2.t * v2.t);   // δ = t
+    if (fCruce > 10) {
+      var xc = ax.X(Math.min(fCruce, 1e11));
+      g.save(); g.fillStyle = C.guindaClaro; g.fillRect(izq + 1, arr, xc - izq - 1, abj - arr - 1); g.restore();
+      if (xc - izq > 120) texto(g, "δ > t: la lámina mide menos que δ", izq + 8, abj - 8, C.guinda, fs - 1, "left", "alphabetic", true);
+    }
+    // margen ilustrativo
+    if (!esMagnetica()) {
+      var ym = ax.Y(v2.margen);
+      linea(g, izq, ym, der, ym, C.oroTexto, 1.5, [7, 5]);
+      etiqueta(g, "margen ilustrativo: " + v2.margen + " dB", izq + 8, ym - 6, C.oroTexto, fs - 1, "left");
+    }
+    // curva A(f) para el espesor actual
+    g.save(); g.beginPath(); g.rect(izq, arr, der - izq, abj - arr); g.clip();
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    for (var i = 0; i <= 300; i++) { var f = Math.pow(10, 1 + 10 * i / 300), y = ax.Y(Math.max(1e-4, 8.686 * v2.t / delta(f))); if (i === 0) g.moveTo(ax.X(f), y); else g.lineTo(ax.X(f), y); }
+    g.stroke(); g.restore();
+    // señales de la lista
+    SENALES.forEach(function (s) {
+      if (!s.f) return;
+      var A = 8.686 * v2.t / delta(s.f), y = ax.Y(Math.min(Math.max(A, 1.1e-3), 9e4));
+      g.save(); g.beginPath(); g.arc(ax.X(s.f), y, 4, 0, 2 * Math.PI); g.fillStyle = s.mag ? C.guinda : C.gris; g.fill(); g.restore();
+    });
+    var c = calculo2(), fx = ax.X(v2.f), fy = ax.Y(Math.min(Math.max(c.A, 1.1e-3), 9e4));
+    g.save(); g.beginPath(); g.arc(fx, fy, 8, 0, 2 * Math.PI); g.fillStyle = C.guinda; g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.restore();
+    var alDer = fx < (izq + der) * 0.6;
+    etiqueta(g, frec(v2.f) + ": A ≈ " + sig(c.A, 3) + " dB", fx + (alDer ? 12 : -12), fy - 10, C.guinda, fs, alDer ? "left" : "right", true);
+  }
+
+  function potencia10(A) {
+    var e = A / 10;
+    if (e < 3) return sig(Math.pow(10, e), 3);
+    return "10<sup>" + sig(e, 3) + "</sup>";
+  }
+  function lectura2() {
+    var c = calculo2(), s = senalActual();
+    var h = "<b>" + (s.f ? s.nombre : "Frecuencia elegida") + "</b>";
+    if (!c.mag) {
+      h += "<span class='formula'>λ = c / f = 3×10⁸ / " + sci(v2.f, 4) + " = " + longitud(c.lam, 3) + "</span>" +
+        "<span class='formula'>ℓ<sub>máx</sub> ≈ λ / 20 = " + longitud(c.lmax, 3) + "</span>" +
+        "Abertura de " + (v2.l > 0 ? longitud(v2.l, 3) : "0 mm (sellada)") + ": " +
+        (c.fugaAb ? "<span class='mal'>no cumple, deja pasar la onda</span>" : "<span class='ok'>cumple</span>") + " (Ec. eq:abertura-max)<hr>";
+    } else {
+      h += "<br>Campo magnético de baja frecuencia: λ = " + longitud(c.lam, 3) + "; aquí lo que importa es δ.<hr>";
+    }
+    h += "<b>Absorción de la lámina</b> (Ec. eq:absorcion-blindaje)" +
+      "<span class='formula'>δ = √(2 / (ωμσ)) = " + longitud(c.d, 3) + "</span>" +
+      "<span class='formula'>A ≈ 8.686 · t / δ = 8.686 × " + longitud(v2.t, 3) + " / " + longitud(c.d, 3) + "</span>" +
+      "<span class='formula'>A ≈ <b>" + sig(c.A, 3) + " dB</b></span>" +
+      "La potencia que cruza la lámina se divide entre 10<sup>A/10</sup> = " + potencia10(c.A) +
+      "; el campo, entre 10<sup>A/20</sup>: pasa el " + (c.campo > 1e-4 ? sig(100 * c.campo, 3) : "≈ 0") + " %." +
+      "<br>SE = A + R ≥ A: la pérdida por reflexión R se suma, pero aquí no se calcula (el libro no da su fórmula).";
+    document.getElementById("lec2").innerHTML = h;
+    // veredicto
+    var v = document.getElementById("veredicto"), txt, clase;
+    if (c.mag) {
+      clase = c.campo > 0.5 ? "fuga" : "aislado";
+      txt = c.campo > 0.5 ? "El campo atraviesa la lámina casi intacto: un sensor afuera lo capta (por eso ODINI escapa de la jaula). Detenerlo exige materiales de alta permeabilidad, como el mu-metal, o distancia."
+                          : "La lámina atenúa este campo, pero con un espesor poco práctico para una jaula.";
+    } else if (c.causa === "cable") { clase = "fuga"; txt = "El teléfono conserva señal: el cable sin filtro actúa como antena y mete la señal a la bolsa." + (c.fugaAb ? " Además, la abertura de " + longitud(v2.l, 3) + " es mayor que λ/20 = " + longitud(c.lmax, 3) + "." : ""); }
+    else if (c.causa === "abertura") { clase = "fuga"; txt = "El teléfono conserva señal: la abertura de " + longitud(v2.l, 3) + " es mayor que λ/20 = " + longitud(c.lmax, 3) + ". La eficacia real la fija la abertura, no la lámina."; }
+    else if (c.causa === "delgada") { clase = "fuga"; txt = "El teléfono conserva señal: a esta frecuencia la lámina absorbe solo " + sig(c.A, 3) + " dB, menos que el margen ilustrativo de " + v2.margen + " dB."; }
+    else { clase = "aislado"; txt = "El teléfono queda aislado: sin aberturas mayores que λ/20 ni cables, la lámina absorbe " + sig(c.A, 3) + " dB."; }
+    v.className = "veredicto " + clase; v.textContent = txt;
+    var bl = document.getElementById("llamar"); bl.disabled = c.mag;
+    bl.textContent = c.mag ? "Llamar al teléfono (solo con señales de radio)" : "Llamar al teléfono (prueba de aislamiento)";
+  }
+  function sincronizar2() {
+    selSenal.value = v2.senal; in2.f.value = Math.log10(v2.f); in2.t.value = Math.log10(v2.t * 1e6);
+    in2.l.value = v2.l * 1e3; in2.cable.checked = v2.cable; in2.m.value = v2.margen;
+    document.getElementById("f2v").textContent = frec(v2.f);
+    document.getElementById("t2v").textContent = longitud(v2.t, 3);
+    document.getElementById("l2v").textContent = v2.l > 0 ? longitud(v2.l, 3) : "sellada";
+    document.getElementById("m2v").textContent = v2.margen + " dB";
+  }
+  function actualizar2() { sincronizar2(); lectura2(); dibujarEscena2(); dibujarA(); }
+
+  // Animación suave de la onda (solo mientras la pestaña 2 está a la vista)
+  var ultimo = null;
+  function cuadro(ahora) {
+    if (document.getElementById("v2").classList.contains("activo")) {
+      if (ultimo !== null) fase += Math.min(0.1, (ahora - ultimo) / 1000) * 3;
+      dibujarEscena2();
+    }
+    ultimo = ahora;
+    requestAnimationFrame(cuadro);
+  }
+
+  // ---------------------------------------------------------------- todo
+  function dibujarTodo() { actualizar1(); actualizar2(); }
+  var temporizador = null;
+  window.addEventListener("resize", function () { clearTimeout(temporizador); temporizador = setTimeout(dibujarTodo, 80); });
+  dibujarTodo();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-02-blindaje-efecto-pelicular.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM14 2h2v1h-2zM18 2h1v1h-1zM21 2h1v1h-1zM23 2h7v1h-7zM33 2h2v1h-2zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM13 3h5v1h-5zM19 3h1v1h-1zM22 3h1v1h-1zM25 3h2v1h-2zM28 3h2v1h-2zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM13 4h7v1h-7zM21 4h1v1h-1zM23 4h3v1h-3zM30 4h3v1h-3zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM11 5h1v1h-1zM17 5h1v1h-1zM19 5h1v1h-1zM21 5h1v1h-1zM23 5h5v1h-5zM30 5h1v1h-1zM33 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h3v1h-3zM17 6h2v1h-2zM23 6h1v1h-1zM25 6h1v1h-1zM27 6h6v1h-6zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h5v1h-5zM16 7h3v1h-3zM20 7h2v1h-2zM27 7h3v1h-3zM32 7h2v1h-2zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM12 9h1v1h-1zM14 9h1v1h-1zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM5 10h1v1h-1zM7 10h2v1h-2zM10 10h1v1h-1zM15 10h1v1h-1zM21 10h3v1h-3zM27 10h2v1h-2zM30 10h1v1h-1zM35 10h1v1h-1zM37 10h1v1h-1zM2 11h2v1h-2zM5 11h2v1h-2zM9 11h2v1h-2zM15 11h1v1h-1zM22 11h2v1h-2zM26 11h2v1h-2zM30 11h2v1h-2zM34 11h3v1h-3zM39 11h4v1h-4zM3 12h6v1h-6zM10 12h2v1h-2zM15 12h1v1h-1zM17 12h3v1h-3zM21 12h1v1h-1zM24 12h1v1h-1zM28 12h1v1h-1zM30 12h4v1h-4zM37 12h5v1h-5zM3 13h1v1h-1zM5 13h1v1h-1zM11 13h2v1h-2zM15 13h2v1h-2zM21 13h3v1h-3zM26 13h3v1h-3zM36 13h1v1h-1zM40 13h2v1h-2zM2 14h2v1h-2zM7 14h3v1h-3zM13 14h1v1h-1zM16 14h4v1h-4zM21 14h3v1h-3zM27 14h1v1h-1zM30 14h2v1h-2zM33 14h1v1h-1zM35 14h3v1h-3zM39 14h1v1h-1zM42 14h1v1h-1zM2 15h4v1h-4zM7 15h1v1h-1zM11 15h3v1h-3zM15 15h1v1h-1zM17 15h1v1h-1zM19 15h1v1h-1zM22 15h1v1h-1zM24 15h2v1h-2zM27 15h1v1h-1zM31 15h1v1h-1zM33 15h2v1h-2zM39 15h2v1h-2zM2 16h1v1h-1zM4 16h1v1h-1zM8 16h1v1h-1zM11 16h3v1h-3zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h1v1h-1zM21 16h1v1h-1zM25 16h1v1h-1zM27 16h2v1h-2zM32 16h1v1h-1zM34 16h1v1h-1zM36 16h1v1h-1zM40 16h3v1h-3zM2 17h3v1h-3zM6 17h2v1h-2zM15 17h1v1h-1zM17 17h3v1h-3zM22 17h4v1h-4zM27 17h1v1h-1zM29 17h3v1h-3zM33 17h1v1h-1zM36 17h1v1h-1zM38 17h1v1h-1zM42 17h1v1h-1zM2 18h2v1h-2zM5 18h4v1h-4zM15 18h1v1h-1zM17 18h3v1h-3zM22 18h3v1h-3zM26 18h1v1h-1zM29 18h1v1h-1zM31 18h3v1h-3zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM2 19h1v1h-1zM4 19h2v1h-2zM9 19h2v1h-2zM12 19h1v1h-1zM14 19h3v1h-3zM19 19h1v1h-1zM23 19h1v1h-1zM25 19h2v1h-2zM28 19h1v1h-1zM30 19h2v1h-2zM34 19h1v1h-1zM36 19h2v1h-2zM39 19h4v1h-4zM5 20h1v1h-1zM8 20h2v1h-2zM11 20h2v1h-2zM18 20h2v1h-2zM24 20h1v1h-1zM26 20h2v1h-2zM30 20h2v1h-2zM36 20h1v1h-1zM38 20h2v1h-2zM42 20h1v1h-1zM2 21h1v1h-1zM6 21h1v1h-1zM10 21h1v1h-1zM12 21h1v1h-1zM14 21h3v1h-3zM22 21h2v1h-2zM27 21h1v1h-1zM29 21h1v1h-1zM31 21h1v1h-1zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h2v1h-2zM5 22h2v1h-2zM8 22h4v1h-4zM17 22h1v1h-1zM19 22h1v1h-1zM24 22h1v1h-1zM26 22h1v1h-1zM28 22h2v1h-2zM33 22h1v1h-1zM35 22h3v1h-3zM40 22h1v1h-1zM42 22h1v1h-1zM2 23h2v1h-2zM6 23h1v1h-1zM9 23h4v1h-4zM16 23h1v1h-1zM22 23h3v1h-3zM26 23h1v1h-1zM30 23h2v1h-2zM34 23h1v1h-1zM36 23h1v1h-1zM41 23h2v1h-2zM2 24h3v1h-3zM8 24h1v1h-1zM10 24h6v1h-6zM20 24h2v1h-2zM23 24h2v1h-2zM30 24h1v1h-1zM33 24h1v1h-1zM35 24h4v1h-4zM40 24h2v1h-2zM3 25h5v1h-5zM13 25h2v1h-2zM16 25h1v1h-1zM21 25h4v1h-4zM26 25h5v1h-5zM32 25h2v1h-2zM35 25h2v1h-2zM38 25h1v1h-1zM40 25h3v1h-3zM7 26h2v1h-2zM10 26h4v1h-4zM15 26h1v1h-1zM17 26h3v1h-3zM21 26h4v1h-4zM26 26h2v1h-2zM29 26h1v1h-1zM31 26h1v1h-1zM34 26h3v1h-3zM41 26h1v1h-1zM2 27h4v1h-4zM7 27h1v1h-1zM10 27h3v1h-3zM15 27h1v1h-1zM17 27h8v1h-8zM26 27h1v1h-1zM31 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM39 27h1v1h-1zM5 28h6v1h-6zM13 28h1v1h-1zM16 28h1v1h-1zM19 28h1v1h-1zM22 28h1v1h-1zM24 28h3v1h-3zM28 28h1v1h-1zM31 28h2v1h-2zM34 28h3v1h-3zM38 28h1v1h-1zM41 28h2v1h-2zM3 29h1v1h-1zM5 29h1v1h-1zM9 29h3v1h-3zM14 29h7v1h-7zM22 29h4v1h-4zM27 29h2v1h-2zM30 29h3v1h-3zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM7 30h2v1h-2zM14 30h2v1h-2zM17 30h3v1h-3zM21 30h1v1h-1zM23 30h4v1h-4zM29 30h1v1h-1zM31 30h1v1h-1zM34 30h2v1h-2zM41 30h2v1h-2zM3 31h1v1h-1zM6 31h2v1h-2zM13 31h3v1h-3zM19 31h5v1h-5zM26 31h2v1h-2zM30 31h3v1h-3zM35 31h2v1h-2zM39 31h1v1h-1zM41 31h2v1h-2zM2 32h1v1h-1zM4 32h1v1h-1zM7 32h3v1h-3zM12 32h1v1h-1zM19 32h1v1h-1zM25 32h2v1h-2zM30 32h1v1h-1zM34 32h1v1h-1zM37 32h1v1h-1zM39 32h2v1h-2zM42 32h1v1h-1zM5 33h3v1h-3zM16 33h2v1h-2zM19 33h2v1h-2zM23 33h1v1h-1zM26 33h1v1h-1zM29 33h1v1h-1zM31 33h2v1h-2zM34 33h2v1h-2zM38 33h2v1h-2zM2 34h1v1h-1zM6 34h3v1h-3zM10 34h1v1h-1zM12 34h1v1h-1zM14 34h1v1h-1zM17 34h2v1h-2zM20 34h1v1h-1zM23 34h1v1h-1zM26 34h3v1h-3zM30 34h1v1h-1zM33 34h6v1h-6zM40 34h1v1h-1zM42 34h1v1h-1zM10 35h1v1h-1zM16 35h4v1h-4zM22 35h1v1h-1zM26 35h2v1h-2zM30 35h1v1h-1zM33 35h2v1h-2zM38 35h1v1h-1zM41 35h2v1h-2zM2 36h7v1h-7zM11 36h1v1h-1zM13 36h1v1h-1zM16 36h1v1h-1zM18 36h1v1h-1zM20 36h5v1h-5zM27 36h2v1h-2zM32 36h1v1h-1zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM40 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM14 37h1v1h-1zM17 37h1v1h-1zM20 37h1v1h-1zM27 37h1v1h-1zM33 37h2v1h-2zM38 37h1v1h-1zM40 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h3v1h-3zM16 38h1v1h-1zM18 38h1v1h-1zM20 38h1v1h-1zM22 38h1v1h-1zM26 38h1v1h-1zM28 38h1v1h-1zM30 38h2v1h-2zM34 38h5v1h-5zM41 38h2v1h-2zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h3v1h-3zM15 39h1v1h-1zM18 39h1v1h-1zM20 39h3v1h-3zM24 39h1v1h-1zM26 39h1v1h-1zM28 39h1v1h-1zM30 39h1v1h-1zM32 39h2v1h-2zM35 39h2v1h-2zM38 39h3v1h-3zM42 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM12 40h1v1h-1zM16 40h1v1h-1zM18 40h1v1h-1zM20 40h1v1h-1zM22 40h2v1h-2zM25 40h1v1h-1zM27 40h1v1h-1zM31 40h1v1h-1zM38 40h1v1h-1zM41 40h2v1h-2zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h3v1h-3zM16 41h2v1h-2zM19 41h1v1h-1zM23 41h1v1h-1zM27 41h2v1h-2zM31 41h2v1h-2zM34 41h2v1h-2zM37 41h1v1h-1zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h2v1h-2zM15 42h3v1h-3zM20 42h5v1h-5zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h4v1h-4zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-02-blindaje-efecto-pelicular.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

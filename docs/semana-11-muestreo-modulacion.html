@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de señales — Semana 11</title>
+<style>
+  :root { --navy:#0A2A57; --teal:#00408F; --tealdark:#00408F; --teallight:#E8EEF7;
+          --amber:#9C7A3C; --amberlight:#F7F1E6; --gray:#5B6472; --graylight:#E9ECF1; --red:#8C1D35; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Calibri, "Segoe UI", Arial, sans-serif; background:#FFFFFF; color:#1B1F2A; }
+  header { background:linear-gradient(#B8975A,#B8975A) top/100% 3px no-repeat,#fff; color:#0A2A57; border-top:8px solid #00408F; padding:14px 24px 8px; }
+  header h1 { margin:0; font-family: Cambria, Georgia, serif; font-size:24px; }
+  header p { margin:4px 0 0; color:var(--teal); font-style:italic; }
+  nav { display:flex; gap:8px; padding:12px 22px 0; flex-wrap:wrap; }
+  nav button { border:none; border-radius:18px; padding:8px 16px; font-size:15px; font-weight:bold;
+               background:var(--graylight); color:var(--navy); cursor:pointer; }
+  nav button.activo { background:var(--navy); color:#fff; }
+  section { display:none; padding:14px 22px 22px; }
+  section.activo { display:block; }
+  .fila { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .panel { background:#fff; border:1.5px solid var(--graylight); border-radius:10px; padding:12px 14px; }
+  .controles { min-width:280px; flex:0 0 300px; }
+  .controles label { display:block; font-weight:bold; color:var(--navy); margin-top:10px; }
+  .controles input[type=range] { width:100%; }
+  .controles input[type=number] { width:110px; font-size:15px; }
+  .controles select { font-size:15px; padding:3px; }
+  .lectura { background:var(--amberlight); border:1.5px solid var(--amber); border-radius:10px;
+             padding:10px 12px; margin-top:12px; font-size:15px; line-height:1.5; }
+  .lectura b { color:var(--navy); }
+  .ok { color:var(--tealdark); font-weight:bold; }
+  .mal { color:var(--red); font-weight:bold; }
+  canvas { background:#fff; border:1.5px solid var(--graylight); border-radius:10px; max-width:100%; }
+  .botones button { margin:6px 6px 0 0; border:1.5px solid var(--navy); background:#fff; color:var(--navy);
+                    border-radius:8px; padding:5px 10px; cursor:pointer; font-size:14px; }
+  .nota { color:var(--gray); font-size:13.5px; font-style:italic; margin-top:10px; }
+
+  /* Estilo FCFM unificado: pestañas subrayadas */
+  nav { gap:4px !important; border-bottom:2px solid #E9ECF1; }
+  nav button { border-radius:0 !important; background:none !important; color:#5B6472 !important;
+               border-bottom:3px solid transparent !important; margin-bottom:-2px; }
+  nav button.activo { color:#0A2A57 !important; border-bottom-color:#00408F !important; }
+
+  .pie-fcfm { max-width:1280px; margin:0 auto; padding:8px 18px 18px; color:#5B6472; font-size:.85rem; }
+  .pie-fcfm a { color:#00408F; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulador de señales — Semana 11</h1>
+  <p>Muestreo y aliasing · AM y FM · Constelaciones con ruido (funciona sin internet)</p>
+</header>
+<nav>
+  <button data-tab="t1" class="activo">1. Muestreo y aliasing</button>
+  <button data-tab="t2">2. AM y FM</button>
+  <button data-tab="t3">3. Constelaciones y ruido</button>
+</nav>
+
+<section id="t1" class="activo">
+  <div class="fila">
+    <div class="panel controles">
+      <label>Frecuencia de la señal f (Hz): <span id="fVal"></span></label>
+      <input type="range" id="f" min="0" max="20000" step="50" value="1000">
+      <input type="number" id="fNum" min="0" max="200000" step="1" value="1000">
+      <label>Frecuencia de muestreo fs (muestras/s): <span id="fsVal"></span></label>
+      <input type="range" id="fs" min="1000" max="48000" step="100" value="8000">
+      <input type="number" id="fsNum" min="1" max="200000" step="1" value="8000">
+      <div class="botones">
+        <button data-f="1000" data-fs="8000">Voz 1 kHz · 8000/s</button>
+        <button data-f="7000" data-fs="8000">7 kHz · 8000/s</button>
+        <button data-f="20" data-fs="30">Cámara: 20 Hz · 30 cuadros/s</button>
+      </div>
+      <div class="lectura" id="lect1"></div>
+      <p class="nota">Gris: la señal real. Puntos azules: las muestras. Línea dorada punteada: la
+        senoidal más lenta que pasa por las mismas muestras (lo que "ve" el sistema).</p>
+    </div>
+    <canvas id="c1" width="820" height="420"></canvas>
+  </div>
+</section>
+
+<section id="t2">
+  <div class="fila">
+    <div class="panel controles">
+      <label>Frecuencia máxima del mensaje W (kHz): <span id="wVal"></span></label>
+      <input type="range" id="w" min="1" max="20" step="0.1" value="5">
+      <label>Índice de modulación AM, m: <span id="mVal"></span></label>
+      <input type="range" id="m" min="0" max="1.5" step="0.05" value="0.7">
+      <label>Desviación de FM Δf (kHz): <span id="dfVal"></span></label>
+      <input type="range" id="df" min="0" max="80" step="0.5" value="10">
+      <div class="botones">
+        <button data-w="15" data-df="75" data-m="0.7">Radio FM comercial</button>
+        <button data-w="3" data-df="2.5" data-m="0.7">Radio portátil</button>
+      </div>
+      <div class="lectura" id="lect2"></div>
+      <p class="nota">Dibujo cualitativo: la portadora se dibuja mucho más lenta que la real para
+        que se vean los ciclos. Con m &gt; 1 hay sobremodulación: la envolvente ya no copia al mensaje.</p>
+    </div>
+    <canvas id="c2" width="820" height="460"></canvas>
+  </div>
+</section>
+
+<section id="t3">
+  <div class="fila">
+    <div class="panel controles">
+      <label>Modulación:</label>
+      <select id="mod">
+        <option value="bpsk">BPSK (M = 2)</option>
+        <option value="qpsk">QPSK (M = 4)</option>
+        <option value="psk8">8-PSK (M = 8)</option>
+        <option value="qam16" selected>16-QAM (M = 16)</option>
+        <option value="qam64">64-QAM (M = 64)</option>
+      </select>
+      <label>Relación señal a ruido S/N (dB): <span id="snrVal"></span></label>
+      <input type="range" id="snr" min="0" max="40" step="0.5" value="25">
+      <div class="botones">
+        <button id="enviar">Enviar 1000 símbolos</button>
+        <button id="jammer">Encender jammer (−12 dB)</button>
+      </div>
+      <div class="lectura" id="lect3"></div>
+      <p class="nota">Cada punto es un símbolo recibido; el receptor elige el punto ideal (+) más
+        cercano. Azul = bien leído; guinda = error. Modular no es cifrar: quien conoce la
+        constelación lee los bits.</p>
+    </div>
+    <canvas id="c3" width="560" height="560"></canvas>
+  </div>
+</section>
+
+<script>
+const C = {navy:"#0A2A57", teal:"#00408F", tealdark:"#00408F", amber:"#9C7A3C", gray:"#5B6472",
+           graylight:"#E9ECF1", red:"#8C1D35"};
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("activo"));
+  document.querySelectorAll("section").forEach(x => x.classList.remove("activo"));
+  b.classList.add("activo");
+  document.getElementById(b.dataset.tab).classList.add("activo");
+  dibujarTodo();
+}));
+const $ = id => document.getElementById(id);
+const fmt = (x, d = 0) => Number(x).toLocaleString("es-MX", {maximumFractionDigits: d});
+
+// ---------- 1. Muestreo y aliasing ----------
+function alias(f, fs) { const k = Math.round(f / fs); return {k, fa: Math.abs(f - k * fs)}; }
+function sync1(origen) {
+  if (origen === "rango") { $("fNum").value = $("f").value; $("fsNum").value = $("fs").value; }
+  else { $("f").value = Math.min(+$("fNum").value, 20000); $("fs").value = Math.min(Math.max(+$("fsNum").value, 1000), 48000); }
+  dibujar1();
+}
+["f", "fs"].forEach(id => $(id).addEventListener("input", () => sync1("rango")));
+["fNum", "fsNum"].forEach(id => $(id).addEventListener("input", () => sync1("num")));
+document.querySelectorAll("#t1 .botones button").forEach(b => b.addEventListener("click", () => {
+  $("fNum").value = b.dataset.f; $("fsNum").value = b.dataset.fs; sync1("num");
+}));
+function dibujar1() {
+  const f = +$("fNum").value, fs = +$("fsNum").value;
+  const {k, fa} = alias(f, fs), fN = fs / 2;
+  $("fVal").textContent = fmt(f); $("fsVal").textContent = fmt(fs);
+  const hay = f >= fN && f > 0 && Math.abs(fa - f) > 1e-9;
+  $("lect1").innerHTML = `<b>Frecuencia de Nyquist</b> f<sub>N</sub> = fs/2 = ${fmt(fN, 2)} Hz<br>` +
+    `<b>Tasa de Nyquist de la señal</b>: fs &gt; 2f = ${fmt(2 * f, 2)} muestras/s<br>` +
+    `<b>k</b> = ${k} &nbsp;→&nbsp; <b>f<sub>alias</sub></b> = |f − k·fs| = ${fmt(fa, 2)} Hz<br>` +
+    (hay ? `<span class="mal">Hay aliasing: el sistema registra ${fmt(fa, 2)} Hz en lugar de ${fmt(f, 2)} Hz.</span>`
+         : (f >= fN && f > 0 ? `<span class="mal">En el límite: f = fs/2. El teorema pide fs &gt; 2f (estrictamente).</span>`
+                             : `<span class="ok">Sin aliasing: f está por debajo de fs/2.</span>`));
+  const cv = $("c1"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const nMuestras = 16, T = nMuestras / fs, x0 = 40, x1 = W - 20, yc = H / 2, A = H * 0.36;
+  const X = t => x0 + (x1 - x0) * t / T, Y = v => yc - A * v;
+  g.strokeStyle = C.graylight; g.lineWidth = 1;
+  for (let n = 0; n <= nMuestras; n++) { g.beginPath(); g.moveTo(X(n / fs), 20); g.lineTo(X(n / fs), H - 30); g.stroke(); }
+  g.strokeStyle = C.gray; g.beginPath(); g.moveTo(x0, yc); g.lineTo(x1, yc); g.stroke();
+  const pasos = 3000;
+  g.strokeStyle = C.gray; g.lineWidth = 1.3; g.beginPath();
+  for (let i = 0; i <= pasos; i++) { const t = T * i / pasos; const y = Y(Math.cos(2 * Math.PI * f * t)); i ? g.lineTo(X(t), y) : g.moveTo(X(t), y); }
+  g.stroke();
+  g.strokeStyle = C.amber; g.lineWidth = 2.6; g.setLineDash([9, 6]); g.beginPath();
+  for (let i = 0; i <= pasos; i++) { const t = T * i / pasos; const y = Y(Math.cos(2 * Math.PI * fa * t)); i ? g.lineTo(X(t), y) : g.moveTo(X(t), y); }
+  g.stroke(); g.setLineDash([]);
+  g.fillStyle = C.navy;
+  for (let n = 0; n <= nMuestras; n++) { const t = n / fs; g.beginPath(); g.arc(X(t), Y(Math.cos(2 * Math.PI * f * t)), 6, 0, 2 * Math.PI); g.fill(); }
+  g.fillStyle = C.navy; g.font = "15px Calibri, Arial"; g.fillText(`${nMuestras} periodos de muestreo (${fmt(T * 1000, 3)} ms)`, x0, H - 10);
+}
+
+// ---------- 2. AM y FM ----------
+["w", "m", "df"].forEach(id => $(id).addEventListener("input", dibujar2));
+document.querySelectorAll("#t2 .botones button").forEach(b => b.addEventListener("click", () => {
+  $("w").value = b.dataset.w; $("df").value = b.dataset.df; $("m").value = b.dataset.m; dibujar2();
+}));
+function dibujar2() {
+  const w = +$("w").value, m = +$("m").value, df = +$("df").value;
+  $("wVal").textContent = fmt(w, 1); $("mVal").textContent = fmt(m, 2); $("dfVal").textContent = fmt(df, 1);
+  $("lect2").innerHTML = `<b>AM</b>: B = 2W = ${fmt(2 * w, 1)} kHz` +
+    (m > 1 ? ` <span class="mal">(sobremodulación)</span>` : "") +
+    `<br><b>FM</b> (Carson): B ≈ 2(Δf + W) = ${fmt(2 * (df + w), 1)} kHz<br>` +
+    `<b>FM ocupa</b> ${fmt((df + w) / w, 2)} veces lo que ocupa AM.<br>` +
+    `Ninguna de las dos cifra: cualquier receptor sintonizado en f<sub>c</sub> las demodula.`;
+  const cv = $("c2"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const filas = [["Mensaje x(t)", 0], ["AM", 1], ["FM", 2]], alto = H / 3;
+  const fcVis = 26, fmVis = 2, beta = w > 0 ? df / w : 0, pasos = 3000, x0 = 20, x1 = W - 20;
+  filas.forEach(([nombre, r]) => {
+    const yc = alto * r + alto / 2 + 8, A = alto * 0.32;
+    g.fillStyle = C.navy; g.font = "bold 15px Calibri, Arial"; g.fillText(nombre, x0, alto * r + 18);
+    g.strokeStyle = C.graylight; g.beginPath(); g.moveTo(x0, yc); g.lineTo(x1, yc); g.stroke();
+    g.lineWidth = r === 0 ? 2.4 : 1.1; g.strokeStyle = r === 0 ? C.navy : (r === 1 ? C.tealdark : C.navy);
+    g.beginPath();
+    for (let i = 0; i <= pasos; i++) {
+      const t = i / pasos, msg = Math.sin(2 * Math.PI * fmVis * t);
+      let v;
+      if (r === 0) v = msg;
+      else if (r === 1) v = (1 + m * msg) * Math.cos(2 * Math.PI * fcVis * t) / (1 + Math.max(m, 0.0001));
+      else v = Math.cos(2 * Math.PI * fcVis * t - beta * Math.cos(2 * Math.PI * fmVis * t));
+      const x = x0 + (x1 - x0) * t, y = yc - A * v;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+    if (r === 1) {
+      g.strokeStyle = C.amber; g.lineWidth = 2; g.setLineDash([7, 5]);
+      [1, -1].forEach(s => { g.beginPath();
+        for (let i = 0; i <= pasos; i++) { const t = i / pasos; const v = s * (1 + m * Math.sin(2 * Math.PI * fmVis * t)) / (1 + Math.max(m, 0.0001));
+          const x = x0 + (x1 - x0) * t, y = yc - A * v; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+        g.stroke(); });
+      g.setLineDash([]);
+    }
+  });
+}
+
+// ---------- 3. Constelaciones y ruido ----------
+function constelacion(tipo) {
+  const pts = [];
+  if (tipo === "bpsk") { pts.push([1, 0], [-1, 0]); }
+  else if (tipo === "qpsk" || tipo === "psk8") {
+    const M = tipo === "qpsk" ? 4 : 8, off = tipo === "qpsk" ? Math.PI / 4 : 0;
+    for (let k = 0; k < M; k++) pts.push([Math.cos(off + 2 * Math.PI * k / M), Math.sin(off + 2 * Math.PI * k / M)]);
+  } else {
+    const L = tipo === "qam16" ? [-3, -1, 1, 3] : [-7, -5, -3, -1, 1, 3, 5, 7];
+    L.forEach(a => L.forEach(b => pts.push([a, b])));
+  }
+  const Es = pts.reduce((s, [a, b]) => s + a * a + b * b, 0) / pts.length;
+  return pts.map(([a, b]) => [a / Math.sqrt(Es), b / Math.sqrt(Es)]);
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+let recibidos = [], jammerOn = false;
+function enviar() {
+  const pts = constelacion($("mod").value), snr = +$("snr").value - (jammerOn ? 12 : 0);
+  const sigma = Math.sqrt(1 / (2 * Math.pow(10, snr / 10)));
+  recibidos = [];
+  for (let i = 0; i < 1000; i++) {
+    const k = Math.floor(Math.random() * pts.length);
+    const r = [pts[k][0] + sigma * gauss(), pts[k][1] + sigma * gauss()];
+    let mejor = 0, dmin = Infinity;
+    pts.forEach((p, j) => { const d = (p[0] - r[0]) ** 2 + (p[1] - r[1]) ** 2; if (d < dmin) { dmin = d; mejor = j; } });
+    recibidos.push([r, mejor === k]);
+  }
+  dibujar3();
+}
+$("enviar").addEventListener("click", enviar);
+$("jammer").addEventListener("click", () => { jammerOn = !jammerOn;
+  $("jammer").textContent = jammerOn ? "Apagar jammer" : "Encender jammer (−12 dB)"; enviar(); });
+$("mod").addEventListener("change", enviar);
+$("snr").addEventListener("input", enviar);
+function dibujar3() {
+  const tipo = $("mod").value, pts = constelacion(tipo), M = pts.length, bits = Math.log2(M);
+  const snr = +$("snr").value, efectiva = snr - (jammerOn ? 12 : 0);
+  $("snrVal").textContent = fmt(snr, 1);
+  const errores = recibidos.filter(x => !x[1]).length;
+  $("lect3").innerHTML = `<b>Bits por símbolo</b>: log₂(${M}) = ${bits}<br>` +
+    `<b>S/N efectiva</b>: ${fmt(efectiva, 1)} dB` + (jammerOn ? ` <span class="mal">(jammer encendido)</span>` : "") +
+    `<br><b>Símbolos mal leídos</b>: ${errores} de 1000 (${fmt(errores / 10, 1)} %)<br>` +
+    `<b>Tasa relativa</b> a la misma tasa de símbolo: ${bits} bits por símbolo`;
+  const cv = $("c3"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const lim = 1.75, X = a => W / 2 + (W / 2 - 20) * a / lim, Y = b => H / 2 - (H / 2 - 20) * b / lim;
+  g.strokeStyle = C.gray; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(X(-lim), Y(0)); g.lineTo(X(lim), Y(0)); g.moveTo(X(0), Y(-lim)); g.lineTo(X(0), Y(lim)); g.stroke();
+  g.fillStyle = C.gray; g.font = "14px Calibri, Arial"; g.fillText("I", W - 18, H / 2 - 6); g.fillText("Q", W / 2 + 6, 16);
+  recibidos.forEach(([r, ok]) => { g.fillStyle = ok ? C.teal : C.red; g.globalAlpha = ok ? 0.55 : 0.9;
+    g.beginPath(); g.arc(X(r[0]), Y(r[1]), ok ? 2.2 : 2.8, 0, 2 * Math.PI); g.fill(); });
+  g.globalAlpha = 1; g.strokeStyle = C.navy; g.lineWidth = 2.5;
+  pts.forEach(([a, b]) => { g.beginPath(); g.moveTo(X(a) - 7, Y(b)); g.lineTo(X(a) + 7, Y(b));
+    g.moveTo(X(a), Y(b) - 7); g.lineTo(X(a), Y(b) + 7); g.stroke(); });
+}
+function dibujarTodo() { dibujar1(); dibujar2(); dibujar3(); }
+dibujar1(); dibujar2(); enviar();
+</script>
+<footer class="pie-fcfm">Señales de Transmisión · FCFM-UANL · funciona sin internet · <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a></footer>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-11-muestreo-modulacion.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM17 2h1v1h-1zM19 2h2v1h-2zM24 2h1v1h-1zM26 2h2v1h-2zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h1v1h-1zM14 3h1v1h-1zM16 3h1v1h-1zM18 3h1v1h-1zM22 3h3v1h-3zM26 3h1v1h-1zM30 3h3v1h-3zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM13 4h2v1h-2zM16 4h2v1h-2zM19 4h1v1h-1zM21 4h1v1h-1zM24 4h1v1h-1zM27 4h1v1h-1zM29 4h1v1h-1zM32 4h3v1h-3zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM11 5h3v1h-3zM16 5h2v1h-2zM24 5h3v1h-3zM30 5h1v1h-1zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h2v1h-2zM19 6h1v1h-1zM24 6h1v1h-1zM27 6h1v1h-1zM32 6h1v1h-1zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h4v1h-4zM18 7h1v1h-1zM20 7h1v1h-1zM22 7h2v1h-2zM32 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM11 9h1v1h-1zM13 9h6v1h-6zM21 9h2v1h-2zM25 9h2v1h-2zM28 9h1v1h-1zM32 9h1v1h-1zM34 9h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM8 10h2v1h-2zM17 10h1v1h-1zM29 10h2v1h-2zM33 10h2v1h-2zM37 10h1v1h-1zM40 10h1v1h-1zM42 10h1v1h-1zM2 11h5v1h-5zM9 11h1v1h-1zM11 11h2v1h-2zM17 11h1v1h-1zM19 11h1v1h-1zM21 11h2v1h-2zM25 11h2v1h-2zM29 11h2v1h-2zM33 11h2v1h-2zM36 11h2v1h-2zM40 11h1v1h-1zM42 11h1v1h-1zM4 12h1v1h-1zM8 12h1v1h-1zM12 12h1v1h-1zM14 12h2v1h-2zM18 12h1v1h-1zM21 12h1v1h-1zM23 12h1v1h-1zM25 12h1v1h-1zM28 12h2v1h-2zM32 12h2v1h-2zM35 12h1v1h-1zM38 12h3v1h-3zM42 12h1v1h-1zM5 13h3v1h-3zM10 13h1v1h-1zM12 13h1v1h-1zM17 13h2v1h-2zM26 13h1v1h-1zM29 13h1v1h-1zM33 13h2v1h-2zM39 13h1v1h-1zM41 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM7 14h2v1h-2zM11 14h1v1h-1zM14 14h3v1h-3zM22 14h1v1h-1zM25 14h1v1h-1zM29 14h2v1h-2zM34 14h1v1h-1zM36 14h1v1h-1zM41 14h1v1h-1zM2 15h3v1h-3zM6 15h2v1h-2zM11 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM19 15h1v1h-1zM22 15h2v1h-2zM30 15h1v1h-1zM35 15h3v1h-3zM39 15h4v1h-4zM2 16h2v1h-2zM5 16h1v1h-1zM8 16h3v1h-3zM13 16h1v1h-1zM16 16h1v1h-1zM19 16h1v1h-1zM22 16h2v1h-2zM25 16h1v1h-1zM28 16h1v1h-1zM30 16h7v1h-7zM39 16h1v1h-1zM42 16h1v1h-1zM2 17h1v1h-1zM4 17h4v1h-4zM9 17h1v1h-1zM11 17h5v1h-5zM17 17h2v1h-2zM21 17h2v1h-2zM24 17h1v1h-1zM28 17h3v1h-3zM32 17h1v1h-1zM34 17h6v1h-6zM41 17h2v1h-2zM3 18h1v1h-1zM5 18h2v1h-2zM8 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM25 18h2v1h-2zM30 18h1v1h-1zM32 18h1v1h-1zM35 18h2v1h-2zM39 18h1v1h-1zM2 19h1v1h-1zM4 19h1v1h-1zM7 19h1v1h-1zM9 19h3v1h-3zM14 19h1v1h-1zM16 19h4v1h-4zM21 19h2v1h-2zM25 19h6v1h-6zM33 19h1v1h-1zM35 19h3v1h-3zM42 19h1v1h-1zM3 20h1v1h-1zM7 20h3v1h-3zM11 20h1v1h-1zM15 20h2v1h-2zM18 20h1v1h-1zM21 20h5v1h-5zM29 20h1v1h-1zM31 20h3v1h-3zM35 20h4v1h-4zM41 20h2v1h-2zM2 21h1v1h-1zM4 21h2v1h-2zM7 21h1v1h-1zM11 21h2v1h-2zM17 21h1v1h-1zM19 21h1v1h-1zM22 21h1v1h-1zM24 21h1v1h-1zM26 21h2v1h-2zM30 21h1v1h-1zM32 21h1v1h-1zM34 21h1v1h-1zM39 21h1v1h-1zM42 21h1v1h-1zM2 22h1v1h-1zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h2v1h-2zM15 22h1v1h-1zM19 22h1v1h-1zM21 22h7v1h-7zM29 22h1v1h-1zM31 22h2v1h-2zM34 22h1v1h-1zM36 22h2v1h-2zM39 22h1v1h-1zM41 22h2v1h-2zM2 23h1v1h-1zM4 23h1v1h-1zM6 23h2v1h-2zM9 23h3v1h-3zM13 23h1v1h-1zM16 23h2v1h-2zM19 23h1v1h-1zM21 23h2v1h-2zM24 23h4v1h-4zM29 23h2v1h-2zM32 23h6v1h-6zM39 23h2v1h-2zM42 23h1v1h-1zM3 24h7v1h-7zM11 24h1v1h-1zM14 24h1v1h-1zM17 24h5v1h-5zM25 24h1v1h-1zM29 24h1v1h-1zM31 24h1v1h-1zM33 24h1v1h-1zM37 24h1v1h-1zM42 24h1v1h-1zM2 25h3v1h-3zM7 25h1v1h-1zM9 25h2v1h-2zM13 25h3v1h-3zM17 25h1v1h-1zM24 25h1v1h-1zM26 25h1v1h-1zM30 25h1v1h-1zM32 25h1v1h-1zM34 25h1v1h-1zM36 25h4v1h-4zM2 26h1v1h-1zM4 26h2v1h-2zM8 26h4v1h-4zM15 26h1v1h-1zM18 26h1v1h-1zM22 26h1v1h-1zM24 26h3v1h-3zM33 26h2v1h-2zM36 26h2v1h-2zM39 26h1v1h-1zM41 26h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM14 27h4v1h-4zM20 27h3v1h-3zM25 27h2v1h-2zM29 27h2v1h-2zM33 27h1v1h-1zM36 27h2v1h-2zM39 27h1v1h-1zM42 27h1v1h-1zM2 28h1v1h-1zM5 28h1v1h-1zM7 28h5v1h-5zM14 28h2v1h-2zM19 28h1v1h-1zM21 28h1v1h-1zM23 28h5v1h-5zM29 28h1v1h-1zM31 28h3v1h-3zM36 28h1v1h-1zM38 28h3v1h-3zM42 28h1v1h-1zM4 29h1v1h-1zM7 29h1v1h-1zM9 29h1v1h-1zM13 29h1v1h-1zM16 29h1v1h-1zM18 29h1v1h-1zM20 29h3v1h-3zM24 29h1v1h-1zM28 29h3v1h-3zM32 29h3v1h-3zM37 29h3v1h-3zM41 29h2v1h-2zM2 30h2v1h-2zM5 30h1v1h-1zM8 30h2v1h-2zM11 30h5v1h-5zM17 30h1v1h-1zM21 30h1v1h-1zM26 30h1v1h-1zM34 30h1v1h-1zM36 30h2v1h-2zM41 30h2v1h-2zM3 31h4v1h-4zM9 31h3v1h-3zM13 31h6v1h-6zM20 31h1v1h-1zM23 31h1v1h-1zM26 31h1v1h-1zM28 31h1v1h-1zM31 31h4v1h-4zM36 31h1v1h-1zM40 31h1v1h-1zM42 31h1v1h-1zM2 32h7v1h-7zM11 32h1v1h-1zM13 32h1v1h-1zM17 32h1v1h-1zM19 32h3v1h-3zM23 32h1v1h-1zM26 32h2v1h-2zM29 32h1v1h-1zM31 32h1v1h-1zM33 32h1v1h-1zM35 32h1v1h-1zM40 32h3v1h-3zM6 33h2v1h-2zM11 33h6v1h-6zM18 33h1v1h-1zM20 33h1v1h-1zM24 33h3v1h-3zM32 33h1v1h-1zM34 33h1v1h-1zM36 33h4v1h-4zM41 33h2v1h-2zM2 34h4v1h-4zM7 34h4v1h-4zM12 34h1v1h-1zM15 34h2v1h-2zM21 34h2v1h-2zM26 34h1v1h-1zM29 34h1v1h-1zM34 34h6v1h-6zM41 34h2v1h-2zM10 35h1v1h-1zM13 35h5v1h-5zM21 35h3v1h-3zM25 35h2v1h-2zM28 35h4v1h-4zM34 35h1v1h-1zM38 35h2v1h-2zM42 35h1v1h-1zM2 36h7v1h-7zM10 36h1v1h-1zM13 36h1v1h-1zM15 36h1v1h-1zM19 36h3v1h-3zM25 36h5v1h-5zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM40 36h1v1h-1zM42 36h1v1h-1zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h2v1h-2zM14 37h1v1h-1zM16 37h3v1h-3zM20 37h4v1h-4zM25 37h1v1h-1zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h2v1h-2zM41 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h1v1h-1zM15 38h1v1h-1zM17 38h4v1h-4zM22 38h2v1h-2zM25 38h4v1h-4zM30 38h2v1h-2zM33 38h7v1h-7zM42 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM12 39h2v1h-2zM15 39h3v1h-3zM20 39h4v1h-4zM25 39h2v1h-2zM28 39h2v1h-2zM31 39h1v1h-1zM33 39h1v1h-1zM37 39h5v1h-5zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM15 40h1v1h-1zM17 40h2v1h-2zM20 40h2v1h-2zM25 40h1v1h-1zM28 40h2v1h-2zM31 40h1v1h-1zM33 40h3v1h-3zM38 40h2v1h-2zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM14 41h2v1h-2zM20 41h2v1h-2zM25 41h1v1h-1zM28 41h2v1h-2zM32 41h3v1h-3zM2 42h7v1h-7zM10 42h4v1h-4zM16 42h1v1h-1zM20 42h3v1h-3zM25 42h2v1h-2zM29 42h2v1h-2zM34 42h2v1h-2zM38 42h2v1h-2zM42 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-11-muestreo-modulacion.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

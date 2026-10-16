@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hamming en un mensaje</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura, .nota, .preguntas, .seguridad { overflow-wrap:anywhere; }
+  .valor { float:right; color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  .nota a, .seguridad a, .lectura a { color:var(--azul); }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+  #mensaje { width:100%; font-family:Consolas,"Courier New",monospace; }
+  .casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:10px; cursor:pointer; }
+  .casilla input { width:18px; height:18px; margin:0; flex:none; }
+  .lectura .formula { display:block; margin:1px 0 5px; }
+  .dos { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .caja-rx { border:1px solid var(--borde); border-radius:10px; padding:8px 10px; min-width:0; }
+  .caja-rx h3 { margin:0; font-size:1.02rem; color:var(--azul-oscuro); }
+  .caja-rx .pie { color:var(--gris); font-size:.95rem; margin:0; }
+  .texto-rx { font-family:Consolas,"Courier New",monospace; font-size:1.3rem; line-height:1.65; word-break:break-all;
+              margin-top:4px; min-height:1.65em; }
+  .texto-rx span { white-space:pre-wrap; }
+  #rxHam span { cursor:pointer; }
+  .texto-rx .dano { background:var(--guinda-claro); color:var(--guinda); font-weight:bold; box-shadow:inset 0 -3px 0 var(--guinda); }
+  .texto-rx .corregida { box-shadow:inset 0 -3px 0 var(--azul); }
+  .texto-rx .elegida { outline:2px solid var(--azul-oscuro); outline-offset:1px; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 16px; margin:8px 0 0; color:var(--gris); font-size:.95rem; }
+  .leyenda span::before { content:""; display:inline-block; width:16px; height:12px; vertical-align:middle;
+                          margin-right:6px; background:var(--c); border:1px solid var(--b, var(--c)); }
+  .leyenda span.raya::before { height:0; border:none; border-top:3px solid var(--c); width:20px; }
+  .leyenda span.marco::before { background:#fff; border:2px solid var(--c); }
+  table.cuentas { width:100%; border-collapse:collapse; margin-top:12px; font-size:1rem; }
+  table.cuentas th, table.cuentas td { border:1px solid var(--borde); padding:4px 8px; text-align:center; }
+  table.cuentas th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  table.cuentas td:first-child, table.cuentas th:first-child { text-align:left; }
+  table.cuentas td.mal, table.cuentas td.ok { font-weight:bold; }
+  h3.rotulo { font-size:1.02rem; color:var(--azul-oscuro); margin:16px 0 4px; }
+  #lienzoMapa { cursor:pointer; touch-action:manipulation; }
+  .detalle { border:1px solid var(--borde); border-radius:10px; padding:10px 12px; margin-top:14px; }
+  .detalle h3 { margin:0; font-size:1.05rem; color:var(--azul-oscuro); }
+  .botonera { display:flex; flex-wrap:wrap; }
+  .botonera button.accion { padding:5px 10px; }
+  .tabla-bits { overflow-x:auto; }
+  table.bits { border-collapse:separate; border-spacing:3px; margin-top:8px; font-size:1rem; }
+  table.bits th { font-weight:bold; color:var(--gris); font-size:.95rem; text-align:right; padding-right:6px; }
+  table.bits thead th { text-align:center; padding:0; color:var(--azul-oscuro); }
+  table.bits thead th small { display:block; color:var(--gris); font-weight:normal; font-size:.95rem; }
+  table.bits td { width:2.2em; height:2.1em; text-align:center; font-family:Consolas,"Courier New",monospace;
+                  font-size:1.15rem; font-weight:bold; border:2px solid var(--azul-oscuro); border-radius:7px;
+                  color:var(--azul-oscuro); background:#fff; }
+  table.bits td.par { background:var(--oro-claro); border-color:var(--oro); }
+  table.bits td.volteado { background:var(--guinda-claro); border-color:var(--guinda); color:var(--guinda); }
+  table.bits td.arreglado { background:var(--azul-claro); border-color:var(--azul); color:var(--azul); }
+  table.bits td.danado { background:var(--oro); border-color:var(--oro-texto); color:#fff; }
+  ul.calc { list-style:none; margin:8px 0 0; padding:0; }
+  ul.calc li { padding:4px 0; border-top:1px dashed var(--borde); }
+  ul.calc li:first-child { border-top:none; }
+  a.liga { display:inline-block; font-weight:bold; border-radius:8px; padding:6px 12px; margin-top:10px;
+           border:1px solid var(--guinda); color:var(--guinda); text-decoration:none; }
+  a.liga:hover, a.liga:focus-visible { background:var(--guinda); color:#fff; outline:none; }
+  .resultado-est { margin-top:12px; }
+  @media (max-width: 640px) { .dos { grid-template-columns:1fr; } }
+  @media (max-width: 480px) {
+    header { padding:10px 12px 4px; }
+    main { padding:8px 10px 20px; }
+    footer { padding:6px 12px 16px; }
+    .panel { padding:10px; }
+    h1 { font-size:1.45rem; }
+    table.cuentas th, table.cuentas td { padding:4px 5px; }
+    .detalle { padding:8px; }
+    table.bits { border-spacing:2px; }
+    table.bits th { padding-right:4px; }
+    table.bits td { width:1.7em; height:1.9em; font-size:1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 9 · Días 3 y 4 · Codificación de Hamming</div>
+  <h1>Hamming (7,4) a escala de un mensaje</h1>
+  <p class="sub">Un texto cruza un canal que voltea cada bit con probabilidad p. Compara, lado a lado, el envío sin código y el envío protegido con Hamming (7,4): caracteres dañados, bits corregidos, bloques que no se salvan y el costo de los bits extra.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1 · Un envío</button>
+    <button type="button" data-vista="v2" role="tab">2 · Mil envíos: estadística</button>
+  </nav>
+
+  <div id="comunes">
+    <h2>El mensaje y el canal</h2>
+    <label for="mensaje">Mensaje <small>(ASCII, hasta 40 caracteres; las tildes se quitan)</small></label>
+    <input id="mensaje" type="text" maxlength="40" value="Abrir la compuerta 4 a las 07:30" spellcheck="false" autocomplete="off">
+    <p class="nota" id="infoMensaje"></p>
+    <label for="prob">Probabilidad de error por bit p <span class="valor" id="probTxt"></span></label>
+    <input id="prob" type="range" min="0" max="12" step="1" value="5" aria-describedby="probNota">
+    <p class="nota" id="probNota"></p>
+  </div>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <button type="button" class="accion" id="enviar">Enviar por el canal (otra tirada)</button>
+        <p class="nota">Al mover p se conserva la tirada de azar: subir p solo agrega bits volteados.</p>
+        <div class="lectura" id="lectura1"></div>
+      </div>
+      <div class="panel">
+        <div class="dos">
+          <div class="caja-rx">
+            <h3>Sin código</h3>
+            <p class="pie">8 bits por carácter</p>
+            <div class="texto-rx" id="rxRaw" aria-live="polite"></div>
+          </div>
+          <div class="caja-rx">
+            <h3>Con Hamming (7,4)</h3>
+            <p class="pie">2 bloques de 7 bits por carácter</p>
+            <div class="texto-rx" id="rxHam" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="leyenda">
+          <span style="--c:#F5E6EA;--b:#8C1D35">carácter dañado</span>
+          <span class="raya" style="--c:#00408F">llegó bien gracias a una corrección</span>
+          <em>Toca un carácter del texto con Hamming para verlo en detalle.</em>
+        </div>
+        <table class="cuentas" id="tablaEnvio"></table>
+
+        <h3 class="rotulo">Mapa de bits del envío</h3>
+        <canvas id="lienzoMapa" aria-label="Cada carácter del mensaje con sus 8 bits sin código y sus dos bloques de Hamming; se marcan los bits que volteó el canal y lo que hizo el decodificador. Toca un bloque para verlo en detalle."></canvas>
+        <div class="leyenda">
+          <span style="--c:#8C1D35">bit volteado por el canal</span>
+          <span style="--c:#00408F">error del canal que se corrigió</span>
+          <span style="--c:#B8975A">bit bueno que el decodificador volteó</span>
+          <span class="marco" style="--c:#00408F">bloque corregido</span>
+          <span class="marco" style="--c:#8C1D35">bloque con 2 o más errores</span>
+        </div>
+        <p class="nota">Debajo de cada carácter enviado, sus 8 bits sin código y luego sus dos bloques de Hamming (medio byte alto y medio byte bajo, 7 bits cada uno). El carácter se pinta en guinda si llegó dañado aun con Hamming.</p>
+
+        <div class="detalle" id="detalle">
+          <h3 id="detTitulo">Un bloque en detalle</h3>
+          <div class="botonera">
+            <button type="button" class="accion" id="detAnt">◀ Anterior</button>
+            <button type="button" class="accion" id="detSig">Siguiente ▶</button>
+            <button type="button" class="accion" id="detErr">Siguiente con errores ▶</button>
+          </div>
+          <p id="detOrigen" style="margin:8px 0 0"></p>
+          <div class="tabla-bits"><table class="bits" id="detTabla"></table></div>
+          <ul class="calc" id="detGrupos"></ul>
+          <div class="lectura" id="detResultado"></div>
+          <a class="liga" href="semana-09-hamming.html">Un solo bloque, paso a paso: simulador de Hamming (7,4) →</a>
+        </div>
+
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de enviar: con p = 0.02, ¿cuántos de los 256 bits esperas que voltee el canal sin código? ¿Cuántos de los 32 caracteres crees que lleguen dañados?</li>
+            <li>Con Hamming el canal voltea más bits, porque se envían 448. ¿Por qué aun así llegan menos caracteres dañados?</li>
+            <li>Busca el carácter que llegó dañado con Hamming y ábrelo en el detalle. ¿Cuántos bits volteó el canal en ese bloque? ¿Qué posición señaló el síndrome y por qué el bloque quedó peor?</li>
+            <li>Sube p hasta 0.1 con la misma tirada. ¿Sigue ganando Hamming? Compruébalo después en la pestaña de estadística.</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Seguridad.</b> El ruido daña la integridad por accidente: un bit cambia la compuerta o la hora de una orden. Hamming la repara mientras haya a lo más un error por bloque (t = 1). Pero no protege contra un adversario: sus reglas son públicas y no usan clave, así que quien cambia los datos puede recalcular la paridad y el síndrome sale 000. Para eso se necesita un código de autenticación de mensajes con clave secreta, como HMAC. Y quien provoca errores a propósito (Rowhammer en la DRAM) puede meter dos o más en la misma palabra: el decodificador "corrige" mal y no avisa.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <div class="ranura"></div>
+        <button type="button" class="accion" id="repetir">Repetir 1000 envíos</button>
+        <button type="button" class="accion" id="barrido">Barrido: 1000 envíos con cada p</button>
+        <button type="button" class="accion" id="borrar">Borrar la gráfica</button>
+        <label class="casilla"><input type="checkbox" id="esperado"> Mostrar el valor esperado</label>
+        <div class="lectura" id="lectura2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoEst" aria-label="Gráfica logarítmica de la tasa de error residual contra la probabilidad de error del canal, sin código y con Hamming"></canvas>
+        <div class="leyenda">
+          <span style="--c:#8C1D35">sin código (medido)</span>
+          <span style="--c:#00408F">con Hamming (7,4) (medido)</span>
+          <span class="raya" style="--c:#5B6472">tasa = p (el canal)</span>
+          <span class="raya" style="--c:#0A2A57">valor esperado con Hamming</span>
+        </div>
+        <p class="nota">Cada punto acumula todos los envíos hechos con ese p. Un triángulo hacia abajo indica que no hubo errores: la tasa es menor que 1/N, con N los bits de datos enviados. El valor esperado se calcula con las 128 combinaciones de error posibles en un bloque.</p>
+        <div class="resultado-est"><table class="cuentas" id="tablaEst"></table></div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice: si p baja diez veces (de 0.01 a 0.001), ¿cuánto baja la tasa residual sin código? ¿Y con Hamming? Haz el barrido y compara la inclinación de las dos series.</li>
+            <li>¿Hay un p a partir del cual Hamming empeora las cosas? ¿Cómo puede el decodificador agregar errores que el canal no hizo?</li>
+            <li>Con p = 0.001, ¿por qué a veces la tasa con Hamming sale 0 o cambia mucho de una corrida a otra? ¿Cuántos bits tendrías que enviar para medirla bien?</li>
+            <li>Hamming envía 7 bits por cada 4 de datos. Si el enlace transmite 1 Mb/s, ¿cuántos bits de datos por segundo quedan para el mensaje?</li>
+          </ol>
+        </div>
+        <div class="seguridad"><b>Memoria ECC.</b> Los servidores aplican esta idea con palabras más largas: 64 bits de datos, 7 de Hamming y 1 de paridad global (SECDED, tasa 64/72 ≈ 89 %), que corrige un error y detecta dos. Sin ECC, un bit volteado al azar puede corromper en silencio una clave criptográfica guardada en memoria; con ECC, un atacante que usa Rowhammer todavía puede inducir suficientes errores en una palabra para rebasarla sin ser detectado.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex (Codificación de Hamming: orden P1 P2 D1 P4 D2 D3 D4, atajo de suma 1, 2 y 4, tasa 4/7; Ecuaciones eq:cota-hamming, eq:sindrome y eq:correccion-dmin) y fase3/cap01_modelo_osi_seguridad.tex (Ecuación eq:errores-esperados). Mensaje, valores de p y número de envíos: ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a> · <a href="semana-09-hamming.html">Hamming (7,4) paso a paso</a> · <a href="semana-09-ruido-errores-de-bit.html">Del ruido al bit erróneo</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  var MONO = "Consolas, 'Courier New', monospace";
+  function $(id) { return document.getElementById(id); }
+
+  var P_VALORES = [0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3];
+  var MAXC = 40;                 // longitud máxima del mensaje
+  var ENVIOS = 1000;             // repeticiones de la vista 2
+  var SEMILLA_INICIAL = 1085;    // tirada de azar con la que abre la página
+  var vistaActiva = "v1";
+
+  // Pestañas (los controles comunes se mueven a la vista activa)
+  function activar(id) {
+    vistaActiva = id;
+    document.querySelectorAll("nav.pestanas button").forEach(function (x) {
+      x.classList.toggle("activo", x.dataset.vista === id);
+      x.setAttribute("aria-selected", x.dataset.vista === id ? "true" : "false");
+    });
+    document.querySelectorAll("section.vista").forEach(function (x) { x.classList.toggle("activo", x.id === id); });
+    document.querySelector("#" + id + " .ranura").appendChild($("comunes"));
+    dibujarTodo();
+  }
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () { activar(b.dataset.vista); });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal; espacio de miles desde 5 cifras (estilo del libro: 3600, 10 000)
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    if (p[0].replace("-", "").length >= 5) p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  // Notación científica en HTML: 3.40×10<sup>−3</sup>
+  function sci(x, dec) {
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = x / Math.pow(10, e);
+    if (Math.abs(m) >= 9.995) { m /= 10; e++; }
+    return num(m, dec === undefined ? 2 : dec) + "×10<sup>" + num(e, 0) + "</sup>";
+  }
+  function tasa(x) { return x === 0 ? "0" : (x >= 0.01 ? num(x, 4) : sci(x, 2)); }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function potencia10(e) { return "10" + String(e).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function imprimible(cc) { return cc >= 32 && cc < 127; }
+  function bin(x, n) { var s = x.toString(2); while (s.length < n) s = "0" + s; return s; }
+  function cuenta(x) { var k = 0; while (x) { k += x & 1; x >>>= 1; } return k; }
+
+  // ---------------------------------------------------------------- Hamming (7,4) del libro
+  // Posiciones 1..7 = P1 P2 D1 P4 D2 D3 D4; los índices de los arreglos son las posiciones (el 0 no se usa).
+  var GRUPOS = { 1: [1, 3, 5, 7], 2: [2, 3, 6, 7], 4: [4, 5, 6, 7] };
+  var ROLES = ["P1", "P2", "D1", "P4", "D2", "D3", "D4"];
+  function codificar(d) {
+    var c = [0, 0, 0, d[0], 0, d[1], d[2], d[3]];
+    c[1] = c[3] ^ c[5] ^ c[7];
+    c[2] = c[3] ^ c[6] ^ c[7];
+    c[4] = c[5] ^ c[6] ^ c[7];
+    return c;
+  }
+  function paridades(r) {
+    var g = {};
+    [1, 2, 4].forEach(function (q) { var x = 0; GRUPOS[q].forEach(function (k) { x ^= r[k]; }); g[q] = x; });
+    return g;
+  }
+  function bitsDe(nib) { return [(nib >> 3) & 1, (nib >> 2) & 1, (nib >> 1) & 1, nib & 1]; }
+  function nibbleDe(c) { return (c[3] << 3) | (c[5] << 2) | (c[6] << 1) | c[7]; }
+
+  // Tablas para la estadística: palabra de 7 bits como entero (posición k en el bit 7 − k)
+  var COD7 = [], DEC_DATOS = [], DEC_POS = [];
+  (function () {
+    var nib, r, k;
+    for (nib = 0; nib < 16; nib++) {
+      var cw = codificar(bitsDe(nib)), v = 0;
+      for (k = 1; k <= 7; k++) v |= cw[k] << (7 - k);
+      COD7.push(v);
+    }
+    for (r = 0; r < 128; r++) {
+      var arr = [0];
+      for (k = 1; k <= 7; k++) arr.push((r >> (7 - k)) & 1);
+      var g = paridades(arr), s = (g[1] ? 1 : 0) + (g[2] ? 2 : 0) + (g[4] ? 4 : 0);
+      if (s) arr[s] ^= 1;
+      DEC_DATOS.push(nibbleDe(arr)); DEC_POS.push(s);
+    }
+  })();
+
+  // ---------------------------------------------------------------- azar reproducible
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  // Una uniforme fija por bit enviado: el bit se voltea si su uniforme es menor que p.
+  var tiro = { semilla: SEMILLA_INICIAL, uRaw: null, uHam: null };
+  function sortear(semilla) {
+    var a = mulberry32(semilla), b = mulberry32((semilla ^ 0x5BD1E995) >>> 0), i;
+    tiro.semilla = semilla;
+    tiro.uRaw = new Float64Array(8 * MAXC); tiro.uHam = new Float64Array(14 * MAXC);
+    for (i = 0; i < tiro.uRaw.length; i++) tiro.uRaw[i] = a();
+    for (i = 0; i < tiro.uHam.length; i++) tiro.uHam[i] = b();
+  }
+
+  // ---------------------------------------------------------------- estado
+  var cods = [], sustituidos = 0, envio = null, sel = 0;
+  function pActual() { return P_VALORES[Number($("prob").value)]; }
+  function leerMensaje() {
+    var t = $("mensaje").value;
+    if (t.normalize) t = t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    cods = []; sustituidos = 0;
+    for (var i = 0; i < t.length && cods.length < MAXC; i++) {
+      var cc = t.charCodeAt(i);
+      if (imprimible(cc)) cods.push(cc); else { cods.push(63); sustituidos++; }
+    }
+  }
+
+  // Un envío: mismo texto por los dos sistemas, con las uniformes de la tirada actual
+  function calcularEnvio() {
+    var p = pActual(), n = cods.length;
+    var e = { p: p, n: n, raw: [], ham: [], bloques: [],
+              rawFlips: 0, rawDan: 0, hamFlips: 0, hamDan: 0, hamErrDatos: 0, b0: 0, b1: 0, bm: 0, malas: 0, corregidas: 0 };
+    for (var i = 0; i < n; i++) {
+      var c = cods[i], mask = 0, j;
+      for (j = 0; j < 8; j++) if (tiro.uRaw[8 * i + j] < p) mask |= 1 << (7 - j);
+      e.rawFlips += cuenta(mask); if (mask) e.rawDan++;
+      e.raw.push({ tx: c, rx: c ^ mask, mask: mask });
+      var rxH = 0, huboCorr = false;
+      for (var h = 0; h < 2; h++) {
+        var nib = h === 0 ? c >> 4 : c & 15, cw = codificar(bitsDe(nib));
+        var r = cw.slice(), err = [0, 0, 0, 0, 0, 0, 0, 0], nErr = 0, k;
+        for (k = 1; k <= 7; k++) if (tiro.uHam[14 * i + 7 * h + k - 1] < p) { err[k] = 1; r[k] ^= 1; nErr++; }
+        var g = paridades(r), s = (g[1] ? 1 : 0) + (g[2] ? 2 : 0) + (g[4] ? 4 : 0);
+        var corr = r.slice(); if (s) corr[s] ^= 1;
+        var nibRx = nibbleDe(corr), errDatos = cuenta(nib ^ nibRx);
+        e.hamFlips += nErr; e.hamErrDatos += errDatos;
+        if (nErr === 0) e.b0++; else if (nErr === 1) { e.b1++; huboCorr = true; } else e.bm++;
+        if (s && !err[s]) e.malas++;
+        e.bloques.push({ i: i, h: h, nib: nib, cw: cw, err: err, r: r, g: g, s: s, corr: corr, nibRx: nibRx,
+                         nErr: nErr, errDatos: errDatos });
+        rxH = (rxH << 4) | nibRx;
+      }
+      if (rxH !== c) e.hamDan++;
+      else if (huboCorr) e.corregidas++;
+      e.ham.push({ tx: c, rx: rxH, corregida: rxH === c && huboCorr });
+    }
+    envio = e;
+    if (sel >= e.bloques.length) sel = Math.max(0, e.bloques.length - 1);
+  }
+  function primerConErrores(desde) {
+    var B = envio.bloques;
+    for (var k = 0; k < B.length; k++) { var j = (desde + k) % B.length; if (B[j].nErr > 0) return j; }
+    return -1;
+  }
+
+  // ---------------------------------------------------------------- textos de controles
+  function etiquetaP(p) { return String(p); }
+  function actualizarControles() {
+    var p = pActual(), n = cods.length;
+    $("probTxt").textContent = "p = " + etiquetaP(p);
+    var inv = p > 0 ? 1 / p : 0, redondo = Math.round(inv);
+    $("probNota").innerHTML = (p === 0 ? "Canal perfecto: no voltea ningún bit." :
+      "En promedio, " + (Math.abs(inv - redondo) < 1e-9 ? "" : "cerca de ") + "1 de cada " + num(redondo, 0) + " bits llega invertido.") +
+      " p es la BER del canal; de dónde sale, en <a href=\"semana-09-ruido-errores-de-bit.html\">Del ruido al bit erróneo</a>.";
+    $("infoMensaje").textContent = n ? (n + " caracteres = " + num(8 * n, 0) + " bits de datos = " + (2 * n) + " bloques de 4 bits" +
+      (sustituidos === 1 ? " · 1 carácter fuera de ASCII se envía como \"?\"" :
+       sustituidos > 1 ? " · " + sustituidos + " caracteres fuera de ASCII se envían como \"?\"" : "") + ".") : "Escribe al menos un carácter.";
+    var vacio = n === 0;
+    ["enviar", "repetir", "barrido"].forEach(function (id) { $(id).disabled = vacio; });
+  }
+
+  // ---------------------------------------------------------------- vista 1: lecturas y textos
+  function lectura1() {
+    var p = pActual(), n = cods.length;
+    if (!n) { $("lectura1").innerHTML = "Escribe un mensaje para enviarlo."; return; }
+    var Nr = 8 * n, Nh = 14 * n;
+    $("lectura1").innerHTML =
+      "<b>Bits que viajan</b>" +
+      "<span class='formula'>Sin código: N = 8 × " + n + " = " + num(Nr, 0) + " bits</span>" +
+      "<span class='formula'>Con Hamming: N = " + (2 * n) + " bloques × 7 = " + num(Nh, 0) + " bits = " + num(Nr, 0) + " × 7/4</span>" +
+      "<b>Errores esperados del canal</b> (E = BER·N, con BER = p)" +
+      "<span class='formula'>Sin código: E = " + etiquetaP(p) + " × " + num(Nr, 0) + " = " + num(p * Nr, 2) + "</span>" +
+      "<span class='formula'>Con Hamming: E = " + etiquetaP(p) + " × " + num(Nh, 0) + " = " + num(p * Nh, 2) + "</span>" +
+      "<b>El costo y la ganancia</b>" +
+      "<span class='formula'>Tasa del código: m/(m + r) = 4/7 ≈ 0.571</span>" +
+      "3 de cada 7 bits son paridad (cota del libro: 2³ = 8 ≥ 4 + 3 + 1)." +
+      "<span class='formula'>t = ⌊(d<sub>min</sub> − 1)/2⌋ = ⌊(3 − 1)/2⌋ = 1</span>" +
+      "Corrige un error por bloque; con dos o más no avisa.";
+  }
+  // Un carácter recibido como HTML: los no imprimibles se ven como "·" y un espacio dañado como "␣"
+  function spanCar(rx, tx, clase, extra) {
+    var ch = imprimible(rx) ? String.fromCharCode(rx) : "·", dano = rx !== tx;
+    var vis = ch === " " ? (dano ? "␣" : " ") : esc(ch);
+    var titulo = !imprimible(rx) ? "código " + rx + ", no imprimible" :
+                 (dano ? "se envió " + (tx === 32 ? "un espacio" : String.fromCharCode(tx)) : "");
+    return "<span" + (extra || "") + (clase ? " class=\"" + clase + "\"" : "") +
+           (titulo ? " title=\"" + esc(titulo) + "\"" : "") + ">" + vis + "</span>";
+  }
+  function pintarTextos() {
+    var h1 = "", h2 = "", i;
+    for (i = 0; i < envio.n; i++) {
+      var r = envio.raw[i];
+      h1 += spanCar(r.rx, r.tx, r.rx !== r.tx ? "dano" : "");
+      var q = envio.ham[i];
+      var clase = q.rx !== q.tx ? "dano" : (q.corregida ? "corregida" : "");
+      if (envio.bloques[sel] && envio.bloques[sel].i === i) clase += " elegida";
+      h2 += spanCar(q.rx, q.tx, clase.trim(), " data-i=\"" + i + "\"");
+    }
+    $("rxRaw").innerHTML = h1 || "&nbsp;";
+    $("rxHam").innerHTML = h2 || "&nbsp;";
+  }
+  function pintarTabla() {
+    var e = envio, n = e.n, Nr = 8 * n, Nh = 14 * n;
+    function fila(nombre, a, b, claseA, claseB) {
+      return "<tr><td>" + nombre + "</td><td" + (claseA ? " class='" + claseA + "'" : "") + ">" + a + "</td><td" +
+             (claseB ? " class='" + claseB + "'" : "") + ">" + b + "</td></tr>";
+    }
+    var rRaw = Nr ? e.rawFlips / Nr : 0, rHam = Nr ? e.hamErrDatos / Nr : 0;
+    $("tablaEnvio").innerHTML =
+      "<tr><th>Este envío</th><th>Sin código</th><th>Con Hamming</th></tr>" +
+      fila("Bits enviados", num(Nr, 0), num(Nh, 0)) +
+      fila("Bits volteados por el canal", num(e.rawFlips, 0), num(e.hamFlips, 0)) +
+      fila("Bloques con 1 error (corregidos)", "—", e.b1 + " de " + (2 * n), "", e.b1 ? "ok" : "") +
+      fila("Bloques con 2 o más errores", "—", String(e.bm), "", e.bm ? "mal" : "") +
+      fila("Caracteres dañados", e.rawDan + " de " + n, e.hamDan + " de " + n, e.rawDan ? "mal" : "ok", e.hamDan ? "mal" : "ok") +
+      fila("Bits de datos erróneos al final", num(e.rawFlips, 0), num(e.hamErrDatos, 0)) +
+      fila("Tasa de error residual", tasa(rRaw), tasa(rHam));
+  }
+
+  // ---------------------------------------------------------------- vista 1: mapa de bits
+  var geoMapa = null;
+  function dibujarMapa() {
+    var cv = $("lienzoMapa"), w0 = cv.clientWidth || 600, n = envio.n;
+    var angosto = w0 < 520, celda = angosto ? 7 : 10, paso = celda + 1;
+    var anchoTile = 8 * paso + (angosto ? 8 : 14), margen = 8;
+    var porFila = Math.max(1, Math.floor((w0 - 2 * margen) / anchoTile));
+    var filas = Math.max(1, Math.ceil(n / porFila));
+    var tamCar = angosto ? 15 : 17;
+    var yCar = tamCar + 2, yRaw = yCar + 6, yHi = yRaw + paso + (angosto ? 6 : 8), yLo = yHi + paso + 4;
+    var altoTile = yLo + paso + (angosto ? 12 : 16);
+    var alto = 10 + filas * altoTile;
+    var d = preparar(cv, alto / w0), g = d.g, w = d.w;
+    g.clearRect(0, 0, w, d.h);
+    var x0 = Math.max(margen, (w - porFila * anchoTile) / 2);
+    geoMapa = { x0: x0, y0: 10, anchoTile: anchoTile, altoTile: altoTile, porFila: porFila, yHi: yHi, yLo: yLo, paso: paso, celda: celda };
+    if (!n) return;
+    for (var i = 0; i < n; i++) {
+      var tx = x0 + (i % porFila) * anchoTile, ty = 10 + Math.floor(i / porFila) * altoTile;
+      var ham = envio.ham[i], raw = envio.raw[i], cx = tx + 4 * paso;
+      var visible = imprimible(raw.tx) ? String.fromCharCode(raw.tx) : "·";
+      g.save();
+      g.font = "bold " + tamCar + "px " + MONO; g.textAlign = "center"; g.textBaseline = "alphabetic";
+      g.fillStyle = ham.rx !== ham.tx ? C.guinda : (visible === " " ? C.gris : C.tinta);
+      g.fillText(visible === " " ? "␣" : visible, cx, ty + yCar - 2);
+      g.restore();
+      // 8 bits sin código
+      for (var j = 0; j < 8; j++) {
+        var vol = (raw.mask >> (7 - j)) & 1;
+        celdaBit(g, tx + j * paso, ty + yRaw, celda, vol ? C.guinda : "#fff", vol ? C.guinda : "#B9C1CC");
+      }
+      // dos bloques de Hamming
+      for (var h = 0; h < 2; h++) {
+        var b = envio.bloques[2 * i + h], yb = ty + (h === 0 ? yHi : yLo);
+        for (var k = 1; k <= 7; k++) {
+          var relleno = "#fff", borde = "#B9C1CC";
+          if (b.err[k] && b.s === k) { relleno = C.azul; borde = C.azul; }
+          else if (b.err[k]) { relleno = C.guinda; borde = C.guinda; }
+          else if (b.s === k) { relleno = C.oro; borde = C.oroTexto; }
+          celdaBit(g, tx + (k - 1) * paso, yb, celda, relleno, borde);
+        }
+        if (b.nErr > 0) {
+          g.save(); g.strokeStyle = b.nErr === 1 ? C.azul : C.guinda; g.lineWidth = b.nErr === 1 ? 1.6 : 2.4;
+          g.strokeRect(tx - 2.5, yb - 2.5, 7 * paso + 4, paso + 4); g.restore();
+        }
+        if (2 * i + h === sel) {
+          g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.setLineDash([3, 2]);
+          g.strokeRect(tx - 5, yb - 5, 7 * paso + 9, paso + 9); g.restore();
+        }
+      }
+    }
+  }
+  function celdaBit(g, x, y, t, relleno, borde) {
+    g.save(); g.fillStyle = relleno; g.fillRect(x, y, t, t);
+    g.strokeStyle = borde; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, t - 1, t - 1); g.restore();
+  }
+  $("lienzoMapa").addEventListener("pointerdown", function (ev) {
+    if (!geoMapa || !envio || !envio.n) return;
+    var r = this.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, G = geoMapa;
+    var col = Math.floor((x - G.x0) / G.anchoTile), fil = Math.floor((y - G.y0) / G.altoTile);
+    if (col < 0 || col >= G.porFila || fil < 0) return;
+    var i = fil * G.porFila + col;
+    if (i >= envio.n) return;
+    var yRel = y - G.y0 - fil * G.altoTile, h;
+    if (yRel >= G.yLo - 3) h = 1;
+    else if (yRel >= G.yHi - 3) h = 0;
+    else h = envio.bloques[2 * i].nErr === 0 && envio.bloques[2 * i + 1].nErr > 0 ? 1 : 0;
+    elegir(2 * i + h);
+  });
+  $("rxHam").addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || t.dataset.i === undefined) return;
+    var i = Number(t.dataset.i);
+    elegir(envio.bloques[2 * i].nErr === 0 && envio.bloques[2 * i + 1].nErr > 0 ? 2 * i + 1 : 2 * i);
+  });
+
+  // ---------------------------------------------------------------- vista 1: un bloque en detalle
+  function elegir(k) {
+    if (!envio || !envio.bloques.length) return;
+    sel = (k + envio.bloques.length) % envio.bloques.length;
+    pintarTextos(); pintarDetalle(); dibujarMapa();
+  }
+  $("detAnt").addEventListener("click", function () { elegir(sel - 1); });
+  $("detSig").addEventListener("click", function () { elegir(sel + 1); });
+  $("detErr").addEventListener("click", function () {
+    var j = primerConErrores(sel + 1);
+    if (j >= 0) elegir(j);
+    else $("detResultado").innerHTML = "Ningún bloque de este envío recibió errores: sube p o sortea otra tirada.";
+  });
+
+  function pintarDetalle() {
+    var b = envio.bloques[sel];
+    if (!b) {
+      $("detTitulo").textContent = "Un bloque en detalle";
+      $("detOrigen").textContent = ""; $("detTabla").innerHTML = ""; $("detGrupos").innerHTML = "";
+      $("detResultado").textContent = "Escribe un mensaje para ver sus bloques.";
+      return;
+    }
+    var c = cods[b.i], ch = imprimible(c) ? String.fromCharCode(c) : "?";
+    var nombre = ch === " " ? "espacio" : "\"" + esc(ch) + "\"";
+    var byteTxt = bin(c, 8), alto = b.h === 0;
+    $("detTitulo").textContent = "Un bloque en detalle: carácter " + (b.i + 1) + " de " + envio.n + ", bloque " + (alto ? "alto" : "bajo");
+    $("detOrigen").innerHTML = "Carácter " + nombre + " = " + c + " = <span class='mono'>" +
+      (alto ? "<b>" + byteTxt.slice(0, 4) + "</b>" + byteTxt.slice(4) : byteTxt.slice(0, 4) + "<b>" + byteTxt.slice(4) + "</b>") +
+      "</span>. Este bloque lleva el medio byte " + (alto ? "alto" : "bajo") + " (en negritas) como D1 D2 D3 D4, en las posiciones 3, 5, 6 y 7.";
+    // Tabla de bits
+    var t = "<thead><tr><th></th>";
+    for (var k = 1; k <= 7; k++) t += "<th scope='col'>" + k + "<small>" + ROLES[k - 1] + "</small></th>";
+    t += "</tr></thead><tbody>";
+    function filaBits(nombre, arr, claseDe) {
+      var s = "<tr><th scope='row'>" + nombre + "</th>";
+      for (var q = 1; q <= 7; q++) {
+        var cl = claseDe(q) || ([1, 2, 4].indexOf(q) >= 0 ? "par" : "");
+        s += "<td class='" + cl + "'>" + arr[q] + "</td>";
+      }
+      return s + "</tr>";
+    }
+    t += filaBits("Enviado", b.cw, function () { return ""; });
+    t += filaBits("Recibido", b.r, function (q) { return b.err[q] ? "volteado" : ""; });
+    t += filaBits("Corregido", b.corr, function (q) {
+      if (b.s === q) return b.err[q] ? "arreglado" : "danado";
+      return b.err[q] ? "volteado" : "";
+    });
+    $("detTabla").innerHTML = t + "</tbody>";
+    // Grupos y síndrome
+    var lis = "";
+    [1, 2, 4].forEach(function (q) {
+      var vals = GRUPOS[q].map(function (m) { return b.r[m]; });
+      lis += "<li>Grupo P" + q + " (posiciones " + GRUPOS[q].join(", ") + "): " +
+        GRUPOS[q].map(function (m) { return "r<sub>" + m + "</sub>"; }).join(" ⊕ ") + " = " + vals.join(" ⊕ ") + " = " + b.g[q] + " → " +
+        (b.g[q] ? "<span class='mal'>✗ inconsistente: +" + q + "</span>" : "<span class='ok'>✓ consistente</span>") + "</li>";
+    });
+    var partes = [1, 2, 4].filter(function (q) { return b.g[q]; });
+    lis += "<li><b>Síndrome:</b> " + (b.s ? (partes.length > 1 ? partes.join(" + ") + " = " : "") + "<b>" + b.s + "</b> → se invierte la posición " + b.s :
+      "<b>0</b> → no se detecta error") +
+      ". Con la matriz H del libro: s = H·r<sup>T</sup> = (" + [b.g[4], b.g[2], b.g[1]].join(", ") + "), " +
+      [b.g[4], b.g[2], b.g[1]].join("") + " en binario = " + b.s + ".</li>";
+    $("detGrupos").innerHTML = lis;
+    // Resultado
+    var pos = []; for (k = 1; k <= 7; k++) if (b.err[k]) pos.push(k);
+    var datosTx = bin(b.nib, 4), datosRx = bin(b.nibRx, 4), html;
+    if (b.nErr === 0) {
+      html = "<span class='ok'>Sin errores.</span> El canal no tocó este bloque: el síndrome es 0 y llegan los datos <span class='mono'>" + datosTx + "</span>.";
+    } else if (b.nErr === 1) {
+      html = "<span class='ok'>✓ Corregido.</span> El canal volteó 1 bit (posición " + pos[0] + ")" +
+        ([1, 2, 4].indexOf(pos[0]) >= 0 ? ", un bit de paridad" : "") + ". El síndrome lo señala, el decodificador lo invierte y llegan los datos <span class='mono'>" + datosTx + "</span>.";
+    } else {
+      html = "<span class='mal'>✗ " + b.nErr + " errores en el mismo bloque</span> (posiciones " + pos.join(" y ").replace(/ y (?=.* y )/g, ", ") + "). ";
+      if (b.s === 0) html += "Los bits volteados forman otra palabra válida: el síndrome sale 0 y nadie nota nada. ";
+      else if (!b.err[b.s]) html += "El síndrome señala la posición " + b.s + ", que estaba bien: el decodificador la invierte. ";
+      else html += "El síndrome señala la posición " + b.s + " y la corrige, pero los demás errores se quedan. ";
+      html += "Entrega <span class='mono mal'>" + datosRx + "</span> en lugar de <span class='mono'>" + datosTx + "</span>, sin avisar: Hamming (7,4) corrige t = 1 error por bloque.";
+    }
+    $("detResultado").innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------- vista 2: estadística
+  var puntos = {};               // por índice de p: errores y bits acumulados
+  var ultimo = null;             // resultados del último experimento
+  var semillaEst = null;         // si no es null, la estadística usa esta semilla (para pruebas)
+  function experimento(p, nEnv, azar) {
+    var n = cods.length, s = { p: p, nEnv: nEnv, n: n, rawFlips: 0, rawDan: 0, rawPerf: 0,
+      hamFlips: 0, hamErr: 0, hamDan: 0, hamPerf: 0, b0: 0, b1: 0, bm: 0, malas: 0 };
+    var nibs = [];
+    for (var i = 0; i < n; i++) nibs.push(cods[i] >> 4, cods[i] & 15);
+    for (var v = 0; v < nEnv; v++) {
+      var danR = 0, danH = 0;
+      for (i = 0; i < n; i++) {
+        var mask = 0, j;
+        for (j = 0; j < 8; j++) if (azar() < p) mask |= 1 << j;
+        if (mask) { s.rawFlips += cuenta(mask); danR++; }
+        var malo = false;
+        for (var h = 0; h < 2; h++) {
+          var nib = nibs[2 * i + h], e = 0, k;
+          for (k = 0; k < 7; k++) if (azar() < p) e |= 1 << k;
+          if (e) {
+            var r = COD7[nib] ^ e, sal = DEC_DATOS[r], ne = cuenta(e), q = DEC_POS[r];
+            s.hamFlips += ne;
+            if (ne === 1) s.b1++; else { s.bm++; malo = true; s.hamErr += cuenta(sal ^ nib); }
+            if (q && !((e >> (7 - q)) & 1)) s.malas++;
+          } else s.b0++;
+        }
+        if (malo) danH++;
+      }
+      s.rawDan += danR; s.hamDan += danH;
+      if (!danR) s.rawPerf++;
+      if (!danH) s.hamPerf++;
+    }
+    return s;
+  }
+  function correr(indices) {
+    if (!cods.length) return;
+    var azar = mulberry32(semillaEst !== null ? semillaEst : (Math.random() * 4294967296) >>> 0);
+    indices.forEach(function (ip) {
+      var p = P_VALORES[ip], s = experimento(p, ENVIOS, azar), bits = ENVIOS * 8 * cods.length;
+      if (p > 0) {
+        var pt = puntos[ip] || (puntos[ip] = { rawErr: 0, hamErr: 0, bits: 0 });
+        pt.rawErr += s.rawFlips; pt.hamErr += s.hamErr; pt.bits += bits;
+      }
+      if (ip === Number($("prob").value)) ultimo = s;
+    });
+    lectura2(); pintarTablaEst(); dibujarEst();
+  }
+  $("repetir").addEventListener("click", function () { correr([Number($("prob").value)]); });
+  $("barrido").addEventListener("click", function () {
+    var todos = []; for (var i = 1; i < P_VALORES.length; i++) todos.push(i);
+    correr(todos);
+  });
+  $("borrar").addEventListener("click", function () { puntos = {}; ultimo = null; lectura2(); pintarTablaEst(); dibujarEst(); });
+  $("esperado").addEventListener("change", dibujarEst);
+
+  // Valor esperado con Hamming: suma sobre los 128 patrones de error de un bloque (código lineal: basta el dato 0000)
+  function esperadoHam(p) {
+    var tot = 0;
+    for (var e = 1; e < 128; e++) {
+      var w = cuenta(e);
+      if (w < 2) continue;
+      tot += Math.pow(p, w) * Math.pow(1 - p, 7 - w) * cuenta(DEC_DATOS[e]);
+    }
+    return tot / 4;
+  }
+
+  function lectura2() {
+    var p = pActual();
+    if (!ultimo || ultimo.p !== p || ultimo.n !== cods.length) {
+      $("lectura2").innerHTML = p === 0 ? "Con p = 0 el canal no voltea nada: elige p &gt; 0 para medir." :
+        "Pulsa <b>Repetir 1000 envíos</b> para enviar el mensaje 1000 veces con p = " + etiquetaP(p) +
+        " por los dos sistemas, o <b>Barrido</b> para hacerlo con todos los valores de p. Antes, predice dónde caerá cada punto.";
+      return;
+    }
+    var s = ultimo, bitsD = s.nEnv * 8 * s.n, rR = s.rawFlips / bitsD, rH = s.hamErr / bitsD;
+    var html = "<b>Último experimento:</b> " + num(s.nEnv, 0) + " envíos de " + s.n + " caracteres con p = " + etiquetaP(p) + "." +
+      "<span class='formula'>Sin código: " + num(s.rawFlips, 0) + "/" + num(bitsD, 0) + " = " + tasa(rR) + "</span>" +
+      "<span class='formula'>Con Hamming: " + num(s.hamErr, 0) + "/" + num(bitsD, 0) + " = " + tasa(rH) + "</span>" +
+      "(tasa de error residual = bits de datos erróneos / bits de datos)<br>";
+    var costo = num(s.nEnv * 14 * s.n, 0) + " bits en lugar de " + num(bitsD, 0) + " (× 7/4)";
+    if (s.hamErr && s.rawFlips) {
+      var veces = rR / rH;
+      html += veces >= 1 ? "Hamming deja <b>" + num(veces, veces < 10 ? 1 : 0) + " veces</b> menos bits erróneos, a cambio de enviar " + costo + "." :
+                           "<span class='mal'>Hamming deja " + num(1 / veces, 2) + " veces MÁS bits erróneos</span>, y además envía " + costo + ".";
+    } else if (s.rawFlips) {
+      html += "Con Hamming no quedó ningún bit erróneo (la tasa es menor que 1/" + num(bitsD, 0) + "), a cambio de enviar " + costo + ".";
+    } else {
+      html += "El canal no volteó ningún bit en estos envíos. Con Hamming se enviaron " + costo + ".";
+    }
+    $("lectura2").innerHTML = html;
+  }
+  function pintarTablaEst() {
+    var s = ultimo;
+    if (!s || s.p !== pActual() || s.n !== cods.length) { $("tablaEst").innerHTML = ""; return; }
+    var N = s.nEnv, n = s.n, bloques = 2 * n * N;
+    function fila(nombre, a, b, cb) { return "<tr><td>" + nombre + "</td><td>" + a + "</td><td" + (cb ? " class='" + cb + "'" : "") + ">" + b + "</td></tr>"; }
+    $("tablaEst").innerHTML =
+      "<tr><th>" + num(N, 0) + " envíos, p = " + etiquetaP(s.p) + "</th><th>Sin código</th><th>Con Hamming</th></tr>" +
+      fila("Bits enviados en total", num(N * 8 * n, 0), num(N * 14 * n, 0)) +
+      fila("Bits volteados por el canal", num(s.rawFlips, 0), num(s.hamFlips, 0)) +
+      fila("Caracteres dañados por envío (promedio)", num(s.rawDan / N, 2) + " de " + n, num(s.hamDan / N, 2) + " de " + n) +
+      fila("Envíos con el mensaje intacto", num(100 * s.rawPerf / N, 1) + " %", num(100 * s.hamPerf / N, 1) + " %") +
+      fila("Bloques con 1 error (corregidos)", "—", num(s.b1, 0) + " de " + num(bloques, 0), "ok") +
+      fila("Bloques con 2 o más errores (datos equivocados, sin aviso)", "—", num(s.bm, 0), s.bm ? "mal" : "") +
+      fila("Bits buenos que el decodificador volteó", "—", num(s.malas, 0), s.malas ? "mal" : "") +
+      fila("Tasa de error residual", tasa(s.rawFlips / (N * 8 * n)), tasa(s.hamErr / (N * 8 * n)));
+  }
+
+  // Ayudantes de dibujo
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "middle"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+
+  function dibujarEst() {
+    var cv = $("lienzoEst"), estrecho = (cv.clientWidth || 600) < 560;
+    var d = preparar(cv, estrecho ? 1.0 : 0.6), g = d.g, w = d.w, h = d.h;
+    var izq = estrecho ? 52 : 70, der = w - 14, arr = 22, abj = h - (estrecho ? 62 : 52);
+    var LX0 = -3, LX1 = Math.log10(0.3), LY0 = -6, LY1 = 0;
+    function X(p) { return izq + (Math.log10(p) - LX0) / (LX1 - LX0) * (der - izq); }
+    function Y(r) { return abj - (Math.log10(r) - LY0) / (LY1 - LY0) * (abj - arr); }
+    g.clearRect(0, 0, w, h);
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(izq, arr, der - izq, abj - arr); g.restore();
+    // rejilla
+    var marcasX = estrecho ? [0.001, 0.01, 0.1, 0.3] : [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3];
+    marcasX.forEach(function (p) {
+      linea(g, X(p), arr, X(p), abj, [0.001, 0.01, 0.1].indexOf(p) >= 0 ? C.borde : C.grisClaro, 1);
+      texto(g, String(p), X(p), abj + 14, C.gris, 15, "center");
+    });
+    for (var e = LY0; e <= LY1; e++) {
+      linea(g, izq, Y(Math.pow(10, e)), der, Y(Math.pow(10, e)), C.borde, 1);
+      texto(g, e === 0 ? "1" : potencia10(e), izq - 6, Y(Math.pow(10, e)), C.gris, 15, "right");
+    }
+    texto(g, "p (probabilidad de error del canal por bit)", der, h - (estrecho ? 30 : 16), C.tinta, 15, "right");
+    if (estrecho) texto(g, "eje vertical: tasa de error residual", izq, h - 12, C.tinta, 15, "left");
+    else {
+      g.save(); g.translate(16, (arr + abj) / 2); g.rotate(-Math.PI / 2);
+      texto(g, "tasa de error residual", 0, 0, C.tinta, 15, "center"); g.restore();
+    }
+    // diagonal: sin código la tasa residual es p
+    linea(g, X(0.001), Y(0.001), X(0.3), Y(0.3), C.gris, 2, [8, 5]);
+    texto(g, estrecho ? "tasa = p" : "tasa = p (el canal)", X(0.0013), Y(0.0013) + 22, C.gris, 15, "left", "middle", true);
+    // valor esperado con Hamming
+    if ($("esperado").checked) {
+      g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.setLineDash([3, 4]); g.beginPath();
+      var primero = true;
+      for (var i = 0; i <= 120; i++) {
+        var pv = Math.pow(10, LX0 + (LX1 - LX0) * i / 120), rv = esperadoHam(pv);
+        if (rv < 1e-6) { primero = true; continue; }
+        if (primero) { g.moveTo(X(pv), Y(rv)); primero = false; } else g.lineTo(X(pv), Y(rv));
+      }
+      g.stroke(); g.restore();
+    }
+    // p actual
+    var pa = pActual();
+    if (pa > 0) linea(g, X(pa), arr, X(pa), abj, C.oro, 2, [4, 4]);
+    // puntos medidos
+    var hay = false;
+    Object.keys(puntos).forEach(function (k) {
+      var pt = puntos[k], p = P_VALORES[Number(k)];
+      hay = true;
+      marca(g, X(p), pt.rawErr ? Y(pt.rawErr / pt.bits) : Y(1 / pt.bits), C.guinda, "cuadro", !pt.rawErr);
+      marca(g, X(p), pt.hamErr ? Y(pt.hamErr / pt.bits) : Y(1 / pt.bits), C.azul, "circulo", !pt.hamErr);
+    });
+    if (!hay) {
+      texto(g, "Pulsa \"Repetir 1000 envíos\" o \"Barrido\"", (izq + der) / 2, (arr + abj) / 2 + 30, C.gris, estrecho ? 15 : 17, "center", "middle", true);
+    }
+  }
+  function marca(g, x, y, color, forma, cero) {
+    g.save(); g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 2;
+    if (cero) {
+      g.beginPath(); g.moveTo(x - 7, y - 6); g.lineTo(x + 7, y - 6); g.lineTo(x, y + 6); g.closePath();
+      g.fillStyle = "#fff"; g.fill(); g.stroke();
+    } else if (forma === "cuadro") {
+      g.fillRect(x - 6, y - 6, 12, 12);
+    } else {
+      g.beginPath(); g.arc(x, y, 6.5, 0, 2 * Math.PI); g.fill();
+      g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke();
+    }
+    g.restore();
+  }
+
+  // ---------------------------------------------------------------- todo
+  function rehacer() {
+    leerMensaje(); calcularEnvio(); actualizarControles();
+    lectura1(); pintarTextos(); pintarTabla(); pintarDetalle();
+    lectura2(); pintarTablaEst();
+    dibujarTodo();
+  }
+  function dibujarTodo() {
+    if (vistaActiva === "v1") dibujarMapa(); else dibujarEst();
+  }
+  $("prob").addEventListener("input", rehacer);
+  $("mensaje").addEventListener("input", function () { puntos = {}; ultimo = null; rehacer(); });
+  $("enviar").addEventListener("click", function () {
+    sortear((Math.random() * 4294967296) >>> 0);
+    rehacer();
+    var j = primerConErrores(0); elegir(j >= 0 ? j : 0);
+  });
+  window.addEventListener("resize", dibujarTodo);
+
+  // Para verificar desde la consola
+  window.simHammingTexto = { codificar: codificar, paridades: paridades, envio: function () { return envio; },
+    cods: function () { return cods; }, experimento: experimento, mulberry32: mulberry32, esperadoHam: esperadoHam,
+    sortear: function (s) { sortear(s); rehacer(); }, puntos: function () { return puntos; }, ultimo: function () { return ultimo; },
+    fijarSemillaEst: function (s) { semillaEst = s; } };
+
+  // Autoverificación con los ejemplos del libro (se reporta en la consola)
+  console.assert(codificar([1, 0, 1, 1]).slice(1).join("") === "0110011", "1011 -> 0110011");
+  console.assert(codificar([1, 1, 0, 0]).slice(1).join("") === "0111100", "1100 -> 0111100");
+
+  sortear(SEMILLA_INICIAL);
+  leerMensaje(); calcularEnvio();
+  sel = Math.max(0, primerConErrores(0));
+  rehacer();
+  activar(location.hash === "#v2" ? "v2" : "v1");      // una liga con #v2 abre la estadística
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-09-hamming-en-texto.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h3v1h-3zM14 2h2v1h-2zM17 2h1v1h-1zM19 2h1v1h-1zM21 2h3v1h-3zM25 2h1v1h-1zM27 2h1v1h-1zM30 2h1v1h-1zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM15 3h2v1h-2zM18 3h1v1h-1zM20 3h1v1h-1zM25 3h3v1h-3zM30 3h2v1h-2zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM12 4h1v1h-1zM16 4h1v1h-1zM19 4h1v1h-1zM21 4h2v1h-2zM26 4h1v1h-1zM32 4h2v1h-2zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h3v1h-3zM23 5h1v1h-1zM25 5h1v1h-1zM28 5h1v1h-1zM30 5h1v1h-1zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM17 6h3v1h-3zM21 6h1v1h-1zM23 6h2v1h-2zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h2v1h-2zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM12 7h3v1h-3zM16 7h1v1h-1zM20 7h5v1h-5zM27 7h1v1h-1zM30 7h1v1h-1zM32 7h3v1h-3zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h1v1h-1zM17 9h3v1h-3zM21 9h1v1h-1zM26 9h1v1h-1zM31 9h2v1h-2zM2 10h1v1h-1zM4 10h2v1h-2zM7 10h3v1h-3zM12 10h3v1h-3zM16 10h1v1h-1zM19 10h2v1h-2zM22 10h2v1h-2zM25 10h2v1h-2zM28 10h1v1h-1zM30 10h4v1h-4zM36 10h1v1h-1zM39 10h1v1h-1zM41 10h2v1h-2zM2 11h3v1h-3zM7 11h1v1h-1zM9 11h1v1h-1zM12 11h1v1h-1zM16 11h1v1h-1zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h3v1h-3zM6 12h1v1h-1zM8 12h2v1h-2zM11 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM24 12h5v1h-5zM30 12h1v1h-1zM35 12h2v1h-2zM40 12h2v1h-2zM2 13h1v1h-1zM4 13h3v1h-3zM9 13h1v1h-1zM14 13h2v1h-2zM21 13h1v1h-1zM24 13h1v1h-1zM26 13h2v1h-2zM29 13h2v1h-2zM34 13h1v1h-1zM36 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM8 14h1v1h-1zM10 14h3v1h-3zM14 14h1v1h-1zM17 14h3v1h-3zM21 14h2v1h-2zM24 14h1v1h-1zM26 14h6v1h-6zM33 14h1v1h-1zM35 14h1v1h-1zM37 14h1v1h-1zM39 14h2v1h-2zM42 14h1v1h-1zM6 15h2v1h-2zM10 15h1v1h-1zM13 15h1v1h-1zM16 15h2v1h-2zM22 15h1v1h-1zM25 15h4v1h-4zM39 15h1v1h-1zM41 15h2v1h-2zM3 16h2v1h-2zM8 16h2v1h-2zM11 16h2v1h-2zM15 16h2v1h-2zM21 16h2v1h-2zM25 16h1v1h-1zM27 16h2v1h-2zM36 16h7v1h-7zM2 17h1v1h-1zM4 17h1v1h-1zM9 17h1v1h-1zM14 17h1v1h-1zM17 17h2v1h-2zM20 17h1v1h-1zM23 17h3v1h-3zM28 17h2v1h-2zM33 17h2v1h-2zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM2 18h1v1h-1zM5 18h2v1h-2zM8 18h3v1h-3zM12 18h3v1h-3zM20 18h1v1h-1zM22 18h3v1h-3zM27 18h1v1h-1zM33 18h1v1h-1zM38 18h1v1h-1zM41 18h2v1h-2zM2 19h5v1h-5zM10 19h2v1h-2zM13 19h3v1h-3zM18 19h1v1h-1zM20 19h1v1h-1zM22 19h4v1h-4zM27 19h1v1h-1zM29 19h1v1h-1zM31 19h1v1h-1zM35 19h1v1h-1zM37 19h1v1h-1zM39 19h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM10 20h2v1h-2zM13 20h3v1h-3zM20 20h1v1h-1zM24 20h1v1h-1zM29 20h3v1h-3zM34 20h2v1h-2zM38 20h4v1h-4zM2 21h1v1h-1zM4 21h1v1h-1zM10 21h2v1h-2zM13 21h1v1h-1zM15 21h1v1h-1zM17 21h1v1h-1zM19 21h2v1h-2zM23 21h1v1h-1zM26 21h1v1h-1zM37 21h1v1h-1zM39 21h2v1h-2zM42 21h1v1h-1zM5 22h11v1h-11zM17 22h1v1h-1zM21 22h1v1h-1zM27 22h1v1h-1zM32 22h1v1h-1zM35 22h2v1h-2zM38 22h3v1h-3zM42 22h1v1h-1zM5 23h1v1h-1zM7 23h1v1h-1zM11 23h1v1h-1zM13 23h4v1h-4zM19 23h1v1h-1zM21 23h3v1h-3zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h3v1h-3zM40 23h3v1h-3zM2 24h4v1h-4zM7 24h2v1h-2zM11 24h1v1h-1zM16 24h1v1h-1zM19 24h1v1h-1zM23 24h5v1h-5zM30 24h3v1h-3zM35 24h2v1h-2zM40 24h2v1h-2zM2 25h4v1h-4zM9 25h3v1h-3zM13 25h2v1h-2zM17 25h2v1h-2zM21 25h1v1h-1zM26 25h2v1h-2zM32 25h3v1h-3zM37 25h2v1h-2zM41 25h2v1h-2zM2 26h2v1h-2zM8 26h2v1h-2zM13 26h1v1h-1zM18 26h2v1h-2zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM39 26h2v1h-2zM2 27h1v1h-1zM6 27h2v1h-2zM9 27h2v1h-2zM14 27h4v1h-4zM19 27h3v1h-3zM26 27h1v1h-1zM28 27h4v1h-4zM33 27h2v1h-2zM36 27h1v1h-1zM39 27h2v1h-2zM42 27h1v1h-1zM4 28h1v1h-1zM7 28h3v1h-3zM13 28h5v1h-5zM20 28h3v1h-3zM24 28h1v1h-1zM27 28h2v1h-2zM33 28h3v1h-3zM37 28h1v1h-1zM39 28h1v1h-1zM42 28h1v1h-1zM3 29h5v1h-5zM9 29h1v1h-1zM11 29h1v1h-1zM13 29h1v1h-1zM16 29h2v1h-2zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h5v1h-5zM39 29h1v1h-1zM42 29h1v1h-1zM3 30h1v1h-1zM7 30h2v1h-2zM13 30h1v1h-1zM17 30h2v1h-2zM20 30h1v1h-1zM22 30h3v1h-3zM26 30h2v1h-2zM29 30h1v1h-1zM32 30h2v1h-2zM35 30h5v1h-5zM41 30h2v1h-2zM3 31h3v1h-3zM7 31h1v1h-1zM10 31h1v1h-1zM12 31h5v1h-5zM18 31h1v1h-1zM20 31h5v1h-5zM28 31h1v1h-1zM31 31h3v1h-3zM36 31h1v1h-1zM39 31h2v1h-2zM2 32h1v1h-1zM5 32h1v1h-1zM8 32h3v1h-3zM14 32h1v1h-1zM16 32h1v1h-1zM21 32h1v1h-1zM24 32h1v1h-1zM34 32h4v1h-4zM39 32h1v1h-1zM41 32h1v1h-1zM4 33h1v1h-1zM6 33h2v1h-2zM10 33h3v1h-3zM18 33h2v1h-2zM21 33h1v1h-1zM25 33h1v1h-1zM29 33h4v1h-4zM34 33h1v1h-1zM36 33h1v1h-1zM38 33h5v1h-5zM3 34h1v1h-1zM7 34h4v1h-4zM12 34h1v1h-1zM14 34h1v1h-1zM16 34h1v1h-1zM18 34h3v1h-3zM22 34h3v1h-3zM28 34h13v1h-13zM42 34h1v1h-1zM10 35h1v1h-1zM13 35h1v1h-1zM16 35h8v1h-8zM25 35h1v1h-1zM27 35h1v1h-1zM30 35h1v1h-1zM32 35h1v1h-1zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM10 36h1v1h-1zM14 36h4v1h-4zM20 36h1v1h-1zM25 36h1v1h-1zM27 36h1v1h-1zM31 36h1v1h-1zM33 36h2v1h-2zM36 36h1v1h-1zM38 36h4v1h-4zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM12 37h4v1h-4zM17 37h1v1h-1zM19 37h1v1h-1zM21 37h2v1h-2zM25 37h2v1h-2zM30 37h1v1h-1zM32 37h3v1h-3zM38 37h1v1h-1zM41 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h1v1h-1zM15 38h1v1h-1zM17 38h1v1h-1zM21 38h1v1h-1zM23 38h1v1h-1zM25 38h2v1h-2zM28 38h1v1h-1zM32 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h2v1h-2zM15 39h1v1h-1zM17 39h1v1h-1zM21 39h1v1h-1zM23 39h2v1h-2zM26 39h1v1h-1zM28 39h2v1h-2zM32 39h3v1h-3zM38 39h4v1h-4zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM13 40h2v1h-2zM16 40h1v1h-1zM18 40h2v1h-2zM21 40h3v1h-3zM26 40h1v1h-1zM32 40h2v1h-2zM37 40h1v1h-1zM39 40h1v1h-1zM41 40h2v1h-2zM2 41h1v1h-1zM8 41h1v1h-1zM15 41h1v1h-1zM17 41h1v1h-1zM19 41h1v1h-1zM21 41h1v1h-1zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h4v1h-4zM16 42h2v1h-2zM20 42h1v1h-1zM22 42h4v1h-4zM27 42h1v1h-1zM32 42h3v1h-3zM36 42h1v1h-1zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-09-hamming-en-texto.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canal encubierto de temporización</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  .valor { color:var(--guinda); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  #msg { width:100%; margin-top:4px; }
+  .lectura { overflow-wrap:anywhere; }
+  .bits { font-family:Consolas,"Courier New",monospace; font-size:1rem; letter-spacing:1px; color:var(--azul-oscuro); word-break:break-all; }
+  .fila > * { min-width:0; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 07 · Canales encubiertos de temporización</div>
+  <h1>Un bit en el tiempo: el canal encubierto de temporización</h1>
+  <p class="sub">Esconde un mensaje en el intervalo entre pings, mídele la tasa, agrégale jitter y mira cómo se delata (o se oculta) en un histograma.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">Transmitir</button>
+    <button type="button" data-vista="v2" role="tab">Recibir con jitter</button>
+    <button type="button" data-vista="v3" role="tab">Detectar</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>El mensaje escondido</h2>
+        <label for="msg">Mensaje (texto ASCII) <small>cada carácter = 8 bits</small></label>
+        <input id="msg" type="text" value="Ya" maxlength="16" autocomplete="off" spellcheck="false">
+        <label for="t0">Intervalo para el bit 0, t<sub>0</sub>: <span class="valor" id="t0Val"></span></label>
+        <input id="t0" type="range" min="0.1" max="1.2" step="0.05" value="0.2">
+        <label for="t1">Intervalo para el bit 1, t<sub>1</sub>: <span class="valor" id="t1Val"></span></label>
+        <input id="t1" type="range" min="0.15" max="1.5" step="0.05" value="0.6">
+        <p class="nota">Intervalos cortos = más rápido. Valores por omisión ilustrativos (el libro solo da pares como ejemplo de clase).</p>
+        <div class="lectura" id="lectura1"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Línea de tiempo con pings; cada intervalo entre dos pings codifica un bit, corto para 0 y largo para 1"></canvas>
+        <p class="nota" id="bitsTxt"></p>
+        <div class="seguridad"><b>Seguridad.</b> Aquí no viaja ningún dato "prohibido" por la red: la información está en <i>cuándo</i> ocurren los pings. Un firewall que solo lee el contenido no lo detiene. La tasa no da confidencialidad ni integridad; sí dimensiona la <b>disponibilidad</b>: con ella se estima cuánto pudo sacar ya una fuga. Que un canal sea "lento" no lo hace seguro.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>¿Qué hace más corto el tiempo total: acortar t<sub>0</sub>, acortar t<sub>1</sub> o escribir un mensaje con más ceros? ¿Por qué?</li>
+            <li>Escribe dos mensajes con el mismo número de bits que tarden distinto. ¿De qué depende la duración?</li>
+            <li>Acorta los dos intervalos a la mitad. ¿Qué le pasa a la tasa R?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>La red mete ruido de tiempo</h2>
+        <p class="nota" id="resumen2" style="margin-top:0"></p>
+        <label for="jit2">Jitter de la red J <small>(retraso aleatorio ±J)</small>: <span class="valor" id="jit2Val"></span></label>
+        <input id="jit2" type="range" min="0" max="0.6" step="0.01" value="0.08">
+        <label for="semilla">Semilla del ruido <small>(cambia el sorteo)</small>: <span class="valor" id="semillaVal"></span></label>
+        <input id="semilla" type="range" min="1" max="40" step="1" value="7">
+        <div class="lectura" id="lectura2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Cada bit como un punto segun su intervalo medido; lineas de t0, t1 y umbral; los puntos que cruzan el umbral se leen mal"></canvas>
+        <div class="seguridad"><b>Seguridad.</b> El mismo jitter que arruina la lectura es lo que el atacante agrega a propósito para esconderse (vista 3). Hay un compromiso: ir más rápido (intervalos cortos) achica el margen (t<sub>1</sub>−t<sub>0</sub>)/2 y multiplica los errores. La confiabilidad de un canal de temporización la limita la resolución con que el receptor distingue los intervalos.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Sube el jitter poco a poco. ¿A partir de qué valor aparecen los errores? Relaciónalo con el margen (t<sub>1</sub>−t<sub>0</sub>)/2.</li>
+            <li>Vuelve a "Transmitir" y acorta los intervalos (ir más rápido). Con el mismo jitter, ¿se lee mejor o peor? ¿Por qué?</li>
+            <li>¿Por qué conviene poner el umbral justo a la mitad entre t<sub>0</sub> y t<sub>1</sub>?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v3">
+    <div class="fila">
+      <div class="panel">
+        <h2>Delatar el ritmo</h2>
+        <p class="nota" style="margin-top:0">Un analista no lee el contenido: cuenta cuántas veces ocurre cada intervalo y dibuja un histograma. Compara el tráfico normal con el canal encubierto.</p>
+        <label for="jit3">Jitter del canal encubierto J: <span class="valor" id="jit3Val"></span></label>
+        <input id="jit3" type="range" min="0" max="0.6" step="0.01" value="0.08">
+        <label for="muestras">Paquetes observados <small>(ilustrativo)</small>: <span class="valor" id="muestrasVal"></span></label>
+        <input id="muestras" type="range" min="150" max="1200" step="50" value="600">
+        <div class="lectura" id="lectura3"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo3" aria-label="Dos histogramas de intervalos: arriba el trafico normal con una joroba, abajo el canal encubierto con dos jorobas en t0 y t1"></canvas>
+        <div class="seguridad"><b>Seguridad.</b> Es la misma idea del histograma del análisis de frecuencias y de vigilar la regularidad de una señal periódica (un beacon): dos jorobas delatan un canal de temporización. Por eso el atacante agrega jitter, que ensancha y funde las jorobas; pero (vista 2) eso lo vuelve lento y propenso a errores. La detección se hace con la estadística de los tiempos, no con el contenido.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>¿En qué se diferencia el histograma del tráfico normal del de un canal encubierto?</li>
+            <li>Sube el jitter. ¿Qué les pasa a las dos jorobas y por qué eso le conviene al atacante?</li>
+            <li>¿Qué gana y qué pierde el atacante al esconderse mejor (más jitter)? Conéctalo con la vista 2.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap01_evolucion_comunicacion.tex (Definición def:tipos-canal-encubierto; Ecuaciones eq:tasa-transferencia y eq:bytes-bits). Intervalos y modelo de jitter: valores ilustrativos. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro)
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.92)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+
+  // Generador pseudoaleatorio reproducible (mulberry32)
+  function rng(semilla) {
+    var s = semilla >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) | 0;
+      var t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function uniforme(r, a) { return (r() * 2 - 1) * a; }         // uniforme en [-a, a]
+  function gauss(r) {                                           // Box-Muller
+    var u = Math.max(1e-9, r()), v = r();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // ================================================================ Estado y datos
+  function t0() { return Number($("t0").value); }
+  function t1() { return Number($("t1").value); }
+  function umbral() { return (t0() + t1()) / 2; }
+  function margen() { return (t1() - t0()) / 2; }
+
+  function bitsDeMensaje() {
+    var s = $("msg").value, bits = [];
+    for (var i = 0; i < s.length; i++) {
+      var cod = s.charCodeAt(i) & 0xFF;
+      for (var k = 7; k >= 0; k--) bits.push((cod >> k) & 1);
+    }
+    if (bits.length === 0) bits = [0, 1, 0, 0, 1, 0, 0, 0];      // "H" si el texto queda vacío
+    return bits;
+  }
+
+  // ================================================================ Vista 1
+  function lectura1(bits) {
+    var n0 = 0, n1 = 0;
+    bits.forEach(function (b) { if (b) n1++; else n0++; });
+    var T = n0 * t0() + n1 * t1(), N = bits.length, R = T > 0 ? N / T : 0;
+    var promedio = N > 0 ? T / N : 0;
+    $("t0Val").textContent = num(t0(), 2) + " s";
+    $("t1Val").textContent = num(t1(), 2) + " s";
+    var h = "";
+    h += "Mensaje de <b>" + N + " bits</b> (" + n0 + " ceros, " + n1 + " unos).<br>";
+    h += "Tiempo total: <span class='formula'>T = n<sub>0</sub>·t<sub>0</sub> + n<sub>1</sub>·t<sub>1</sub> = " +
+         n0 + "(" + num(t0(), 2) + ") + " + n1 + "(" + num(t1(), 2) + ") = <b>" + num(T, 2) + " s</b></span><br>";
+    h += "<span class='formula'>Tasa = datos / tiempo = " + N + " bits / " + num(T, 2) + " s = <b>" + num(R, 2) + " bits/s</b></span>";
+    h += " · = " + num(R / 8, 3) + " bytes/s<br>";
+    h += "<span class='nota'>Intervalo promedio por bit: " + num(promedio, 3) + " s.</span>";
+    $("lectura1").innerHTML = h;
+    // tira de bits agrupada por byte
+    var tira = [];
+    for (var i = 0; i < bits.length; i += 8) tira.push(bits.slice(i, i + 8).join(""));
+    $("bitsTxt").innerHTML = "<span class='bits'>" + tira.join(" ") + "</span>";
+    return { n0: n0, n1: n1, T: T, N: N, R: R };
+  }
+
+  function dibujar1() {
+    var cv = $("lienzo1"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 0.9 : 0.42), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var bits = bitsDeMensaje();
+    var TOPE = 40, recorte = bits.length > TOPE, vis = recorte ? bits.slice(0, TOPE) : bits;
+    var x0 = 14, x1 = w - 14, yBase = h * 0.55;
+    // tiempos acumulados de los pings (vis.length intervalos => vis.length+1 pings)
+    var tt = [0];
+    for (var i = 0; i < vis.length; i++) tt.push(tt[i] + (vis[i] ? t1() : t0()));
+    var Tvis = tt[tt.length - 1] || 1;
+    function X(t) { return x0 + (t / Tvis) * (x1 - x0); }
+    texto(g, "Línea de tiempo (cada ping es un paquete; el hueco entre dos pings lleva un bit)", x0, 22, C.azulOscuro, angosto ? 14 : 15, "left", "alphabetic", true);
+    // eje
+    linea(g, x0, yBase, x1, yBase, C.gris, 1.5);
+    // intervalos: arco + etiqueta del bit
+    for (i = 0; i < vis.length; i++) {
+      var xa = X(tt[i]), xb = X(tt[i + 1]), xm = (xa + xb) / 2, bit = vis[i];
+      var col = bit ? C.guinda : C.azul;
+      // banda del intervalo
+      g.save(); g.globalAlpha = 0.12; g.fillStyle = col; g.fillRect(xa, yBase - 42, xb - xa, 42); g.restore();
+      linea(g, xa, yBase - 44, xa, yBase + 8, C.grisClaro, 1);
+      // etiqueta del bit si cabe
+      if (xb - xa > 12) texto(g, String(bit), xm, yBase - 16, col, angosto ? 15 : 17, "center", "middle", true);
+    }
+    // pings
+    for (i = 0; i < tt.length; i++) {
+      var xp = X(tt[i]);
+      linea(g, xp, yBase - 46, xp, yBase + 12, C.azulOscuro, 1.5);
+      g.save(); g.fillStyle = C.azulOscuro; g.beginPath(); g.arc(xp, yBase, 4.5, 0, 2 * Math.PI); g.fill(); g.restore();
+    }
+    etiqueta(g, "ping", X(0) + 6, yBase - 52, C.azulOscuro, angosto ? 13 : 14, "left", true);
+    // regla de tiempo
+    var paso = Tvis > 8 ? 2 : (Tvis > 4 ? 1 : (Tvis > 2 ? 0.5 : 0.25));
+    for (var tq = 0; tq <= Tvis + 1e-9; tq += paso) {
+      var xq = X(tq);
+      linea(g, xq, yBase + 12, xq, yBase + 18, C.gris, 1);
+      texto(g, corto(tq, 2) + (tq === 0 ? " s" : ""), xq, yBase + 34, C.gris, angosto ? 13 : 14, "center");
+    }
+    // leyenda
+    var ly = h - (angosto ? 14 : 12);
+    g.save(); g.fillStyle = C.azul; g.fillRect(x0, ly - 11, 14, 11); g.restore();
+    texto(g, "0 → t0 = " + num(t0(), 2) + " s", x0 + 20, ly, C.tinta, angosto ? 13 : 15, "left");
+    var x2 = x0 + 20 + anchoTexto("0 → t0 = " + num(t0(), 2) + " s", 15) + 18;
+    g.save(); g.fillStyle = C.guinda; g.fillRect(x2, ly - 11, 14, 11); g.restore();
+    texto(g, "1 → t1 = " + num(t1(), 2) + " s", x2 + 20, ly, C.tinta, angosto ? 13 : 15, "left");
+    if (recorte) texto(g, "(se muestran los primeros " + TOPE + " de " + bits.length + " bits)", x1, ly, C.gris, angosto ? 13 : 14, "right");
+  }
+
+  function refrescar1() { lectura1(bitsDeMensaje()); if ($("v1").classList.contains("activo")) dibujar1(); }
+  $("msg").addEventListener("input", refrescar1);
+  $("t0").addEventListener("input", function () {
+    if (t0() >= t1()) $("t1").value = Math.min(1.5, t0() + 0.05).toFixed(2);
+    refrescar1(); refrescar2(); refrescar3();
+  });
+  $("t1").addEventListener("input", function () {
+    if (t1() <= t0()) $("t0").value = Math.max(0.1, t1() - 0.05).toFixed(2);
+    refrescar1(); refrescar2(); refrescar3();
+  });
+
+  // ================================================================ Vista 2
+  function evaluar2() {
+    var bits = bitsDeMensaje(), J = Number($("jit2").value), sem = Number($("semilla").value);
+    var r = rng(sem * 2654435761), thr = umbral(), medidos = [], errores = 0;
+    for (var i = 0; i < bits.length; i++) {
+      var real = bits[i] ? t1() : t0(), med = real + uniforme(r, J), leido = med > thr ? 1 : 0;
+      if (leido !== bits[i]) errores++;
+      medidos.push({ bit: bits[i], med: med, leido: leido, mal: leido !== bits[i] });
+    }
+    var m = margen(), berTeo = J > m ? (J - m) / (2 * J) : 0;
+    return { bits: bits, medidos: medidos, errores: errores, J: J, thr: thr, m: m, berTeo: berTeo };
+  }
+
+  function lectura2(e) {
+    $("jit2Val").textContent = "±" + num(e.J, 2) + " s";
+    $("semillaVal").textContent = $("semilla").value;
+    $("resumen2").innerHTML = "Intervalos actuales: t<sub>0</sub> = " + num(t0(), 2) + " s, t<sub>1</sub> = " + num(t1(), 2) +
+      " s (se ajustan en Transmitir).";
+    var h = "";
+    h += "<span class='formula'>Umbral = (t<sub>0</sub>+t<sub>1</sub>)/2 = " + num(e.thr, 2) + " s</span>; " +
+         "<span class='formula'>margen = (t<sub>1</sub>−t<sub>0</sub>)/2 = <b>" + num(e.m, 2) + " s</b></span>.<br>";
+    h += "Un bit se lee mal cuando el jitter cruza el umbral (|jitter| &gt; margen).<br>";
+    h += "Errores en este mensaje: <b class='" + (e.errores ? "mal" : "ok") + "'>" + e.errores + " de " + e.bits.length + "</b>";
+    h += " (" + num(e.bits.length ? 100 * e.errores / e.bits.length : 0, 1) + " %).<br>";
+    h += "<span class='nota'>Tasa de error teórica (jitter uniforme): " +
+         (e.J > e.m ? "(J−margen)/(2J) = (" + num(e.J, 2) + "−" + num(e.m, 2) + ")/(2·" + num(e.J, 2) + ") = " + num(e.berTeo, 3)
+                    : "0 mientras J ≤ margen (" + num(e.J, 2) + " ≤ " + num(e.m, 2) + ")") + ".</span>";
+    $("lectura2").innerHTML = h;
+  }
+
+  function dibujar2(e) {
+    var cv = $("lienzo2"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.0 : 0.6), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var x0 = angosto ? 44 : 54, x1 = w - 14, y0 = 34, y1 = h - 54;
+    var ymin = 0, ymax = Math.max(t1() + e.J, t1() + 0.1) * 1.08;
+    function Y(v) { return y1 - (v - ymin) / (ymax - ymin) * (y1 - y0); }
+    var n = e.medidos.length, paso = (x1 - x0) / Math.max(1, n);
+    function X(i) { return x0 + (i + 0.5) * paso; }
+    texto(g, "Intervalo medido por bit (con jitter)", x0, 22, C.azulOscuro, angosto ? 14 : 15, "left", "alphabetic", true);
+    // eje y
+    for (var v = 0; v <= ymax + 1e-9; v += 0.2) {
+      linea(g, x0, Y(v), x1, Y(v), C.grisClaro, 1);
+      texto(g, corto(v, 1), x0 - 6, Y(v) + 5, C.gris, angosto ? 13 : 14, "right");
+    }
+    g.save(); g.translate(x0 - (angosto ? 34 : 42), (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "segundos", 0, 0, C.tinta, angosto ? 13 : 14, "center", "middle"); g.restore();
+    // líneas de referencia
+    linea(g, x0, Y(t0()), x1, Y(t0()), C.azul, 2, [6, 4]);
+    etiqueta(g, "t0 = " + num(t0(), 2), x1, Y(t0()) - 5, C.azul, angosto ? 13 : 15, "right", true);
+    linea(g, x0, Y(t1()), x1, Y(t1()), C.guinda, 2, [6, 4]);
+    etiqueta(g, "t1 = " + num(t1(), 2), x1, Y(t1()) - 5, C.guinda, angosto ? 13 : 15, "right", true);
+    linea(g, x0, Y(e.thr), x1, Y(e.thr), C.oroTexto, 2.5);
+    etiqueta(g, "umbral " + num(e.thr, 2), x0 + 2, Y(e.thr) - 5, C.oroTexto, angosto ? 13 : 15, "left", true);
+    // puntos
+    e.medidos.forEach(function (p, i) {
+      var cx = X(i), cy = Y(Math.max(0, Math.min(ymax, p.med))), col = p.bit ? C.guinda : C.azul;
+      g.save(); g.fillStyle = col; g.globalAlpha = p.mal ? 1 : 0.85; g.beginPath(); g.arc(cx, cy, Math.min(6, paso / 2), 0, 2 * Math.PI); g.fill(); g.restore();
+      if (p.mal) { g.save(); g.strokeStyle = C.guinda; g.lineWidth = 2.5; g.beginPath(); g.arc(cx, cy, Math.min(9, paso / 2 + 3), 0, 2 * Math.PI); g.stroke(); g.restore(); }
+    });
+    // fila de bits enviados/leidos
+    var yb = h - 30;
+    texto(g, "enviado", x0 - 6, yb - 7, C.gris, angosto ? 12 : 13, "right");
+    texto(g, "leído", x0 - 6, yb + 13, C.gris, angosto ? 12 : 13, "right");
+    e.medidos.forEach(function (p, i) {
+      var cx = X(i);
+      if (paso > 10) {
+        texto(g, String(p.bit), cx, yb - 2, C.tinta, angosto ? 12 : 14, "center");
+        texto(g, String(p.leido), cx, yb + 18, p.mal ? C.guinda : C.tinta, angosto ? 12 : 14, "center", "alphabetic", p.mal);
+      }
+    });
+  }
+
+  function refrescar2() { var e = evaluar2(); lectura2(e); if ($("v2").classList.contains("activo")) dibujar2(e); }
+  $("jit2").addEventListener("input", function () { sincronizarJitter(Number($("jit2").value)); refrescar2(); refrescar3(); });
+  $("semilla").addEventListener("input", refrescar2);
+
+  // ================================================================ Vista 3
+  function histograma(muestras, lo, hi, nbins) {
+    var bins = new Array(nbins).fill(0), anchoBin = (hi - lo) / nbins;
+    muestras.forEach(function (x) {
+      var k = Math.floor((x - lo) / anchoBin);
+      if (k < 0) k = 0; if (k >= nbins) k = nbins - 1;
+      bins[k]++;
+    });
+    return { bins: bins, lo: lo, hi: hi, anchoBin: anchoBin };
+  }
+
+  function datos3() {
+    var J = Number($("jit3").value), M = Number($("muestras").value), r = rng(20261007);
+    var normal = [], encubierto = [], mu = umbral(), sigma = 0.11;   // joroba normal ilustrativa
+    for (var i = 0; i < M; i++) {
+      normal.push(Math.max(0.01, mu + gauss(r) * sigma));
+      var bit = r() < 0.5 ? 0 : 1, base = bit ? t1() : t0();
+      encubierto.push(Math.max(0.01, base + uniforme(r, J)));
+    }
+    var hi = Math.max(t1() + J, mu + 3 * sigma, 1.2) * 1.02, nb = 34;
+    return { normal: histograma(normal, 0, hi, nb), encub: histograma(encubierto, 0, hi, nb), J: J, M: M, mu: mu, hi: hi };
+  }
+
+  function lectura3(d3) {
+    $("jit3Val").textContent = "±" + num(d3.J, 2) + " s";
+    $("muestrasVal").textContent = d3.M;
+    var sep = (t1() - t0()), funde = d3.J >= sep / 2;
+    var h = "";
+    h += "El canal encubierto usa solo dos intervalos (t<sub>0</sub> = " + num(t0(), 2) + " s y t<sub>1</sub> = " + num(t1(), 2) + " s): dos jorobas.<br>";
+    h += "El tráfico normal se simula con una sola joroba alrededor de " + num(d3.mu, 2) + " s.<br>";
+    h += "Con jitter ±" + num(d3.J, 2) + " s, las dos jorobas " +
+         (funde ? "<b class='mal'>se funden</b>: el histograma empieza a parecer normal" :
+                  "<b class='ok'>siguen separadas</b>: el canal se delata") + ".";
+    $("lectura3").innerHTML = h;
+  }
+
+  function dibujarHist(g, caja, hist, color, titulo, mu, angosto) {
+    var x0 = caja.x0, x1 = caja.x1, y0 = caja.y0, y1 = caja.y1;
+    var maxv = 1; hist.bins.forEach(function (b) { if (b > maxv) maxv = b; });
+    function X(t) { return x0 + (t - hist.lo) / (hist.hi - hist.lo) * (x1 - x0); }
+    linea(g, x0, y1, x1, y1, C.gris, 1.2);
+    var bw = (x1 - x0) / hist.bins.length;
+    hist.bins.forEach(function (c, i) {
+      var hb = (c / maxv) * (y1 - y0 - 6), xb = x0 + i * bw;
+      g.save(); g.fillStyle = color; g.globalAlpha = 0.85; g.fillRect(xb + 0.5, y1 - hb, bw - 1, hb); g.restore();
+    });
+    texto(g, titulo, x0 + 2, y0 + 14, C.azulOscuro, angosto ? 13 : 15, "left", "alphabetic", true);
+    // marcas t0, t1 y mu
+    linea(g, X(t0()), y0, X(t0()), y1, C.azul, 1.5, [4, 4]);
+    linea(g, X(t1()), y0, X(t1()), y1, C.guinda, 1.5, [4, 4]);
+    // eje de tiempo
+    var paso = hist.hi > 1 ? 0.25 : 0.1;
+    for (var tq = 0; tq <= hist.hi + 1e-9; tq += paso) {
+      linea(g, X(tq), y1, X(tq), y1 + 5, C.gris, 1);
+      texto(g, corto(tq, 2), X(tq), y1 + 20, C.gris, angosto ? 12 : 13, "center");
+    }
+  }
+
+  function dibujar3(d3) {
+    var cv = $("lienzo3"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.1 : 0.66), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var x0 = 40, x1 = w - 14, gapT = 34;
+    var altura = (h - 40 - gapT) / 2;
+    var caja1 = { x0: x0, x1: x1, y0: 8, y1: 8 + altura };
+    var caja2 = { x0: x0, x1: x1, y0: 8 + altura + gapT, y1: 8 + 2 * altura + gapT };
+    dibujarHist(g, caja1, d3.normal, C.gris, "Tráfico normal (una joroba)", d3.mu, angosto);
+    dibujarHist(g, caja2, d3.encub, C.azul, "Canal encubierto (dos jorobas en t0 y t1)", d3.mu, angosto);
+    texto(g, "intervalo entre paquetes (s)", x1, h - 4, C.tinta, angosto ? 12 : 14, "right");
+  }
+
+  function refrescar3() { var d3 = datos3(); lectura3(d3); if ($("v3").classList.contains("activo")) dibujar3(d3); }
+  $("jit3").addEventListener("input", function () { sincronizarJitter(Number($("jit3").value)); refrescar3(); refrescar2(); });
+  $("muestras").addEventListener("input", refrescar3);
+
+  // ================================================================ Sincronías
+  function sincronizarJitter(v) {   // el jitter es el mismo concepto en v2 y v3
+    if (Number($("jit2").value) !== v) $("jit2").value = v;
+    if (Number($("jit3").value) !== v) $("jit3").value = v;
+  }
+
+  // ================================================================ General
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) dibujar1();
+    if ($("v2").classList.contains("activo")) refrescar2();
+    if ($("v3").classList.contains("activo")) refrescar3();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  refrescar1(); refrescar2(); refrescar3();
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-07-canal-encubierto-tiempo.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM21 2h1v1h-1zM23 2h3v1h-3zM28 2h2v1h-2zM31 2h1v1h-1zM33 2h2v1h-2zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h5v1h-5zM16 3h4v1h-4zM21 3h2v1h-2zM24 3h2v1h-2zM27 3h1v1h-1zM29 3h1v1h-1zM31 3h1v1h-1zM33 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM12 4h1v1h-1zM18 4h1v1h-1zM23 4h3v1h-3zM29 4h1v1h-1zM32 4h1v1h-1zM34 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM12 5h1v1h-1zM19 5h1v1h-1zM21 5h1v1h-1zM23 5h2v1h-2zM26 5h2v1h-2zM30 5h1v1h-1zM32 5h2v1h-2zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h2v1h-2zM17 6h1v1h-1zM21 6h1v1h-1zM23 6h3v1h-3zM29 6h1v1h-1zM31 6h1v1h-1zM33 6h1v1h-1zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM11 7h2v1h-2zM14 7h9v1h-9zM25 7h1v1h-1zM27 7h1v1h-1zM29 7h1v1h-1zM31 7h4v1h-4zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM11 9h1v1h-1zM14 9h1v1h-1zM16 9h1v1h-1zM18 9h2v1h-2zM22 9h2v1h-2zM26 9h4v1h-4zM31 9h4v1h-4zM2 10h1v1h-1zM4 10h1v1h-1zM6 10h1v1h-1zM8 10h1v1h-1zM11 10h1v1h-1zM13 10h2v1h-2zM19 10h1v1h-1zM21 10h1v1h-1zM23 10h1v1h-1zM25 10h1v1h-1zM27 10h1v1h-1zM30 10h2v1h-2zM34 10h1v1h-1zM38 10h1v1h-1zM41 10h1v1h-1zM5 11h3v1h-3zM9 11h1v1h-1zM14 11h3v1h-3zM22 11h2v1h-2zM26 11h2v1h-2zM30 11h2v1h-2zM34 11h3v1h-3zM39 11h2v1h-2zM42 11h1v1h-1zM3 12h1v1h-1zM5 12h1v1h-1zM8 12h7v1h-7zM17 12h3v1h-3zM27 12h2v1h-2zM31 12h2v1h-2zM35 12h1v1h-1zM37 12h2v1h-2zM40 12h3v1h-3zM2 13h1v1h-1zM4 13h1v1h-1zM9 13h1v1h-1zM11 13h2v1h-2zM14 13h2v1h-2zM17 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM23 13h1v1h-1zM25 13h3v1h-3zM31 13h1v1h-1zM34 13h1v1h-1zM37 13h1v1h-1zM2 14h2v1h-2zM8 14h2v1h-2zM14 14h1v1h-1zM16 14h4v1h-4zM21 14h3v1h-3zM27 14h1v1h-1zM30 14h2v1h-2zM33 14h5v1h-5zM39 14h1v1h-1zM41 14h1v1h-1zM2 15h1v1h-1zM4 15h2v1h-2zM9 15h1v1h-1zM15 15h1v1h-1zM17 15h1v1h-1zM19 15h1v1h-1zM21 15h3v1h-3zM25 15h1v1h-1zM27 15h1v1h-1zM29 15h3v1h-3zM34 15h1v1h-1zM36 15h1v1h-1zM40 15h1v1h-1zM42 15h1v1h-1zM2 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM10 16h6v1h-6zM19 16h6v1h-6zM28 16h4v1h-4zM34 16h1v1h-1zM36 16h2v1h-2zM41 16h2v1h-2zM2 17h3v1h-3zM11 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM19 17h1v1h-1zM22 17h4v1h-4zM27 17h2v1h-2zM30 17h3v1h-3zM34 17h1v1h-1zM36 17h1v1h-1zM38 17h1v1h-1zM42 17h1v1h-1zM2 18h1v1h-1zM6 18h4v1h-4zM11 18h3v1h-3zM19 18h1v1h-1zM21 18h3v1h-3zM26 18h2v1h-2zM29 18h5v1h-5zM36 18h2v1h-2zM41 18h1v1h-1zM2 19h2v1h-2zM5 19h1v1h-1zM7 19h1v1h-1zM11 19h1v1h-1zM15 19h2v1h-2zM20 19h1v1h-1zM22 19h3v1h-3zM26 19h1v1h-1zM30 19h2v1h-2zM36 19h1v1h-1zM39 19h1v1h-1zM41 19h2v1h-2zM5 20h1v1h-1zM8 20h1v1h-1zM10 20h1v1h-1zM13 20h2v1h-2zM16 20h4v1h-4zM24 20h1v1h-1zM27 20h1v1h-1zM36 20h1v1h-1zM38 20h2v1h-2zM42 20h1v1h-1zM2 21h4v1h-4zM10 21h3v1h-3zM15 21h1v1h-1zM21 21h1v1h-1zM23 21h4v1h-4zM29 21h1v1h-1zM31 21h1v1h-1zM33 21h3v1h-3zM37 21h1v1h-1zM41 21h2v1h-2zM2 22h3v1h-3zM6 22h5v1h-5zM13 22h1v1h-1zM16 22h2v1h-2zM21 22h2v1h-2zM24 22h1v1h-1zM26 22h1v1h-1zM31 22h1v1h-1zM33 22h4v1h-4zM42 22h1v1h-1zM2 23h3v1h-3zM10 23h2v1h-2zM22 23h3v1h-3zM26 23h1v1h-1zM30 23h2v1h-2zM34 23h1v1h-1zM36 23h1v1h-1zM41 23h2v1h-2zM4 24h1v1h-1zM7 24h2v1h-2zM12 24h5v1h-5zM18 24h1v1h-1zM20 24h1v1h-1zM23 24h1v1h-1zM27 24h1v1h-1zM35 24h1v1h-1zM37 24h2v1h-2zM40 24h3v1h-3zM2 25h6v1h-6zM10 25h1v1h-1zM14 25h1v1h-1zM19 25h1v1h-1zM21 25h1v1h-1zM23 25h5v1h-5zM29 25h8v1h-8zM41 25h1v1h-1zM3 26h3v1h-3zM8 26h1v1h-1zM10 26h2v1h-2zM13 26h3v1h-3zM17 26h1v1h-1zM19 26h1v1h-1zM21 26h4v1h-4zM26 26h2v1h-2zM29 26h1v1h-1zM31 26h1v1h-1zM34 26h3v1h-3zM41 26h1v1h-1zM2 27h2v1h-2zM5 27h1v1h-1zM9 27h1v1h-1zM11 27h2v1h-2zM16 27h5v1h-5zM22 27h2v1h-2zM26 27h2v1h-2zM30 27h2v1h-2zM35 27h2v1h-2zM41 27h2v1h-2zM2 28h2v1h-2zM5 28h6v1h-6zM17 28h1v1h-1zM24 28h1v1h-1zM26 28h1v1h-1zM32 28h1v1h-1zM36 28h3v1h-3zM40 28h1v1h-1zM42 28h1v1h-1zM4 29h1v1h-1zM7 29h1v1h-1zM10 29h2v1h-2zM15 29h6v1h-6zM22 29h4v1h-4zM27 29h2v1h-2zM30 29h3v1h-3zM34 29h2v1h-2zM38 29h1v1h-1zM42 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM8 30h2v1h-2zM12 30h2v1h-2zM18 30h2v1h-2zM23 30h1v1h-1zM25 30h3v1h-3zM29 30h3v1h-3zM33 30h4v1h-4zM39 30h1v1h-1zM41 30h1v1h-1zM3 31h2v1h-2zM7 31h1v1h-1zM10 31h2v1h-2zM14 31h3v1h-3zM19 31h3v1h-3zM23 31h1v1h-1zM25 31h2v1h-2zM28 31h2v1h-2zM32 31h1v1h-1zM35 31h3v1h-3zM39 31h4v1h-4zM2 32h1v1h-1zM4 32h1v1h-1zM8 32h2v1h-2zM15 32h1v1h-1zM17 32h2v1h-2zM25 32h2v1h-2zM30 32h1v1h-1zM37 32h1v1h-1zM39 32h2v1h-2zM42 32h1v1h-1zM3 33h1v1h-1zM5 33h2v1h-2zM9 33h1v1h-1zM12 33h2v1h-2zM16 33h2v1h-2zM19 33h1v1h-1zM21 33h1v1h-1zM23 33h2v1h-2zM26 33h2v1h-2zM29 33h4v1h-4zM34 33h3v1h-3zM38 33h1v1h-1zM42 33h1v1h-1zM2 34h1v1h-1zM4 34h5v1h-5zM11 34h1v1h-1zM15 34h1v1h-1zM17 34h3v1h-3zM22 34h2v1h-2zM25 34h7v1h-7zM33 34h6v1h-6zM42 34h1v1h-1zM10 35h6v1h-6zM17 35h1v1h-1zM19 35h1v1h-1zM22 35h1v1h-1zM26 35h2v1h-2zM30 35h1v1h-1zM33 35h2v1h-2zM38 35h1v1h-1zM41 35h2v1h-2zM2 36h7v1h-7zM11 36h1v1h-1zM13 36h1v1h-1zM15 36h1v1h-1zM17 36h2v1h-2zM20 36h1v1h-1zM22 36h2v1h-2zM28 36h1v1h-1zM33 36h2v1h-2zM36 36h1v1h-1zM38 36h5v1h-5zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h2v1h-2zM14 37h4v1h-4zM19 37h2v1h-2zM25 37h4v1h-4zM31 37h4v1h-4zM38 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h2v1h-2zM16 38h3v1h-3zM20 38h1v1h-1zM22 38h1v1h-1zM25 38h2v1h-2zM28 38h1v1h-1zM30 38h2v1h-2zM34 38h5v1h-5zM41 38h2v1h-2zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM20 39h1v1h-1zM22 39h1v1h-1zM26 39h3v1h-3zM35 39h1v1h-1zM38 39h3v1h-3zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h1v1h-1zM13 40h1v1h-1zM18 40h1v1h-1zM23 40h1v1h-1zM27 40h2v1h-2zM34 40h1v1h-1zM37 40h6v1h-6zM2 41h1v1h-1zM8 41h1v1h-1zM13 41h5v1h-5zM19 41h2v1h-2zM23 41h1v1h-1zM27 41h2v1h-2zM31 41h2v1h-2zM34 41h2v1h-2zM37 41h1v1h-1zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h1v1h-1zM12 42h1v1h-1zM15 42h1v1h-1zM17 42h1v1h-1zM20 42h1v1h-1zM22 42h2v1h-2zM26 42h2v1h-2zM30 42h2v1h-2zM33 42h2v1h-2zM37 42h2v1h-2zM41 42h2v1h-2z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-07-canal-encubierto-tiempo.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

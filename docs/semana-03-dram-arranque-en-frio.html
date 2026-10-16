@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRAM y arranque en frío</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); font-size:.95rem; }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Agregados de este simulador */
+  .valor { color:var(--guinda); font-weight:bold; }
+  .opciones { margin-top:4px; }
+  .opciones label, label.casilla { font-weight:normal; color:var(--tinta); margin-top:6px;
+                                   display:flex; gap:8px; align-items:flex-start; cursor:pointer; }
+  .opciones input, label.casilla input { margin-top:4px; }
+  .lectura p { margin:0 0 6px; }
+  .lectura p:last-child { margin-bottom:0; }
+  .estado { margin-top:8px; padding:6px 10px; border-radius:8px; background:var(--azul-claro);
+            color:var(--azul-oscuro); font-weight:bold; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  .clave { margin-top:10px; font-size:1.02rem; line-height:1.75; overflow-wrap:anywhere; }
+  .clave .hex { font-family:Consolas,"Courier New",monospace; letter-spacing:.03em; }
+  .clave .cambio { background:var(--guinda-claro); color:var(--guinda); font-weight:bold; border-radius:3px; }
+  .clave .etq { font-weight:bold; color:var(--azul-oscuro); display:inline-block; min-width:6.2em; }
+  canvas + canvas, .clave + canvas { margin-top:10px; }
+  .seguridad ul { margin:4px 0 0; padding-left:20px; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 3 · Memoria RAM y remanencia de datos</div>
+  <h1>La celda DRAM y el ataque de arranque en frío</h1>
+  <p class="sub">Cada bit es carga en un capacitor que se fuga: ajusta el refresco y mira qué queda en la RAM después de apagar el equipo.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">1. Celda DRAM y refresco</button>
+    <button type="button" data-vista="v2" role="tab">2. Arranque en frío</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>Controles de la celda</h2>
+        <label for="tref">Intervalo de refresco T<sub>ref</sub>: <span class="valor" id="trefV"></span></label>
+        <input id="tref" type="range" min="4" max="300" step="1" value="64">
+        <button type="button" class="accion" id="ddr4">DDR3/DDR4: 64 ms</button>
+        <button type="button" class="accion" id="ddr5">DDR5: 32 ms</button>
+
+        <label for="tau">Constante de tiempo de la celda τ: <span class="valor" id="tauV"></span>
+          <small>(valor ilustrativo; menos fuga = τ mayor)</small></label>
+        <input id="tau" type="range" min="20" max="1000" step="5" value="150">
+
+        <label for="umbral">Umbral de lectura: <span class="valor" id="umbralV"></span></label>
+        <input id="umbral" type="range" min="0.3" max="0.8" step="0.05" value="0.5">
+
+        <label class="casilla"><input type="checkbox" id="refresco" checked> Refresco activado</label>
+
+        <label for="vel">Cámara lenta: <span class="valor" id="velV"></span></label>
+        <input id="vel" type="range" min="20" max="400" step="10" value="100">
+
+        <button type="button" class="accion" id="pausa1">Pausa</button>
+        <button type="button" class="accion" id="escribir1">Escribir un "1"</button>
+
+        <div class="estado" id="estado1" aria-live="polite"></div>
+        <div class="lectura" id="lect1"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvCelda" aria-label="Medidor de carga de la celda y gráfica del voltaje de la celda contra el tiempo, con los refrescos marcados"></canvas>
+        <p class="nota">Cada triángulo es un refresco: el controlador lee la fila y la reescribe. Azul: leyó "1" y recargó la celda. Guinda: la carga ya estaba bajo el umbral, leyó "0" y reescribió un "0".</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de mover nada: con τ = 150 ms, ¿cuál es el intervalo de refresco más largo con el que la celda conserva su "1"? Predícelo con la fórmula y compruébalo con el deslizador.</li>
+            <li>Sube el umbral de lectura a 0.7 V<sub>0</sub> sin cambiar el refresco. ¿Sigue bastando con 64 ms? ¿Por qué?</li>
+            <li>Desactiva el refresco. ¿En qué momento se lee mal el bit? Compáralo con τ·ln 2.</li>
+            <li>Si la celda se calienta y sus fugas aumentan, ¿qué le pasa a τ y qué tendría que hacer el controlador?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>DRAM contra SRAM.</b> La DRAM guarda el bit como carga en un capacitor con fugas: es densa y económica (memoria principal), pero necesita refresco. La SRAM guarda cada bit en un biestable de transistores: no necesita refresco, es más rápida y ocupa más silicio por bit (caché del procesador). La misma fuga lenta que obliga a refrescar hace que, al apagar, la DRAM no se borre al instante: es la puerta del ataque de la pestaña 2.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Condición del módulo</h2>
+        <div class="opciones" role="radiogroup" aria-label="Condición del módulo">
+          <label><input type="radio" name="cond" value="amb" checked> <span>Temperatura ambiente: τ mediana = 25 s</span></label>
+          <label><input type="radio" name="cond" value="frio"> <span>Enfriado con aerosol: τ mediana = 600 s</span></label>
+          <label><input type="radio" name="cond" value="pers"> <span>Otro valor de τ (deslizador)</span></label>
+        </div>
+        <label for="taum">τ mediana de las celdas: <span class="valor" id="taumV"></span></label>
+        <input id="taum" type="range" min="0" max="1000" step="1" value="440">
+        <p class="nota">25 s y 600 s son los del ejemplo del libro (modelo simplificado: enfriar = aumentar mucho τ).</p>
+
+        <label for="tiempo">Tiempo desde el apagado: <span class="valor" id="tiempoV"></span></label>
+        <input id="tiempo" type="range" min="0" max="1000" step="1" value="0">
+        <button type="button" class="accion" id="cortar">Cortar la energía y ver</button>
+        <button type="button" class="accion" id="pausa2">Pausa</button><br>
+        <button type="button" class="accion" id="t10">10 s</button>
+        <button type="button" class="accion" id="t60">1 min</button>
+        <button type="button" class="accion" id="t600">10 min</button>
+
+        <label for="sigma">Diferencia entre celdas σ: <span class="valor" id="sigmaV"></span>
+          <small>(valor ilustrativo)</small></label>
+        <input id="sigma" type="range" min="0" max="1" step="0.05" value="0.45">
+
+        <label for="imagen">Contenido de la memoria</label>
+        <select id="imagen">
+          <option value="palabra">La palabra CLAVE (mapa de bits)</option>
+          <option value="llave">El dibujo de una llave</option>
+        </select>
+        <label class="casilla"><input type="checkbox" id="perdidos"> Marcar en rosa los "1" que se perdieron</label>
+
+        <h2 style="margin-top:14px">Mitigaciones del libro</h2>
+        <label class="casilla"><input type="checkbox" id="borrar"> Borrar la RAM al apagar</label>
+        <label class="casilla"><input type="checkbox" id="cifrar"> Cifrado de la memoria por hardware</label>
+        <button type="button" class="accion" id="muestra">Otra muestra de celdas</button>
+
+        <div class="lectura" id="lect2"></div>
+      </div>
+      <div class="panel">
+        <canvas id="cvImg" aria-label="Volcado de la memoria: mapa de bits que se desvanece con el tiempo"></canvas>
+        <div class="clave" id="clave" aria-live="polite"></div>
+        <canvas id="cvCurva" aria-label="Porcentaje de unos legibles contra el tiempo desde el apagado, en ambiente y enfriado"></canvas>
+        <p class="nota">Modelo: τ de cada celda = τ<sub>mediana</sub>·e<sup>σz</sup>, con z aleatoria (distribución normal); un "1" se lee mientras V/V<sub>0</sub> = e<sup>−t/τ</sup> &gt; 0.5. Simplificación: aquí cada "1" que se pierde se lee como "0". Eje del tiempo logarítmico.</p>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>A temperatura ambiente, ¿en qué momento queda legible la mitad de los "1"? Predícelo con el ejemplo del libro antes de mover el tiempo.</li>
+            <li>Con el módulo enfriado, ¿cuánto tiempo tiene el atacante para obtener la misma fracción? ¿Por qué la curva se desplaza sin cambiar de forma?</li>
+            <li>Pon σ = 0 (todas las celdas iguales) y vuelve a cortar la energía. ¿Qué cambia en la forma en que desaparece la imagen? ¿Qué dice eso de las celdas reales?</li>
+            <li>¿Qué mitigación protege la clave aunque el atacante enfríe el módulo y actúe en segundos?</li>
+          </ol>
+        </div>
+        <div class="seguridad">
+          <b>Seguridad: confidencialidad.</b> Un atacante con acceso físico breve reinicia el equipo desde un medio externo, o se lleva los módulos a otro equipo, y vuelca la RAM para buscar claves aunque el disco esté cifrado. Enfriar los módulos con un aerosol extiende la remanencia de segundos a varios minutos. Mitigaciones que propone el libro:
+          <ul>
+            <li>no dejar claves en texto claro en la memoria y borrar la RAM al apagar;</li>
+            <li>preferir el apagado o la hibernación a la suspensión;</li>
+            <li>exigir autenticación antes del arranque y restringir el acceso físico a los equipos encendidos;</li>
+            <li>procesadores que cifran por hardware la memoria principal: el volcado en frío solo obtiene datos cifrados.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase1/cap01_electricidad.tex, Memoria RAM y almacenamiento (Ecuaciones eq:descarga-rc, eq:refresco y eq:capacitancia-def; ejemplo de remanencia con τ = 25 s y 600 s). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", rosa:"#E2AFBD", celda0:"#F0F2F6" };
+  var LN2 = Math.log(2);
+  var vistaActiva = "v1";
+
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      vistaActiva = b.dataset.vista;
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Igual que preparar(), pero solo redimensiona si cambió el ancho (para animar sin parpadeo)
+  function lienzo(cv, proporcion) {
+    var w = cv.clientWidth || 600, dpr = window.devicePixelRatio || 1, d = cv._d;
+    if (!d || d.wc !== w || d.prop !== proporcion || d.dpr !== dpr) {
+      d = preparar(cv, proporcion); d.wc = w; d.prop = proporcion; d.dpr = dpr; cv._d = d;
+    }
+    return d;
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  var SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sci(x, cifras) {            // 6.0×10¹²
+    if (x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x))), m = (x / Math.pow(10, e)).toFixed(cifras - 1);
+    if (Math.abs(parseFloat(m)) >= 10) { e += 1; m = (x / Math.pow(10, e)).toFixed(cifras - 1); }
+    return m.replace("-", "−") + "×10" + String(e).split("").map(function (c) { return SUP[c]; }).join("");
+  }
+
+  // ------------------------------------------------------------ ayudantes de dibujo
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px Calibri, 'Segoe UI', sans-serif";
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function textoFondo(g, t, x, y, color, tam, alin) {     // texto con recuadro blanco detrás
+    g.save(); g.font = "bold " + tam + "px Calibri, 'Segoe UI', sans-serif";
+    var an = g.measureText(t).width, x0 = alin === "right" ? x - an : alin === "center" ? x - an / 2 : x;
+    g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam / 2 - 3, an + 6, tam + 6); g.restore();
+    texto(g, t, x, y, color, tam, alin, "middle", true);
+  }
+  function punto(g, x, y, r, color) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); g.restore(); }
+  function pasoBonito(x) {            // 1, 2 o 5 × 10^k
+    var e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * e;
+  }
+
+  // ============================================================ VISTA 1: celda DRAM
+  var V0 = 1.2, C_CELDA = 25e-15;               // valores del ejemplo del libro (25 fF, 1.2 V)
+  var P = { Tref: 64, tau: 150, umbral: 0.5, refresco: true, vel: 100 };
+  var celda = {};
+  var cvCelda = $("cvCelda");
+
+  function reanudarSiAuto() {
+    if (celda.autoPausa) { celda.autoPausa = false; celda.corriendo = true; $("pausa1").textContent = "Pausa"; }
+  }
+  function escribirUno() {
+    var corr = celda.corriendo === undefined || celda.autoPausa ? true : celda.corriendo;
+    celda = { t: 0, V: V0, hist: [[0, V0]], refs: [], escrituras: [0], perdido: false, tPerdida: null,
+              tUlt: 0, tProx: P.Tref, corriendo: corr, autoPausa: false };
+    $("pausa1").textContent = corr ? "Pausa" : "Continuar";
+  }
+  function reescribirAhora() {        // tras cambiar un parámetro con el bit perdido: escribe un "1" sin borrar la gráfica
+    reanudarSiAuto();
+    celda.V = V0; celda.perdido = false; celda.tPerdida = null; celda.tUlt = celda.t;
+    celda.tProx = celda.t + P.Tref; celda.escrituras.push(celda.t); celda.hist.push([celda.t, V0]);
+  }
+  function avanzarCelda(dtms) {
+    var fin = celda.t + dtms, Vu = P.umbral * V0, guardia = 0;
+    while (celda.t < fin - 1e-9 && guardia++ < 20000) {
+      var paso = Math.min(0.5, fin - celda.t);
+      if (P.refresco) paso = Math.max(0, Math.min(paso, celda.tProx - celda.t));
+      celda.V *= Math.exp(-paso / P.tau);
+      celda.t += paso;
+      if (!P.refresco && !celda.perdido && celda.V < Vu) { celda.perdido = true; celda.tPerdida = celda.t; }
+      if (P.refresco && celda.t >= celda.tProx - 1e-9) {
+        var ok = celda.V >= Vu && !celda.perdido;
+        celda.refs.push([celda.t, ok]);
+        if (ok) { celda.V = V0; } else { celda.V = 0; if (!celda.perdido) { celda.perdido = true; celda.tPerdida = celda.t; } }
+        celda.tUlt = celda.t; celda.tProx = celda.t + P.Tref;
+      }
+      celda.hist.push([celda.t, celda.V]);
+    }
+    var W = ventana();
+    if (celda.perdido && celda.tPerdida !== null && celda.t > celda.tPerdida + 0.6 * W) {
+      celda.corriendo = false; celda.autoPausa = true; $("pausa1").textContent = "Continuar";   // deja a la vista el momento de la pérdida
+    }
+    while (celda.hist.length > 2 && celda.hist[1][0] < celda.t - 1.2 * W) celda.hist.shift();
+    while (celda.refs.length && celda.refs[0][0] < celda.t - 1.2 * W) celda.refs.shift();
+  }
+  function ventana() {
+    var W = P.refresco ? 4 * P.Tref : 3 * P.tau;
+    return Math.max(200, Math.min(1500, W));
+  }
+
+  function dibujarCelda() {
+    var ang = (cvCelda.clientWidth || 600) < 640;
+    var d = lienzo(cvCelda, ang ? 1.05 : 0.52), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var Vu = P.umbral * V0, leeUno = celda.V >= Vu && !celda.perdido;
+    var x0, x1 = w - 14, y0, y1 = h - 40;
+
+    if (ang) {
+      // --- pantalla angosta: medidor horizontal arriba y gráfica a todo el ancho
+      var bx = 12, by = 30, bw = w - 130, bh = 24, fr = Math.max(0, Math.min(1, celda.V / V0));
+      texto(g, "Carga", bx, 14, C.azulOscuro, 15, "left", "middle", true);
+      g.fillStyle = C.grisClaro; g.fillRect(bx, by, bw, bh);
+      g.fillStyle = leeUno ? C.azul : C.guinda; g.fillRect(bx, by, bw * fr, bh);
+      g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.strokeRect(bx, by, bw, bh);
+      linea(g, bx + bw * P.umbral, by - 5, bx + bw * P.umbral, by + bh + 5, C.oroTexto, 3, [5, 3]);
+      texto(g, num(celda.V, 2) + " V", bx + bw + 10, by + 4, C.tinta, 15, "left", "middle", true);
+      texto(g, "lectura: ", bx + bw + 10, by + 24, C.gris, 15, "left", "middle");
+      texto(g, leeUno ? "1" : "0", bx + bw + 70, by + 22, leeUno ? C.azul : C.guinda, 24, "left", "middle", true);
+      x0 = 44; y0 = 96;
+    } else {
+    // --- medidor de carga (izquierda)
+    var zw = 170, gx = 20, gy = 44, gw = 46, gh = h - gy - 92;
+    texto(g, "Carga", gx + gw / 2, 24, C.azulOscuro, 16, "center", "middle", true);
+    g.fillStyle = C.grisClaro; g.fillRect(gx, gy, gw, gh);
+    var hv = gh * Math.max(0, Math.min(1, celda.V / V0));
+    g.fillStyle = leeUno ? C.azul : C.guinda; g.fillRect(gx, gy + gh - hv, gw, hv);
+    g.strokeStyle = C.azulOscuro; g.lineWidth = 2; g.strokeRect(gx, gy, gw, gh);
+    var yu = gy + gh * (1 - P.umbral);
+    linea(g, gx - 6, yu, gx + gw + 6, yu, C.oroTexto, 3, [6, 4]);
+    texto(g, num(celda.V, 2) + " V", gx + gw / 2, gy + gh + 20, C.tinta, 16, "center", "middle", true);
+    texto(g, "lectura:", gx + gw / 2, gy + gh + 44, C.gris, 15, "center", "middle");
+    texto(g, leeUno ? "1" : "0", gx + gw / 2, gy + gh + 72, leeUno ? C.azul : C.guinda, 30, "center", "middle", true);
+    // símbolo del capacitor con sus cargas
+    var cx = 122, pt = gy + 26, pb = pt + 26;
+    linea(g, cx, gy - 12, cx, pt, C.azulOscuro, 2);
+    linea(g, cx - 26, pt, cx + 26, pt, C.azulOscuro, 4);
+    linea(g, cx - 26, pb, cx + 26, pb, C.azulOscuro, 4);
+    linea(g, cx, pb, cx, pb + 30, C.azulOscuro, 2);
+    linea(g, cx - 12, pb + 30, cx + 12, pb + 30, C.azulOscuro, 2);
+    linea(g, cx - 7, pb + 35, cx + 7, pb + 35, C.azulOscuro, 2);
+    var nq = Math.round(5 * celda.V / V0);
+    for (var q = 0; q < nq; q++) {
+      texto(g, "+", cx - 20 + q * 10, pt - 9, C.azul, 15, "center", "middle", true);
+      texto(g, "−", cx - 20 + q * 10, pb + 10, C.guinda, 15, "center", "middle", true);
+    }
+    texto(g, "C = 25 fF", cx, pb + 56, C.gris, 15, "center", "middle");
+    x0 = zw + 46; y0 = 30;
+    }
+
+    // --- gráfica V(t)
+    var W = ventana(), tIni = Math.max(0, celda.t - 0.85 * W), tFin = tIni + W;
+    function X(t) { return x0 + (t - tIni) / W * (x1 - x0); }
+    function Y(v) { return y1 - v / (V0 * 1.08) * (y1 - y0); }
+    texto(g, "Voltaje de la celda V(t)", ang ? 12 : x0, y0 - 14, C.azulOscuro, 16, "left", "middle", true);
+    [0, 0.3, 0.6, 0.9, 1.2].forEach(function (v) {
+      linea(g, x0, Y(v), x1, Y(v), v === 0 ? C.gris : "#F0F2F6", v === 0 ? 1.4 : 1);
+      texto(g, num(v, 1), x0 - 6, Y(v), C.gris, 15, "right", "middle");
+    });
+    if (!ang) texto(g, "V", x0 - 30, y0 - 2, C.gris, 15, "left", "middle");
+    var paso = pasoBonito(W / (ang ? 2.5 : 5));
+    for (var tk = Math.ceil(tIni / paso) * paso; tk <= tFin; tk += paso) {
+      linea(g, X(tk), y1, X(tk), y1 + 5, C.gris, 1);
+      texto(g, num(tk, 0) + (ang ? "" : " ms"), X(tk), y1 + 18, C.gris, 15, "center", "middle");
+    }
+    if (ang) texto(g, "t (ms)", x1, h - 6, C.gris, 15, "right", "alphabetic");
+    // zona perdida
+    if (celda.perdido && celda.tPerdida !== null) {
+      var xp = Math.max(x0, X(celda.tPerdida));
+      g.save(); g.fillStyle = "rgba(140,29,53,0.08)"; g.fillRect(xp, y0, x1 - xp, y1 - y0); g.restore();
+      var avisoP = ang ? "bit perdido" : P.refresco ? "bit perdido: el refresco reescribió un 0" : "bit perdido: una lectura daría 0";
+      texto(g, avisoP, Math.max(x0 + 4, Math.min(xp + 8, x1 - (ang ? 80 : 270))), y0 + 30, C.guinda, 15, "left", "middle", true);
+    }
+    // umbral
+    linea(g, x0, Y(Vu), x1, Y(Vu), C.oroTexto, 2, [7, 5]);
+    texto(g, "umbral = " + num(Vu, 2) + " V", x1 - 4, Y(Vu) - 10, C.oroTexto, 15, "right", "middle", true);
+    // refrescos
+    celda.refs.forEach(function (r) {
+      if (r[0] < tIni || r[0] > tFin) return;
+      var xr = X(r[0]), col = r[1] ? C.azul : C.guinda;
+      linea(g, xr, y0 + 6, xr, y1, r[1] ? "rgba(0,64,143,0.18)" : "rgba(140,29,53,0.35)", 1.2);
+      g.save(); g.fillStyle = col; g.beginPath(); g.moveTo(xr, y0 + 12); g.lineTo(xr - 6, y0 + 2); g.lineTo(xr + 6, y0 + 2); g.closePath(); g.fill(); g.restore();
+    });
+    // curva
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath();
+    var empezado = false;
+    for (var i = 0; i < celda.hist.length; i++) {
+      var p = celda.hist[i];
+      if (p[0] < tIni) continue;
+      if (!empezado) { g.moveTo(X(p[0]), Y(p[1])); empezado = true; } else g.lineTo(X(p[0]), Y(p[1]));
+    }
+    g.stroke(); g.restore();
+    punto(g, X(celda.t), Y(celda.V), 6, leeUno ? C.azul : C.guinda);
+  }
+
+  function estadoCelda() {
+    var Vu = P.umbral * V0, leeUno = celda.V >= Vu && !celda.perdido, ult = celda.refs[celda.refs.length - 1];
+    var s = "t = " + num(celda.t, 0) + " ms · V = " + num(celda.V, 2) + " V · lectura: " + (leeUno ? "1" : "0");
+    if (P.refresco && ult) s += " · último refresco: " + (ult[1] ? "leyó 1 y recargó" : "leyó 0");
+    if (!celda.corriendo) s += " · en pausa";
+    var e = $("estado1");
+    if (e.textContent !== s) e.textContent = s;
+  }
+
+  function lecturaCelda() {
+    $("trefV").textContent = P.Tref + " ms";
+    $("tauV").textContent = P.tau + " ms";
+    $("umbralV").textContent = num(P.umbral, 2) + " V₀ = " + num(P.umbral * V0, 2) + " V";
+    $("velV").textContent = "1 s en pantalla = " + P.vel + " ms de la celda";
+    var Vu = P.umbral * V0, f = Math.exp(-P.Tref / P.tau), Vref = V0 * f;
+    var tmax = P.tau * Math.log(1 / P.umbral), sobrevive = Vref >= Vu;
+    var dV = 2;                                          // más decimales si al redondear se ven iguales
+    while (dV < 5 && num(Vref, dV) === num(Vu, dV)) dV++;
+    var html = "";
+    if (P.refresco) {
+      html += "<p><b>Justo antes de cada refresco:</b><br><span class='formula'>V(T<sub>ref</sub>) = V<sub>0</sub>·e<sup>−T<sub>ref</sub>/τ</sup> = " +
+        num(V0, 1) + " × e<sup>−" + P.Tref + "/" + P.tau + "</sup> = " + num(V0, 1) + " × " + num(f, 3) + " = " + num(Vref, dV) + " V</span><br>" +
+        (sobrevive ? "<span class='ok'>" + num(Vref, dV) + " V ≥ " + num(Vu, dV) + " V: el refresco llega a tiempo y el \"1\" sobrevive.</span>"
+                   : "<span class='mal'>" + num(Vref, dV) + " V &lt; " + num(Vu, dV) + " V: el refresco llega tarde y el bit se pierde.</span>") + "</p>";
+    } else {
+      html += "<p><b>Sin refresco</b> la carga solo baja: <span class='formula'>V(t) = " + num(V0, 1) + " × e<sup>−t/" + P.tau + " ms</sup></span>; el \"1\" se lee mal desde t = " + num(tmax, 1) + " ms.</p>";
+    }
+    html += "<p><b>Tiempo máximo sin refresco:</b><br><span class='formula'>t<sub>máx</sub> = τ·ln(V<sub>0</sub>/V<sub>umbral</sub>) = " +
+      P.tau + " ms × ln(1/" + num(P.umbral, 2) + ") = " + num(tmax, 1) + " ms</span></p>";
+    html += "<p><b>Comandos de refresco</b> (la ventana se reparte en 8192):<br><span class='formula'>t<sub>REFI</sub> = T<sub>ref</sub>/8192 = " +
+      P.Tref + " ms/8192 = " + num(P.Tref / 8192 * 1000, 2) + " μs</span></p>";
+    html += "<p><b>Fuga equivalente</b> con C = 25 fF:<br><span class='formula'>R = τ/C = " + num(P.tau / 1000, 3) + " s / (25×10⁻¹⁵ F) = " +
+      sci(P.tau / 1000 / C_CELDA, 2) + " Ω</span><br>Carga del \"1\": Q = CV = (25 fF)(1.2 V) = 3×10⁻¹⁴ C ≈ 1.9×10⁵ electrones.</p>";
+    $("lect1").innerHTML = html;
+  }
+
+  function leerControles1(evento) {
+    P.Tref = Number($("tref").value); P.tau = Number($("tau").value);
+    P.umbral = Number($("umbral").value); P.refresco = $("refresco").checked; P.vel = Number($("vel").value);
+    if (evento !== "vel") {
+      if (celda.perdido) reescribirAhora();
+      else { celda.tProx = Math.max(celda.t, celda.tUlt + P.Tref); }
+    }
+    lecturaCelda();
+  }
+  ["tref", "tau", "umbral"].forEach(function (id) { $(id).addEventListener("input", function () { leerControles1(id); }); });
+  $("vel").addEventListener("input", function () { leerControles1("vel"); });
+  $("refresco").addEventListener("change", function () { leerControles1("refresco"); });
+  $("ddr4").addEventListener("click", function () { $("tref").value = 64; leerControles1("tref"); });
+  $("ddr5").addEventListener("click", function () { $("tref").value = 32; leerControles1("tref"); });
+  $("pausa1").addEventListener("click", function () {
+    if (celda.autoPausa) { escribirUno(); return; }      // tras una pérdida, "Continuar" vuelve a escribir un "1"
+    celda.corriendo = !celda.corriendo; this.textContent = celda.corriendo ? "Pausa" : "Continuar";
+  });
+  $("escribir1").addEventListener("click", function () { escribirUno(); });
+
+  // ============================================================ VISTA 2: arranque en frío
+  var COLS = 64, FILAS = 22, NCEL = COLS * FILAS, TMAX = 1800, LOGTAU_MAX = Math.log10(1500);
+  var CLAVE_HEX = "3C9A71F04BE2D85617AF0C93E4B26D58";      // clave ficticia de 128 bits
+  var FUENTE = {
+    C: [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+    L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    V: ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    E: ["#####", "#....", "#....", "####.", "#....", "#....", "#####"]
+  };
+  function mapaPalabra() {
+    var m = [], palabra = "CLAVE", esc = 2, sep = 2, i;
+    for (i = 0; i < NCEL; i++) m.push(0);
+    var total = palabra.length * 5 * esc + (palabra.length - 1) * sep;
+    var cx0 = Math.floor((COLS - total) / 2), fy0 = Math.floor((FILAS - 7 * esc) / 2);
+    for (var k = 0; k < palabra.length; k++) {
+      var f = FUENTE[palabra[k]], xl = cx0 + k * (5 * esc + sep);
+      for (var r = 0; r < 7; r++) for (var c = 0; c < 5; c++) if (f[r][c] === "#")
+        for (var a = 0; a < esc; a++) for (var b = 0; b < esc; b++) m[(fy0 + r * esc + a) * COLS + xl + c * esc + b] = 1;
+    }
+    return m;
+  }
+  function mapaLlave() {
+    var m = [];
+    for (var r = 0; r < FILAS; r++) for (var c = 0; c < COLS; c++) {
+      var d = Math.hypot(c - 11, r - 10.5), v = 0;
+      if (d >= 4.2 && d <= 9.6) v = 1;                                  // ojo de la llave
+      if (c >= 19 && c <= 60 && r >= 9 && r <= 12) v = 1;               // caña
+      if (c >= 43 && c <= 46 && r >= 13 && r <= 17) v = 1;              // dientes
+      if (c >= 49 && c <= 52 && r >= 13 && r <= 16) v = 1;
+      if (c >= 55 && c <= 60 && r >= 13 && r <= 18) v = 1;
+      m.push(v);
+    }
+    return m;
+  }
+  var MAPAS = { palabra: mapaPalabra(), llave: mapaLlave() };
+  var BITS_CLAVE = [];
+  CLAVE_HEX.split("").forEach(function (h) { var v = parseInt(h, 16); for (var b = 3; b >= 0; b--) BITS_CLAVE.push((v >> b) & 1); });
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function normales(rnd, n) {
+    var z = [];
+    while (z.length < n) {
+      var u1 = 1 - rnd(), u2 = rnd(), r = Math.sqrt(-2 * Math.log(u1));
+      z.push(r * Math.cos(2 * Math.PI * u2)); z.push(r * Math.sin(2 * Math.PI * u2));
+    }
+    return z.slice(0, n);
+  }
+  var semilla = 2026, zImg = [], zClave = [];
+  var rm = mulberry32(31337), MASC_IMG = [], MASC_CLAVE = [];
+  for (var im = 0; im < NCEL; im++) MASC_IMG.push(rm() < 0.5 ? 1 : 0);
+  for (var ik = 0; ik < 128; ik++) MASC_CLAVE.push(rm() < 0.5 ? 1 : 0);
+  function sembrar() {
+    var rnd = mulberry32(semilla);
+    zImg = normales(rnd, NCEL); zClave = normales(rnd, 128);
+  }
+  sembrar();
+
+  // erf de Abramowitz-Stegun 7.1.26 (error < 1.5×10⁻⁷)
+  function erf(x) {
+    var s = x < 0 ? -1 : 1; x = Math.abs(x);
+    var t = 1 / (1 + 0.3275911 * x);
+    var y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return s * y;
+  }
+  function Phi(x) { return 0.5 * (1 + erf(x / Math.SQRT2)); }
+  function fraccionTeo(t, taum, s) {
+    if (t <= 0) return 1;
+    var tauMin = t / LN2;
+    if (s <= 0) return taum > tauMin ? 1 : 0;
+    return 1 - Phi((Math.log(tauMin) - Math.log(taum)) / s);
+  }
+
+  var E2 = { cond: "amb", taum: 25, t: 0, sigma: 0.45, imagen: "palabra", perdidos: false, borrar: false,
+             cifrar: false, animando: false, pAnim: 0, sucio: true };
+  var cvImg = $("cvImg"), cvCurva = $("cvCurva");
+
+  function tDesdePos(p) { return TMAX * Math.pow(p / 1000, 3); }
+  function posDesdeT(t) { return Math.round(1000 * Math.pow(t / TMAX, 1 / 3)); }
+  function tauDesdePos(p) { var v = Math.pow(10, p / 1000 * LOGTAU_MAX); return v < 10 ? Math.round(v * 10) / 10 : Math.round(v); }
+  function posDesdeTau(tau) { return Math.round(1000 * Math.log10(tau) / LOGTAU_MAX); }
+  function fmtT(t) {
+    var s = t < 100 ? num(t, 1) + " s" : num(t, 0) + " s";
+    if (t >= 120) s += " (" + num(t / 60, 1) + " min)";
+    return s;
+  }
+  function tauCelda(z) { return E2.taum * Math.exp(E2.sigma * z); }
+
+  // Estado de cada celda: guardado (lo que se escribió) y legible (si sobrevive a t)
+  function calcular() {
+    var mapa = MAPAS[E2.imagen], unos = 0, vivos = 0, celdas = [];
+    for (var i = 0; i < NCEL; i++) {
+      var g = E2.borrar ? 0 : (E2.cifrar ? mapa[i] ^ MASC_IMG[i] : mapa[i]);
+      var vivo = g === 1 && tauCelda(zImg[i]) * LN2 > E2.t;
+      unos += g; vivos += vivo ? 1 : 0;
+      celdas.push(g === 1 ? (vivo ? 2 : 1) : 0);           // 0 = "0" escrito, 1 = "1" perdido, 2 = "1" legible
+    }
+    var cUnos = 0, cVivos = 0, guardada = [], volcada = [];
+    for (var k = 0; k < 128; k++) {
+      var gk = E2.borrar ? 0 : (E2.cifrar ? BITS_CLAVE[k] ^ MASC_CLAVE[k] : BITS_CLAVE[k]);
+      var vk = gk === 1 && tauCelda(zClave[k]) * LN2 > E2.t ? 1 : 0;
+      cUnos += gk; cVivos += vk; guardada.push(gk); volcada.push(vk);
+    }
+    return { celdas: celdas, unos: unos, vivos: vivos, cUnos: cUnos, cVivos: cVivos, volcada: volcada };
+  }
+
+  function dibujarImagen(R) {
+    var ang = (cvImg.clientWidth || 600) < 560;
+    var d = lienzo(cvImg, ang ? 0.56 : 0.40), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    texto(g, "Volcado de la memoria a t = " + fmtT(E2.t), 12, 18, C.azulOscuro, ang ? 15 : 17, "left", "middle", true);
+    var cond = E2.cond === "amb" ? "ambiente" : E2.cond === "frio" ? "enfriado" : "τ = " + num(E2.taum, E2.taum < 10 ? 1 : 0) + " s";
+    if (!ang) texto(g, cond, w - 12, 18, E2.cond === "frio" ? C.azul : C.gris, 16, "right", "middle", true);
+    var s = Math.min((w - 16) / COLS, (h - 44) / FILAS), ox = (w - s * COLS) / 2, oy = 36;
+    var hueco = s > 7 ? 1 : 0;
+    for (var r = 0; r < FILAS; r++) for (var c = 0; c < COLS; c++) {
+      var e = R.celdas[r * COLS + c];
+      g.fillStyle = e === 2 ? C.azulOscuro : (e === 1 && E2.perdidos ? C.rosa : C.celda0);
+      g.fillRect(ox + c * s, oy + r * s, s - hueco, s - hueco);
+    }
+    if (ang) texto(g, cond, w - 10, h - 4, C.gris, 15, "right", "alphabetic", true);
+  }
+
+  function dibujarCurva(R) {
+    var ang = (cvCurva.clientWidth || 600) < 560;
+    var d = lienzo(cvCurva, ang ? 0.72 : 0.40), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var x0 = 54, x1 = w - 16, y0 = 34, y1 = h - 46, LMIN = 0, LMAX = Math.log10(2000);
+    function X(t) { return x0 + (Math.log10(Math.max(1, t)) - LMIN) / (LMAX - LMIN) * (x1 - x0); }
+    function Y(f) { return y1 - f * (y1 - y0); }
+    texto(g, ang ? "\"1\" legibles (%) contra el tiempo" : "\"1\" legibles (%) contra el tiempo desde el apagado", ang ? 10 : x0, 16, C.azulOscuro, ang ? 15 : 16, "left", "middle", true);
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+      linea(g, x0, Y(f), x1, Y(f), f === 0 ? C.gris : "#F0F2F6", f === 0 ? 1.4 : 1);
+      texto(g, num(100 * f, 0), x0 - 8, Y(f), C.gris, 15, "right", "middle");
+    });
+    [[1, "1 s"], [10, "10 s"], [60, "1 min"], [600, "10 min"]].forEach(function (m) {
+      linea(g, X(m[0]), y0, X(m[0]), y1, "#E4E8EE", 1);
+      texto(g, m[1], X(m[0]), y1 + 18, C.gris, 15, "center", "middle");
+    });
+    [100, 1000].forEach(function (v) { linea(g, X(v), y1, X(v), y1 + 5, C.gris, 1); });
+    texto(g, "t (escala logarítmica)", x1, h - 6, C.gris, 15, "right", "alphabetic");
+    function curva(taum, color, ancho, guiones) {
+      g.save(); g.strokeStyle = color; g.lineWidth = ancho; if (guiones) g.setLineDash(guiones); g.beginPath();
+      for (var i = 0; i <= 300; i++) {
+        var lt = LMIN + (LMAX - LMIN) * i / 300, t = Math.pow(10, lt), y = Y(fraccionTeo(t, taum, E2.sigma));
+        if (i === 0) g.moveTo(X(t), y); else g.lineTo(X(t), y);
+      }
+      g.stroke(); g.restore();
+    }
+    curva(25, C.azul, 3);
+    curva(600, C.guinda, 3);
+    if (E2.cond === "pers") curva(E2.taum, C.oroTexto, 3, [8, 5]);
+    // etiquetas de las curvas
+    textoFondo(g, "ambiente", X(25 * LN2) - 10, Y(0.5), C.azul, 15, "right");
+    textoFondo(g, "enfriado", X(600 * LN2) - 10, Y(0.5), C.guinda, 15, "right");
+    // cursor del tiempo
+    linea(g, X(E2.t), y0 - 6, X(E2.t), y1, C.oro, 2.5);
+    if (R.unos > 0) {
+      var fs = R.vivos / R.unos;
+      punto(g, X(E2.t), Y(fs), 7, C.azulOscuro);
+      texto(g, num(100 * fs, 0) + " %", X(E2.t) + (X(E2.t) > x1 - 70 ? -12 : 12), Y(fs) + (fs > 0.8 ? 16 : -14), C.azulOscuro, 16,
+            X(E2.t) > x1 - 70 ? "right" : "left", "middle", true);
+    }
+  }
+
+  function hexDe(bits) {
+    var s = "";
+    for (var i = 0; i < bits.length; i += 4) s += ((bits[i] << 3) | (bits[i + 1] << 2) | (bits[i + 2] << 1) | bits[i + 3]).toString(16).toUpperCase();
+    return s;
+  }
+  function mostrarClave(R) {
+    var orig = CLAVE_HEX, volc = hexDe(R.volcada), a = "", b = "";
+    for (var i = 0; i < 32; i++) {
+      var sep = (i % 4 === 3 && i < 31) ? " " : "";
+      a += orig[i] + sep;
+      b += (volc[i] !== orig[i] ? "<span class='cambio'>" + volc[i] + "</span>" : volc[i]) + sep;
+    }
+    var errores = 0;
+    for (var k = 0; k < 128; k++) if (R.volcada[k] !== BITS_CLAVE[k]) errores++;
+    $("clave").innerHTML = "<span class='etq'>Clave real:</span> <span class='hex'>" + a + "</span><br>" +
+      "<span class='etq'>En el volcado:</span> <span class='hex'>" + b + "</span><br>" +
+      "<span class='etq'></span>Clave AES ficticia de 128 bits: <b class='" + (errores ? "mal" : "ok") + "'>" + errores + " bits erróneos</b>" +
+      (E2.cifrar ? " (la memoria guarda la clave cifrada)" : "");
+  }
+
+  function lecturaFrio(R) {
+    $("taumV").textContent = num(E2.taum, E2.taum < 10 ? 1 : 0) + " s";
+    $("tiempoV").textContent = fmtT(E2.t);
+    $("sigmaV").textContent = num(E2.sigma, 2);
+    var t = E2.t, tm = E2.taum, html = "";
+    var nomCond = E2.cond === "amb" ? "temperatura ambiente" : E2.cond === "frio" ? "módulo enfriado" : "valor elegido";
+    html += "<p><b>Condición:</b> " + nomCond + ", τ mediana = " + num(tm, tm < 10 ? 1 : 0) + " s.</p>";
+    if (t <= 0) {
+      html += "<p>Recién apagado (t = 0): todas las celdas conservan su carga, V/V<sub>0</sub> = 1.</p>";
+    } else {
+      var tauMin = t / LN2, fmed = Math.exp(-t / tm), dF = 2;
+      while (dF < 5 && num(fmed, dF) === num(0.5, dF)) dF++;          // que no se vea "0.50 → 0"
+      html += "<p>Un \"1\" se lee mientras <span class='formula'>e<sup>−t/τ</sup> &gt; 0.5</span>, es decir, si " +
+        "<span class='formula'>τ &gt; t/ln 2 = " + num(t, 1) + " s / 0.693 = " + num(tauMin, 1) + " s</span>.</p>";
+      html += "<p>Celda mediana (τ = " + num(tm, tm < 10 ? 1 : 0) + " s): <span class='formula'>V/V<sub>0</sub> = e<sup>−" + num(t, 1) + "/" + num(tm, tm < 10 ? 1 : 0) +
+        "</sup> = e<sup>−" + num(t / tm, dF) + "</sup> = " + num(fmed, dF) + "</span> → " +
+        (fmed > 0.5 ? "<span class='ok'>se lee \"1\"</span>" : "<span class='mal'>se lee \"0\"</span>") + ".</p>";
+    }
+    if (E2.borrar) {
+      html += "<p class='ok'>La RAM se borró al apagar: no queda ningún \"1\" que recuperar, sin importar la temperatura.</p>";
+    } else {
+      var pct = R.unos ? 100 * R.vivos / R.unos : 0, teo = 100 * fraccionTeo(t, tm, E2.sigma);
+      html += "<p><b>Imagen:</b> siguen legibles " + num(R.vivos, 0) + " de " + num(R.unos, 0) + " \"1\" (" + num(pct, 1) +
+        " %); el modelo espera " + num(teo, 1) + " %.</p>";
+      if (E2.cifrar) html += "<p class='ok'>Con la memoria cifrada, el volcado conserva esos bits, pero son datos cifrados: no se reconoce la imagen ni la clave.</p>";
+    }
+    $("lect2").innerHTML = html;
+  }
+
+  function dibujarFrio() {
+    var R = calcular();
+    dibujarImagen(R); dibujarCurva(R); mostrarClave(R); lecturaFrio(R);
+  }
+
+  function ponerT(t, detener) {
+    E2.t = Math.max(0, Math.min(TMAX, t));
+    $("tiempo").value = posDesdeT(E2.t);
+    if (detener) { E2.animando = false; $("pausa2").textContent = "Pausa"; }
+    E2.sucio = true;
+  }
+  function ponerCond(c) {
+    E2.cond = c;
+    if (c === "amb") E2.taum = 25;
+    if (c === "frio") E2.taum = 600;
+    $("taum").value = posDesdeTau(E2.taum);
+    document.querySelectorAll("input[name=cond]").forEach(function (r) { r.checked = r.value === c; });
+    E2.sucio = true;
+  }
+  document.querySelectorAll("input[name=cond]").forEach(function (r) {
+    r.addEventListener("change", function () { if (r.checked) ponerCond(r.value); });
+  });
+  $("taum").addEventListener("input", function () {
+    E2.taum = tauDesdePos(Number(this.value));
+    E2.cond = E2.taum === 25 ? "amb" : E2.taum === 600 ? "frio" : "pers";
+    document.querySelectorAll("input[name=cond]").forEach(function (r) { r.checked = r.value === E2.cond; });
+    E2.sucio = true;
+  });
+  $("tiempo").addEventListener("input", function () {
+    E2.animando = false; $("pausa2").textContent = "Pausa";
+    E2.t = tDesdePos(Number(this.value)); E2.sucio = true;
+  });
+  $("cortar").addEventListener("click", function () {
+    E2.pAnim = 0; ponerT(0, false); E2.animando = true; $("pausa2").textContent = "Pausa";
+  });
+  $("pausa2").addEventListener("click", function () {
+    if (E2.animando) { E2.animando = false; this.textContent = "Continuar"; }
+    else if (E2.t < TMAX) { E2.pAnim = Math.pow(E2.t / TMAX, 1 / 3); E2.animando = true; this.textContent = "Pausa"; }
+  });
+  $("t10").addEventListener("click", function () { ponerT(10, true); });
+  $("t60").addEventListener("click", function () { ponerT(60, true); });
+  $("t600").addEventListener("click", function () { ponerT(600, true); });
+  $("sigma").addEventListener("input", function () { E2.sigma = Number(this.value); E2.sucio = true; });
+  $("imagen").addEventListener("change", function () { E2.imagen = this.value; E2.sucio = true; });
+  $("perdidos").addEventListener("change", function () { E2.perdidos = this.checked; E2.sucio = true; });
+  $("borrar").addEventListener("change", function () { E2.borrar = this.checked; E2.sucio = true; });
+  $("cifrar").addEventListener("change", function () { E2.cifrar = this.checked; E2.sucio = true; });
+  $("muestra").addEventListener("click", function () { semilla += 101; sembrar(); E2.sucio = true; });
+
+  // ============================================================ ciclo
+  var DUR_ANIM = 12;                  // segundos reales para ir de 0 a 30 min (tiempo cúbico)
+  var anterior = null;
+  function cuadro(ahora) {
+    if (anterior === null) anterior = ahora;
+    var dt = Math.min(0.1, (ahora - anterior) / 1000);
+    anterior = ahora;
+    if (vistaActiva === "v1") {
+      if (celda.corriendo) avanzarCelda(dt * P.vel);
+      dibujarCelda(); estadoCelda();
+    } else {
+      if (E2.animando) {
+        E2.pAnim = Math.min(1, E2.pAnim + dt / DUR_ANIM);
+        E2.t = TMAX * Math.pow(E2.pAnim, 3); $("tiempo").value = Math.round(E2.pAnim * 1000);
+        if (E2.pAnim >= 1) { E2.animando = false; }
+        E2.sucio = true;
+      }
+      if (E2.sucio) { dibujarFrio(); E2.sucio = false; }
+    }
+    requestAnimationFrame(cuadro);
+  }
+
+  function dibujarTodo() {
+    if (vistaActiva === "v1") { dibujarCelda(); estadoCelda(); } else { E2.sucio = true; dibujarFrio(); E2.sucio = false; }
+  }
+  window.addEventListener("resize", dibujarTodo);
+
+  escribirUno(); leerControles1("inicio"); ponerCond("amb"); ponerT(0, true);
+  dibujarTodo();
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-03-dram-arranque-en-frio.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM10 2h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM17 2h1v1h-1zM20 2h1v1h-1zM22 2h2v1h-2zM25 2h1v1h-1zM27 2h5v1h-5zM34 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h3v1h-3zM16 3h2v1h-2zM20 3h2v1h-2zM23 3h2v1h-2zM26 3h3v1h-3zM30 3h1v1h-1zM33 3h2v1h-2zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM12 4h2v1h-2zM16 4h1v1h-1zM18 4h3v1h-3zM22 4h1v1h-1zM24 4h1v1h-1zM28 4h5v1h-5zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h2v1h-2zM16 5h1v1h-1zM18 5h2v1h-2zM23 5h1v1h-1zM25 5h2v1h-2zM29 5h1v1h-1zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h4v1h-4zM15 6h4v1h-4zM23 6h1v1h-1zM25 6h1v1h-1zM27 6h1v1h-1zM29 6h4v1h-4zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h2v1h-2zM15 7h1v1h-1zM18 7h1v1h-1zM21 7h1v1h-1zM23 7h1v1h-1zM26 7h3v1h-3zM33 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h3v1h-3zM14 9h1v1h-1zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM6 10h1v1h-1zM8 10h3v1h-3zM12 10h5v1h-5zM18 10h2v1h-2zM23 10h3v1h-3zM31 10h1v1h-1zM33 10h7v1h-7zM42 10h1v1h-1zM4 11h3v1h-3zM11 11h2v1h-2zM15 11h1v1h-1zM17 11h1v1h-1zM19 11h2v1h-2zM25 11h1v1h-1zM27 11h4v1h-4zM32 11h1v1h-1zM36 11h4v1h-4zM42 11h1v1h-1zM3 12h2v1h-2zM7 12h4v1h-4zM12 12h3v1h-3zM16 12h1v1h-1zM20 12h1v1h-1zM22 12h2v1h-2zM25 12h3v1h-3zM29 12h1v1h-1zM34 12h1v1h-1zM42 12h1v1h-1zM5 13h1v1h-1zM9 13h3v1h-3zM14 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM23 13h4v1h-4zM30 13h2v1h-2zM33 13h2v1h-2zM37 13h1v1h-1zM39 13h1v1h-1zM42 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h3v1h-3zM12 14h1v1h-1zM14 14h4v1h-4zM19 14h1v1h-1zM22 14h3v1h-3zM31 14h1v1h-1zM34 14h1v1h-1zM37 14h1v1h-1zM41 14h2v1h-2zM3 15h1v1h-1zM7 15h1v1h-1zM9 15h3v1h-3zM16 15h6v1h-6zM26 15h1v1h-1zM28 15h1v1h-1zM30 15h1v1h-1zM32 15h1v1h-1zM36 15h3v1h-3zM41 15h2v1h-2zM4 16h5v1h-5zM12 16h2v1h-2zM17 16h1v1h-1zM19 16h3v1h-3zM23 16h4v1h-4zM28 16h1v1h-1zM30 16h1v1h-1zM35 16h2v1h-2zM38 16h1v1h-1zM40 16h1v1h-1zM42 16h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM6 17h2v1h-2zM9 17h1v1h-1zM12 17h5v1h-5zM18 17h6v1h-6zM25 17h1v1h-1zM28 17h1v1h-1zM31 17h2v1h-2zM34 17h1v1h-1zM38 17h2v1h-2zM3 18h1v1h-1zM5 18h4v1h-4zM11 18h1v1h-1zM13 18h1v1h-1zM17 18h1v1h-1zM19 18h1v1h-1zM22 18h3v1h-3zM28 18h2v1h-2zM31 18h3v1h-3zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM7 19h1v1h-1zM9 19h1v1h-1zM12 19h1v1h-1zM14 19h2v1h-2zM17 19h4v1h-4zM25 19h1v1h-1zM28 19h5v1h-5zM34 19h7v1h-7zM42 19h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM7 20h3v1h-3zM11 20h3v1h-3zM16 20h1v1h-1zM20 20h1v1h-1zM22 20h4v1h-4zM27 20h6v1h-6zM34 20h4v1h-4zM39 20h4v1h-4zM2 21h1v1h-1zM5 21h2v1h-2zM9 21h1v1h-1zM11 21h2v1h-2zM15 21h3v1h-3zM22 21h2v1h-2zM27 21h1v1h-1zM30 21h2v1h-2zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h1v1h-1zM5 22h1v1h-1zM7 22h2v1h-2zM18 22h1v1h-1zM21 22h2v1h-2zM26 22h2v1h-2zM30 22h1v1h-1zM32 22h1v1h-1zM34 22h2v1h-2zM39 22h1v1h-1zM3 23h3v1h-3zM7 23h1v1h-1zM10 23h6v1h-6zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM28 23h3v1h-3zM32 23h1v1h-1zM35 23h4v1h-4zM40 23h1v1h-1zM42 23h1v1h-1zM4 24h1v1h-1zM6 24h5v1h-5zM12 24h1v1h-1zM17 24h3v1h-3zM22 24h1v1h-1zM25 24h5v1h-5zM31 24h2v1h-2zM34 24h1v1h-1zM40 24h1v1h-1zM42 24h1v1h-1zM7 25h1v1h-1zM9 25h4v1h-4zM14 25h2v1h-2zM18 25h2v1h-2zM23 25h1v1h-1zM25 25h2v1h-2zM29 25h1v1h-1zM31 25h2v1h-2zM34 25h2v1h-2zM37 25h3v1h-3zM41 25h1v1h-1zM4 26h3v1h-3zM8 26h1v1h-1zM13 26h3v1h-3zM17 26h3v1h-3zM22 26h2v1h-2zM26 26h1v1h-1zM29 26h3v1h-3zM33 26h3v1h-3zM42 26h1v1h-1zM2 27h1v1h-1zM5 27h3v1h-3zM16 27h3v1h-3zM25 27h1v1h-1zM27 27h4v1h-4zM32 27h1v1h-1zM34 27h1v1h-1zM36 27h3v1h-3zM40 27h1v1h-1zM42 27h1v1h-1zM3 28h1v1h-1zM5 28h2v1h-2zM8 28h1v1h-1zM10 28h2v1h-2zM16 28h2v1h-2zM19 28h2v1h-2zM22 28h4v1h-4zM28 28h2v1h-2zM31 28h1v1h-1zM34 28h1v1h-1zM41 28h2v1h-2zM2 29h2v1h-2zM7 29h1v1h-1zM9 29h4v1h-4zM14 29h1v1h-1zM16 29h2v1h-2zM19 29h5v1h-5zM25 29h1v1h-1zM28 29h1v1h-1zM31 29h5v1h-5zM38 29h2v1h-2zM41 29h1v1h-1zM6 30h4v1h-4zM13 30h1v1h-1zM15 30h1v1h-1zM17 30h3v1h-3zM21 30h1v1h-1zM23 30h4v1h-4zM29 30h3v1h-3zM35 30h1v1h-1zM41 30h2v1h-2zM2 31h2v1h-2zM5 31h1v1h-1zM7 31h1v1h-1zM11 31h1v1h-1zM14 31h2v1h-2zM21 31h3v1h-3zM31 31h1v1h-1zM36 31h1v1h-1zM38 31h2v1h-2zM42 31h1v1h-1zM5 32h2v1h-2zM8 32h6v1h-6zM15 32h1v1h-1zM17 32h1v1h-1zM19 32h2v1h-2zM22 32h1v1h-1zM28 32h2v1h-2zM31 32h2v1h-2zM35 32h1v1h-1zM38 32h2v1h-2zM41 32h2v1h-2zM5 33h3v1h-3zM12 33h3v1h-3zM16 33h2v1h-2zM19 33h2v1h-2zM23 33h2v1h-2zM26 33h1v1h-1zM28 33h5v1h-5zM35 33h1v1h-1zM38 33h2v1h-2zM2 34h10v1h-10zM14 34h6v1h-6zM21 34h1v1h-1zM23 34h3v1h-3zM30 34h2v1h-2zM34 34h6v1h-6zM10 35h1v1h-1zM12 35h2v1h-2zM15 35h2v1h-2zM20 35h1v1h-1zM23 35h3v1h-3zM27 35h8v1h-8zM38 35h1v1h-1zM40 35h1v1h-1zM42 35h1v1h-1zM2 36h7v1h-7zM10 36h1v1h-1zM13 36h1v1h-1zM16 36h1v1h-1zM18 36h2v1h-2zM22 36h1v1h-1zM25 36h2v1h-2zM29 36h2v1h-2zM32 36h3v1h-3zM36 36h1v1h-1zM38 36h2v1h-2zM42 36h1v1h-1zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM14 37h1v1h-1zM17 37h1v1h-1zM19 37h2v1h-2zM24 37h2v1h-2zM28 37h2v1h-2zM34 37h1v1h-1zM38 37h2v1h-2zM42 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h1v1h-1zM15 38h3v1h-3zM20 38h3v1h-3zM24 38h1v1h-1zM26 38h3v1h-3zM33 38h7v1h-7zM41 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM11 39h1v1h-1zM13 39h2v1h-2zM17 39h1v1h-1zM23 39h1v1h-1zM25 39h1v1h-1zM27 39h1v1h-1zM29 39h1v1h-1zM31 39h2v1h-2zM34 39h1v1h-1zM37 39h1v1h-1zM39 39h3v1h-3zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM12 40h1v1h-1zM14 40h1v1h-1zM16 40h5v1h-5zM22 40h1v1h-1zM25 40h3v1h-3zM29 40h1v1h-1zM31 40h2v1h-2zM35 40h1v1h-1zM40 40h1v1h-1zM42 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM11 41h4v1h-4zM17 41h3v1h-3zM21 41h1v1h-1zM23 41h2v1h-2zM28 41h1v1h-1zM30 41h8v1h-8zM39 41h1v1h-1zM41 41h2v1h-2zM2 42h7v1h-7zM10 42h2v1h-2zM15 42h1v1h-1zM17 42h1v1h-1zM19 42h6v1h-6zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h4v1h-4zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-03-dram-arranque-en-frio.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

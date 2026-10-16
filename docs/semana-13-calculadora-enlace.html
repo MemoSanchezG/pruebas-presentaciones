@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de enlace — Semana 13</title>
+<style>
+  :root { --navy:#0A2A57; --teal:#00408F; --tealdark:#00408F; --teallight:#E8EEF7;
+          --amber:#9C7A3C; --amberlight:#F7F1E6; --gray:#5B6472; --graylight:#E9ECF1; --red:#8C1D35; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Calibri, "Segoe UI", Arial, sans-serif; background:#FFFFFF; color:#1B1F2A; }
+  header { background:linear-gradient(#B8975A,#B8975A) top/100% 3px no-repeat,#fff; color:#0A2A57; border-top:8px solid #00408F; padding:14px 24px 8px; }
+  header h1 { margin:0; font-family: Cambria, Georgia, serif; font-size:24px; }
+  header p { margin:4px 0 0; color:var(--teal); font-style:italic; }
+  nav { display:flex; gap:8px; padding:12px 22px 0; flex-wrap:wrap; }
+  nav button { border:none; border-radius:18px; padding:8px 16px; font-size:15px; font-weight:bold;
+               background:var(--graylight); color:var(--navy); cursor:pointer; }
+  nav button.activo { background:var(--navy); color:#fff; }
+  section { display:none; padding:14px 22px 22px; }
+  section.activo { display:block; }
+  .fila { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .panel { background:#fff; border:1.5px solid var(--graylight); border-radius:10px; padding:12px 14px; min-width:300px; flex:1 1 300px; }
+  .panel h2 { margin:0 0 6px; font-size:17px; color:var(--navy); font-family:Cambria, Georgia, serif; }
+  label { display:flex; justify-content:space-between; gap:10px; margin-top:8px; font-weight:bold; color:var(--navy); }
+  input[type=number] { width:110px; font-size:15px; }
+  .lectura { background:var(--amberlight); border:1.5px solid var(--amber); border-radius:10px;
+             padding:10px 12px; margin-top:12px; font-size:15px; line-height:1.55; }
+  .ok { color:var(--tealdark); font-weight:bold; }
+  .mal { color:var(--red); font-weight:bold; }
+  canvas { background:#fff; border:1.5px solid var(--graylight); border-radius:10px; max-width:100%; }
+  .nota { color:var(--gray); font-size:13.5px; font-style:italic; margin-top:10px; }
+
+  /* Estilo FCFM unificado: pestañas subrayadas */
+  nav { gap:4px !important; border-bottom:2px solid #E9ECF1; }
+  nav button { border-radius:0 !important; background:none !important; color:#5B6472 !important;
+               border-bottom:3px solid transparent !important; margin-bottom:-2px; }
+  nav button.activo { color:#0A2A57 !important; border-bottom-color:#00408F !important; }
+
+  .pie-fcfm { max-width:1280px; margin:0 auto; padding:8px 18px 18px; color:#5B6472; font-size:.85rem; }
+  .pie-fcfm a { color:#00408F; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculadora de enlace — Semana 13</h1>
+  <p>Líneas de transmisión · Propagación · Presupuesto de enlace (funciona sin internet; úsala para verificar lo que resolviste a mano)</p>
+</header>
+<nav>
+  <button data-tab="t1" class="activo">1. Línea de transmisión</button>
+  <button data-tab="t2">2. Propagación</button>
+  <button data-tab="t3">3. Presupuesto de enlace</button>
+</nav>
+
+<section id="t1" class="activo">
+  <div class="fila">
+    <div class="panel"><h2>Reflectometría (TDR)</h2>
+      <label>Factor de velocidad VF <input type="number" id="vf" value="0.66" step="0.01"></label>
+      <label>Tiempo al eco t (μs) <input type="number" id="teco" value="1.2" step="0.05"></label>
+      <div class="lectura" id="outTdr"></div>
+    </div>
+    <div class="panel"><h2>Reflexión en una carga</h2>
+      <label>Z₀ de la línea (Ω) <input type="number" id="z0" value="50" step="1"></label>
+      <label>Z_L de la carga (Ω) <input type="number" id="zl" value="50" step="1"></label>
+      <div class="lectura" id="outGamma"></div>
+    </div>
+    <div class="panel"><h2>Atenuación del cable</h2>
+      <label>Potencia de entrada (dBm) <input type="number" id="pent" value="20" step="0.5"></label>
+      <label>Atenuación α (dB/100 m) <input type="number" id="alfa" value="22" step="0.5"></label>
+      <label>Longitud ℓ (m) <input type="number" id="largo" value="30" step="1"></label>
+      <div class="lectura" id="outCable"></div>
+    </div>
+  </div>
+  <p class="nota">Valores iniciales: ejemplos del libro (RG-8A/U con VF = 0.66; LMR-400 de 30 m a 2.4 GHz).</p>
+</section>
+
+<section id="t2">
+  <div class="fila">
+    <div class="panel"><h2>Horizonte de radio</h2>
+      <label>Altura del transmisor hₜ (m) <input type="number" id="ht" value="25" step="0.5"></label>
+      <label>Altura del receptor hᵣ (m) <input type="number" id="hr" value="1.5" step="0.5"></label>
+      <div class="lectura" id="outHor"></div>
+    </div>
+    <div class="panel"><h2>Primera zona de Fresnel</h2>
+      <label>d₁ (km) <input type="number" id="d1" value="1" step="0.1"></label>
+      <label>d₂ (km) <input type="number" id="d2" value="1" step="0.1"></label>
+      <label>f (GHz) <input type="number" id="fgz" value="5.8" step="0.1"></label>
+      <div class="lectura" id="outFres"></div>
+    </div>
+    <div class="panel"><h2>Espacio libre y MUF</h2>
+      <label>Distancia d (km) <input type="number" id="dfs" value="5" step="0.1"></label>
+      <label>Frecuencia f (MHz) <input type="number" id="ffs" value="5000" step="10"></label>
+      <div class="lectura" id="outFspl"></div>
+      <label>Frecuencia crítica f_c (MHz) <input type="number" id="fc" value="7" step="0.5"></label>
+      <label>Incidencia θ desde la vertical (°) <input type="number" id="th" value="60" step="1"></label>
+      <div class="lectura" id="outMuf"></div>
+    </div>
+  </div>
+</section>
+
+<section id="t3">
+  <div class="fila">
+    <div class="panel"><h2>Datos del enlace</h2>
+      <label>Potencia del radio Pₜ (dBm) <input type="number" id="pt" value="20" step="0.5"></label>
+      <label>Pérdida del cable (dB) <input type="number" id="lc" value="0" step="0.1"></label>
+      <label>Ganancia de la antena Gₜ (dBi) <input type="number" id="gt" value="2" step="0.5"></label>
+      <label>Ganancia del receptor Gᵣ (dBi) <input type="number" id="gr" value="15" step="0.5"></label>
+      <label>Sensibilidad S_min (dBm) <input type="number" id="smin" value="-85" step="1"></label>
+      <label>Frecuencia f (MHz) <input type="number" id="fl" value="2400" step="10"></label>
+      <label>Distancia d (km) <input type="number" id="dl" value="1" step="0.05"></label>
+      <label>Desalineación de polarización ψ (°) <input type="number" id="psi" value="0" step="5"></label>
+      <div class="lectura" id="outFriis"></div>
+    </div>
+    <div class="panel"><h2>Potencia recibida contra distancia</h2>
+      <canvas id="graf" width="560" height="330"></canvas>
+      <p class="nota">Cota de espacio libre: muros, vegetación y el horizonte de radio reducen el alcance real, pero un atacante en una azotea o con un dron se acerca a ella.</p>
+    </div>
+  </div>
+  <p class="nota">Valores iniciales: atacante con una Yagi de 15 dBi frente a un punto de acceso de 20 dBm + 2 dBi (ejemplo del libro).</p>
+</section>
+
+<script>
+const C = 3e8;
+const $ = id => document.getElementById(id);
+const v = id => parseFloat($(id).value);
+const log10 = Math.log10;
+const fmt = (x, n = 2) => (isFinite(x) ? x.toFixed(n) : "—");
+const mw = dbm => Math.pow(10, dbm / 10);
+const fspl = (dkm, fmhz) => 20 * log10(dkm) + 20 * log10(fmhz) + 32.44;
+
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("activo"));
+  document.querySelectorAll("section").forEach(x => x.classList.remove("activo"));
+  b.classList.add("activo"); $(b.dataset.tab).classList.add("activo"); todo();
+}));
+
+function linea() {
+  const vf = v("vf"), t = v("teco") * 1e-6;
+  const d = vf * C * t / 2;
+  $("outTdr").innerHTML = `v = VF·c = <b>${(vf * C / 1e8).toFixed(3)}×10⁸ m/s</b> · ε<sub>r</sub> = 1/VF² ≈ <b>${fmt(1 / (vf * vf))}</b><br>` +
+    `d = VF·c·t/2 = <b>${fmt(d, 2)} m</b>`;
+  const z0 = v("z0"), zl = v("zl");
+  const g = (zl - z0) / (zl + z0), ag = Math.abs(g);
+  const rl = ag > 0 ? -20 * log10(ag) : Infinity;
+  const vswr = ag < 1 ? (1 + ag) / (1 - ag) : Infinity;
+  $("outGamma").innerHTML = `Γ = <b>${fmt(g, 3)}</b> ` + (ag < 1e-9 ? '<span class="ok">(acoplada: no hay eco)</span>' : "") +
+    `<br>RL = −20 log|Γ| = <b>${isFinite(rl) ? fmt(rl) + " dB" : "∞"}</b> · VSWR = <b>${isFinite(vswr) ? fmt(vswr) : "∞"}</b>`;
+  const pe = v("pent"), perd = v("alfa") * v("largo") / 100, ps = pe - perd;
+  $("outCable").innerHTML = `Pérdida αℓ = <b>${fmt(perd)} dB</b><br>P<sub>sal</sub> = <b>${fmt(ps)} dBm</b> = <b>${fmt(mw(ps), 3)} mW</b> ` +
+    `(llega el ${fmt(100 * mw(ps) / mw(pe), 1)} % de ${fmt(mw(pe), 2)} mW)`;
+}
+
+function prop() {
+  const ht = v("ht"), hr = v("hr");
+  $("outHor").innerHTML = `Horizonte de radio: <b>${fmt(4.12 * (Math.sqrt(ht) + Math.sqrt(hr)), 1)} km</b><br>` +
+    `Horizonte visual: ${fmt(3.57 * (Math.sqrt(ht) + Math.sqrt(hr)), 1)} km`;
+  const d1 = v("d1"), d2 = v("d2"), f = v("fgz");
+  $("outFres").innerHTML = `r₁ = 17.32 √(d₁d₂ / (f·d)) = <b>${fmt(17.32 * Math.sqrt(d1 * d2 / (f * (d1 + d2))))} m</b>`;
+  const L = fspl(v("dfs"), v("ffs"));
+  $("outFspl").innerHTML = `L<sub>p</sub> = <b>${fmt(L)} dB</b> (lineal: ${Math.pow(10, L / 10).toExponential(2)})`;
+  const muf = v("fc") / Math.cos(v("th") * Math.PI / 180);
+  $("outMuf").innerHTML = `MUF = f<sub>c</sub> / cos θ = <b>${fmt(muf)} MHz</b>`;
+}
+
+function enlace() {
+  const pire = v("pt") - v("lc") + v("gt"), gr = v("gr"), smin = v("smin"), f = v("fl"), d = v("dl");
+  const psi = v("psi") * Math.PI / 180;
+  const cpl = Math.cos(psi) ** 2;
+  const lpol = cpl > 1e-6 ? -10 * log10(cpl) : 60;
+  const L = fspl(d, f);
+  const pr = pire + gr - L - lpol;
+  const margen = pr - smin;
+  const lmax = pire + gr - lpol - smin;
+  const dmax = Math.pow(10, (lmax - 32.44 - 20 * log10(f)) / 20);
+  $("outFriis").innerHTML = `PIRE = <b>${fmt(pire)} dBm</b> (${fmt(mw(pire), 1)} mW)<br>` +
+    `L<sub>p</sub>(${d} km) = <b>${fmt(L)} dB</b>` + (lpol > 0.005 ? ` · polarización: −${fmt(lpol)} dB` : "") + `<br>` +
+    `P<sub>r</sub> = <b>${fmt(pr)} dBm</b> · margen = <b class="${margen >= 0 ? "mal" : "ok"}">${fmt(margen)} dB</b> ` +
+    (margen >= 0 ? '<span class="mal">(capta la señal)</span>' : '<span class="ok">(no la capta)</span>') + `<br>` +
+    `Alcance máximo en espacio libre: <b>${dmax >= 1 ? fmt(dmax) + " km" : fmt(dmax * 1000, 0) + " m"}</b>`;
+  dibujar(pire, gr - lpol, smin, f, d, dmax);
+}
+
+function dibujar(pire, gneta, smin, f, d0, dmax) {
+  const cv = $("graf"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const m = { l: 56, r: 14, t: 14, b: 40 };
+  ctx.clearRect(0, 0, W, H);
+  const xmin = -2, xmax = 2;       // log10(km): 10 m a 100 km
+  const ymin = -130, ymax = 0;
+  const X = lx => m.l + (lx - xmin) / (xmax - xmin) * (W - m.l - m.r);
+  const Y = y => m.t + (ymax - Math.max(ymin, Math.min(ymax, y))) / (ymax - ymin) * (H - m.t - m.b);
+  ctx.font = "12px Calibri, Arial"; ctx.fillStyle = "#5B6472"; ctx.strokeStyle = "#E9ECF1";
+  for (let k = xmin; k <= xmax; k++) {
+    ctx.beginPath(); ctx.moveTo(X(k), m.t); ctx.lineTo(X(k), H - m.b); ctx.stroke();
+    ctx.fillText(["10 m", "100 m", "1 km", "10 km", "100 km"][k + 2], X(k) - 14, H - m.b + 16);
+  }
+  for (let y = ymin; y <= ymax; y += 20) {
+    ctx.beginPath(); ctx.moveTo(m.l, Y(y)); ctx.lineTo(W - m.r, Y(y)); ctx.stroke();
+    ctx.fillText(y + " dBm", 4, Y(y) + 4);
+  }
+  ctx.strokeStyle = "#8C1D35"; ctx.setLineDash([6, 4]); ctx.beginPath();
+  ctx.moveTo(m.l, Y(smin)); ctx.lineTo(W - m.r, Y(smin)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#8C1D35"; ctx.fillText("sensibilidad " + smin + " dBm", W - m.r - 140, Y(smin) - 6);
+  ctx.strokeStyle = "#0A2A57"; ctx.lineWidth = 2.5; ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const lx = xmin + (xmax - xmin) * i / 200;
+    const y = pire + gneta - fspl(Math.pow(10, lx), f);
+    i ? ctx.lineTo(X(lx), Y(y)) : ctx.moveTo(X(lx), Y(y));
+  }
+  ctx.stroke(); ctx.lineWidth = 1;
+  const p0 = pire + gneta - fspl(d0, f);
+  ctx.fillStyle = "#9C7A3C"; ctx.beginPath(); ctx.arc(X(log10(d0)), Y(p0), 6, 0, 2 * Math.PI); ctx.fill();
+  if (dmax > 0.01 && dmax < 100) {
+    ctx.fillStyle = "#00408F"; ctx.beginPath(); ctx.arc(X(log10(dmax)), Y(smin), 6, 0, 2 * Math.PI); ctx.fill();
+  }
+}
+
+function todo() { linea(); prop(); enlace(); }
+document.querySelectorAll("input").forEach(i => i.addEventListener("input", todo));
+todo();
+</script>
+<footer class="pie-fcfm">Señales de Transmisión · FCFM-UANL · funciona sin internet · <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a></footer>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-13-calculadora-enlace.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM16 2h2v1h-2zM19 2h3v1h-3zM24 2h2v1h-2zM27 2h3v1h-3zM33 2h2v1h-2zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h2v1h-2zM20 3h1v1h-1zM22 3h4v1h-4zM27 3h5v1h-5zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM14 4h1v1h-1zM16 4h3v1h-3zM20 4h1v1h-1zM22 4h1v1h-1zM25 4h1v1h-1zM27 4h1v1h-1zM31 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM12 5h2v1h-2zM16 5h1v1h-1zM19 5h3v1h-3zM23 5h1v1h-1zM25 5h4v1h-4zM30 5h2v1h-2zM33 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h1v1h-1zM13 6h1v1h-1zM16 6h3v1h-3zM20 6h1v1h-1zM23 6h3v1h-3zM27 6h5v1h-5zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h6v1h-6zM20 7h2v1h-2zM27 7h3v1h-3zM32 7h2v1h-2zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM14 9h2v1h-2zM19 9h1v1h-1zM21 9h4v1h-4zM26 9h1v1h-1zM28 9h5v1h-5zM34 9h1v1h-1zM2 10h1v1h-1zM5 10h1v1h-1zM7 10h2v1h-2zM10 10h3v1h-3zM14 10h1v1h-1zM21 10h3v1h-3zM27 10h2v1h-2zM30 10h1v1h-1zM35 10h1v1h-1zM37 10h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM10 11h1v1h-1zM12 11h2v1h-2zM15 11h1v1h-1zM22 11h2v1h-2zM26 11h2v1h-2zM30 11h2v1h-2zM34 11h3v1h-3zM39 11h4v1h-4zM4 12h3v1h-3zM8 12h4v1h-4zM15 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM24 12h1v1h-1zM28 12h1v1h-1zM30 12h4v1h-4zM35 12h1v1h-1zM37 12h5v1h-5zM3 13h2v1h-2zM9 13h5v1h-5zM15 13h2v1h-2zM18 13h1v1h-1zM21 13h3v1h-3zM26 13h3v1h-3zM35 13h1v1h-1zM40 13h1v1h-1zM42 13h1v1h-1zM2 14h1v1h-1zM6 14h1v1h-1zM8 14h2v1h-2zM13 14h2v1h-2zM16 14h1v1h-1zM19 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM26 14h2v1h-2zM31 14h1v1h-1zM33 14h5v1h-5zM39 14h1v1h-1zM42 14h1v1h-1zM3 15h5v1h-5zM12 15h1v1h-1zM14 15h2v1h-2zM24 15h3v1h-3zM29 15h3v1h-3zM34 15h2v1h-2zM39 15h2v1h-2zM2 16h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM11 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM22 16h2v1h-2zM26 16h2v1h-2zM32 16h2v1h-2zM36 16h1v1h-1zM40 16h3v1h-3zM3 17h2v1h-2zM6 17h1v1h-1zM12 17h1v1h-1zM14 17h2v1h-2zM18 17h2v1h-2zM21 17h1v1h-1zM23 17h2v1h-2zM26 17h4v1h-4zM31 17h2v1h-2zM34 17h1v1h-1zM36 17h1v1h-1zM38 17h1v1h-1zM42 17h1v1h-1zM3 18h1v1h-1zM7 18h2v1h-2zM10 18h4v1h-4zM18 18h2v1h-2zM21 18h6v1h-6zM31 18h2v1h-2zM37 18h1v1h-1zM39 18h1v1h-1zM41 18h2v1h-2zM2 19h1v1h-1zM9 19h1v1h-1zM14 19h3v1h-3zM24 19h4v1h-4zM30 19h2v1h-2zM34 19h1v1h-1zM36 19h2v1h-2zM39 19h4v1h-4zM5 20h1v1h-1zM8 20h5v1h-5zM14 20h1v1h-1zM16 20h3v1h-3zM20 20h1v1h-1zM23 20h1v1h-1zM28 20h1v1h-1zM31 20h1v1h-1zM36 20h1v1h-1zM38 20h2v1h-2zM42 20h1v1h-1zM2 21h1v1h-1zM4 21h1v1h-1zM6 21h1v1h-1zM9 21h1v1h-1zM11 21h4v1h-4zM16 21h1v1h-1zM19 21h2v1h-2zM22 21h1v1h-1zM24 21h2v1h-2zM28 21h3v1h-3zM34 21h4v1h-4zM39 21h1v1h-1zM41 21h1v1h-1zM2 22h2v1h-2zM5 22h2v1h-2zM8 22h1v1h-1zM10 22h2v1h-2zM19 22h3v1h-3zM25 22h2v1h-2zM31 22h1v1h-1zM33 22h1v1h-1zM35 22h2v1h-2zM40 22h1v1h-1zM42 22h1v1h-1zM2 23h2v1h-2zM6 23h1v1h-1zM9 23h1v1h-1zM11 23h2v1h-2zM16 23h1v1h-1zM20 23h1v1h-1zM22 23h2v1h-2zM26 23h1v1h-1zM28 23h1v1h-1zM30 23h2v1h-2zM34 23h1v1h-1zM36 23h1v1h-1zM41 23h2v1h-2zM2 24h1v1h-1zM7 24h2v1h-2zM10 24h1v1h-1zM12 24h3v1h-3zM20 24h2v1h-2zM23 24h2v1h-2zM30 24h1v1h-1zM33 24h1v1h-1zM35 24h2v1h-2zM38 24h1v1h-1zM40 24h2v1h-2zM2 25h1v1h-1zM5 25h3v1h-3zM9 25h1v1h-1zM12 25h3v1h-3zM16 25h1v1h-1zM21 25h4v1h-4zM26 25h5v1h-5zM32 25h2v1h-2zM35 25h2v1h-2zM38 25h3v1h-3zM42 25h1v1h-1zM5 26h7v1h-7zM13 26h2v1h-2zM16 26h4v1h-4zM21 26h4v1h-4zM26 26h2v1h-2zM29 26h1v1h-1zM31 26h1v1h-1zM34 26h3v1h-3zM41 26h2v1h-2zM3 27h3v1h-3zM7 27h1v1h-1zM11 27h1v1h-1zM14 27h3v1h-3zM19 27h6v1h-6zM26 27h1v1h-1zM31 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM39 27h1v1h-1zM41 27h1v1h-1zM2 28h2v1h-2zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM16 28h1v1h-1zM19 28h1v1h-1zM22 28h1v1h-1zM24 28h3v1h-3zM28 28h1v1h-1zM31 28h2v1h-2zM34 28h2v1h-2zM38 28h1v1h-1zM41 28h2v1h-2zM3 29h2v1h-2zM6 29h2v1h-2zM11 29h1v1h-1zM15 29h3v1h-3zM19 29h2v1h-2zM22 29h4v1h-4zM27 29h2v1h-2zM30 29h3v1h-3zM34 29h1v1h-1zM38 29h1v1h-1zM3 30h2v1h-2zM8 30h1v1h-1zM13 30h1v1h-1zM15 30h1v1h-1zM19 30h1v1h-1zM21 30h5v1h-5zM29 30h1v1h-1zM31 30h1v1h-1zM34 30h2v1h-2zM11 31h1v1h-1zM14 31h1v1h-1zM18 31h4v1h-4zM23 31h1v1h-1zM27 31h1v1h-1zM29 31h8v1h-8zM39 31h1v1h-1zM41 31h2v1h-2zM2 32h1v1h-1zM4 32h1v1h-1zM6 32h4v1h-4zM11 32h3v1h-3zM16 32h3v1h-3zM21 32h4v1h-4zM29 32h2v1h-2zM34 32h1v1h-1zM37 32h1v1h-1zM39 32h2v1h-2zM42 32h1v1h-1zM5 33h2v1h-2zM11 33h4v1h-4zM16 33h1v1h-1zM18 33h2v1h-2zM21 33h5v1h-5zM28 33h1v1h-1zM31 33h2v1h-2zM34 33h2v1h-2zM38 33h2v1h-2zM2 34h1v1h-1zM5 34h1v1h-1zM7 34h2v1h-2zM10 34h1v1h-1zM12 34h2v1h-2zM15 34h1v1h-1zM17 34h2v1h-2zM21 34h1v1h-1zM23 34h1v1h-1zM25 34h6v1h-6zM33 34h6v1h-6zM40 34h1v1h-1zM42 34h1v1h-1zM10 35h2v1h-2zM15 35h1v1h-1zM17 35h1v1h-1zM23 35h1v1h-1zM26 35h1v1h-1zM30 35h2v1h-2zM33 35h2v1h-2zM38 35h1v1h-1zM41 35h2v1h-2zM2 36h7v1h-7zM13 36h4v1h-4zM18 36h2v1h-2zM21 36h1v1h-1zM26 36h1v1h-1zM30 36h1v1h-1zM32 36h1v1h-1zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM40 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM13 37h3v1h-3zM18 37h2v1h-2zM21 37h4v1h-4zM26 37h1v1h-1zM28 37h1v1h-1zM32 37h3v1h-3zM38 37h1v1h-1zM40 37h1v1h-1zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM11 38h3v1h-3zM15 38h2v1h-2zM18 38h1v1h-1zM22 38h1v1h-1zM24 38h3v1h-3zM30 38h1v1h-1zM32 38h1v1h-1zM34 38h5v1h-5zM41 38h2v1h-2zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h2v1h-2zM15 39h2v1h-2zM18 39h1v1h-1zM21 39h2v1h-2zM26 39h1v1h-1zM30 39h1v1h-1zM32 39h2v1h-2zM35 39h2v1h-2zM38 39h3v1h-3zM42 39h1v1h-1zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM12 40h1v1h-1zM15 40h2v1h-2zM18 40h2v1h-2zM22 40h2v1h-2zM25 40h1v1h-1zM27 40h1v1h-1zM31 40h1v1h-1zM38 40h1v1h-1zM40 40h3v1h-3zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h4v1h-4zM17 41h1v1h-1zM23 41h1v1h-1zM27 41h2v1h-2zM31 41h2v1h-2zM34 41h2v1h-2zM37 41h1v1h-1zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h1v1h-1zM12 42h1v1h-1zM14 42h1v1h-1zM17 42h3v1h-3zM21 42h4v1h-4zM26 42h1v1h-1zM31 42h1v1h-1zM34 42h1v1h-1zM36 42h4v1h-4zM41 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-13-calculadora-enlace.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

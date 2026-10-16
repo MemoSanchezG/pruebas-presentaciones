@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ley de Hartley</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  .lectura { overflow-wrap:anywhere; }
+  .lectura .renglon { margin:0 0 6px; }
+  .lectura .renglon:last-child { margin-bottom:0; }
+  select { width:100%; margin-top:4px; }
+  .en-linea { display:flex; gap:8px; align-items:center; margin-top:6px; }
+  .en-linea input[type=range] { flex:1; min-width:0; }
+  .en-linea button.accion { margin:0; padding:6px 10px; white-space:nowrap; }
+  .botonera { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .botonera button.accion { margin:0; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:10px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; flex:none; }
+  .nota { color:var(--gris); font-size:.95rem; margin:8px 0 0; }
+  table.cuadro { width:100%; border-collapse:collapse; margin-top:12px; table-layout:fixed; }
+  table.cuadro caption { text-align:left; font-weight:bold; color:var(--azul-oscuro); margin-bottom:4px; }
+  table.cuadro th, table.cuadro td { border:1px solid var(--borde); padding:6px 8px; vertical-align:top; text-align:left; }
+  table.cuadro thead th { background:var(--gris-claro); color:var(--azul-oscuro); }
+  table.cuadro tbody th { color:var(--azul-oscuro); width:26%; }
+  button.accion:disabled, button.accion:disabled:hover { opacity:.45; cursor:default; background:#fff; color:var(--azul); }
+  .solo-movil { display:none; }
+  .rapido { justify-content:center; margin-top:8px; }
+  .rapido .valor { min-width:5.5em; text-align:center; }
+  @media (max-width: 820px) { .solo-movil { display:flex; } }
+  @media (max-width: 560px) {   /* en el celular, el cuadro se apila: un bloque por renglón */
+    table.cuadro, table.cuadro tbody, table.cuadro tr, table.cuadro th, table.cuadro td { display:block; width:auto; }
+    table.cuadro thead { display:none; }
+    table.cuadro caption { display:block; }
+    table.cuadro tr { border:1px solid var(--borde); border-radius:8px; margin-top:8px; padding:6px 10px; }
+    table.cuadro th, table.cuadro td { border:none; padding:2px 0; }
+    table.cuadro tbody th { width:auto; }
+    table.cuadro td::before { content:attr(data-col) ": "; font-weight:bold; color:var(--gris); }
+  }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 12 · Ley de Hartley y teorema de Shannon</div>
+  <h1>Ley de Hartley: ¿cuántos niveles distingue el receptor?</h1>
+  <p class="sub">Agrega niveles a una señal con ruido hasta que dejen de distinguirse, calcula C = 2B·log₂ M y compárala con el límite de Shannon-Hartley.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">¿Cuántos niveles caben?</button>
+    <button type="button" data-vista="v2" role="tab">Hartley contra Shannon</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La señal y el receptor</h2>
+        <label for="a1">Amplitud de la señal A <small>(niveles entre −A y +A)</small>: <span class="valor" id="a1Val"></span></label>
+        <input id="a1" type="range" min="0.2" max="5" step="0.05" value="1.2">
+        <label for="r1">Ruido o precisión del receptor ±ΔV: <span class="valor" id="r1Val"></span></label>
+        <input id="r1" type="range" min="0.05" max="1.5" step="0.01" value="0.25">
+        <label for="m1">Número de niveles M: <span class="valor" id="m1Val"></span></label>
+        <div class="en-linea">
+          <button type="button" class="accion" id="menos1" aria-label="Quitar un nivel">− nivel</button>
+          <input id="m1" type="range" min="2" max="64" step="1" value="2">
+          <button type="button" class="accion" id="mas1" aria-label="Agregar un nivel">+ nivel</button>
+        </div>
+        <label for="b1">Ancho de banda B: <span class="valor" id="b1Val"></span></label>
+        <input id="b1" type="range" min="0" max="8" step="1" value="1">
+        <label for="tipo">Tipo de ruido</label>
+        <select id="tipo">
+          <option value="acotado">Acotado (lo que supone Hartley)</option>
+          <option value="aleatorio">Aleatorio (como el ruido térmico)</option>
+        </select>
+        <p class="nota">Acotado: nunca pasa de ±ΔV. Aleatorio: ΔV es su tamaño típico, pero a veces lo rebasa.</p>
+        <div class="botonera">
+          <button type="button" class="accion" data-ej="2">Binario (M = 2)</button>
+          <button type="button" class="accion" data-ej="3">Tres niveles (+, 0, −)</button>
+          <button type="button" class="accion" data-ej="cuadruplex">Cuádruplex (−3, −1, +1, +3)</button>
+          <button type="button" class="accion" id="rafaga">Enviar otra ráfaga</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="verCaben"> Mostrar cuántos niveles caben (después de predecir)</label>
+        <div class="lectura" id="lectura1" aria-live="polite"></div>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo1" aria-label="Niveles de la señal entre −A y +A con su banda de ruido de ±ΔV; donde dos bandas se enciman se marca en guinda. Sobre las bandas, una ráfaga de símbolos: el nivel enviado y la muestra que llegó, azul si se leyó bien y guinda si no"></canvas>
+        <div class="en-linea rapido solo-movil">
+          <button type="button" class="accion" data-mpaso="-1">− nivel</button>
+          <span class="valor" data-mval></span>
+          <button type="button" class="accion" data-mpaso="1">+ nivel</button>
+        </div>
+        <p class="nota">Cada franja azul es la banda de ±ΔV alrededor de un nivel. Donde dos franjas se enciman (guinda) el receptor no sabe cuál nivel llegó. Los puntos son las muestras recibidas: azules si se leyeron bien, guinda si no.</p>
+        <div class="seguridad"><b>Seguridad.</b> Quien audita un canal no solo pregunta qué mensajes viajan por él, sino cuántos estados distinguibles tiene y si todos se están vigilando: un nivel que el receptor legítimo no revisa puede esconder un canal encubierto. La misma cuenta acota cuánto puede sacar un canal encubierto: el de audio de 1 kHz con 4 tonos del ejemplo del libro llega a C = 2(1000) log₂ 4 = 4000 bps, suficiente para sacar una clave de 4096 bits en poco más de un segundo.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Predice cuántos niveles caben con los valores iniciales. Luego agrega niveles uno por uno: ¿en qué M empiezan a encimarse las bandas y a aparecer lecturas equivocadas? Activa la fórmula y compara.</li>
+            <li>Duplica la amplitud A. ¿Cuántos niveles caben ahora y cuántos bits por símbolo ganas? ¿Qué rinde más para la capacidad, duplicar A o duplicar B?</li>
+            <li>Un atacante duplica el ruido ΔV. ¿Cuántos niveles caben y qué le pasa a C? ¿Qué propiedad de la tríada CIA ataca?</li>
+            <li>Con los niveles que caben, cambia a ruido aleatorio sin mover nada más. ¿Siguen sin errores? ¿Qué suponía Hartley sobre el ruido?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Los mismos datos</h2>
+        <label for="a2">Amplitud de la señal A: <span class="valor" id="a2Val"></span></label>
+        <input id="a2" type="range" min="0.2" max="5" step="0.05" value="1.2">
+        <label for="r2">Ruido o precisión del receptor ±ΔV: <span class="valor" id="r2Val"></span></label>
+        <input id="r2" type="range" min="0.05" max="1.5" step="0.01" value="0.25">
+        <label for="m2">Niveles que usas M: <span class="valor" id="m2Val"></span></label>
+        <input id="m2" type="range" min="2" max="64" step="1" value="2">
+        <label for="b2">Ancho de banda B: <span class="valor" id="b2Val"></span></label>
+        <input id="b2" type="range" min="0" max="8" step="1" value="1">
+        <div class="lectura" id="lectura2" aria-live="polite"></div>
+        <p class="nota">Supuesto del simulador para comparar con los mismos datos: A y ΔV se toman como las amplitudes de la señal y del ruido; como la potencia es proporcional al cuadrado de la amplitud, S/N = (A/ΔV)².</p>
+      </div>
+      <div class="panel">
+        <canvas id="lienzo2" aria-label="Dos gráficas. Primera: capacidad contra número de niveles M; la recta de Hartley sube sin límite y el límite de Shannon-Hartley es horizontal. Segunda: capacidad contra la razón A/ΔV para las dos fórmulas"></canvas>
+        <div class="en-linea rapido solo-movil">
+          <button type="button" class="accion" data-mpaso="-1">− nivel</button>
+          <span class="valor" data-mval></span>
+          <button type="button" class="accion" data-mpaso="1">+ nivel</button>
+        </div>
+        <table class="cuadro">
+          <caption>Cuadro del libro: dos límites para un mismo canal</caption>
+          <thead><tr><th></th><th>Nyquist o ley de Hartley: C = 2B log₂ M</th><th>Shannon-Hartley: I = B log₂(1 + S/N)</th></tr></thead>
+          <tbody>
+            <tr><th>Variable clave</th><td data-col="Hartley">Número de símbolos distinguibles M</td><td data-col="Shannon">Relación señal a ruido S/N</td></tr>
+            <tr><th>Supuesto sobre el ruido</th><td data-col="Hartley">No lo modela explícitamente</td><td data-col="Shannon">Lo incorpora directamente en la fórmula</td></tr>
+            <tr><th>Pregunta que responde</th><td data-col="Hartley">¿Cuántos símbolos necesito para una tasa deseada?</td><td data-col="Shannon">¿Es el canal, dado su ruido real, capaz de alcanzarla?</td></tr>
+          </tbody>
+        </table>
+        <div class="seguridad"><b>Seguridad.</b> Un <i>jammer</i> suma ruido en la banda del canal: para el receptor ΔV crece, caben menos niveles y la capacidad de Shannon baja. No lee ni altera los datos; le basta con forzar a la modulación adaptativa a bajar de nivel: ataca la disponibilidad. Las contramedidas del libro actúan sobre la ecuación: subir S (acercar el transmisor, antenas direccionales), filtrar la interferencia si es angosta o ensanchar el espectro.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Con los valores iniciales, ¿cuál capacidad es mayor, la de Hartley o la de Shannon-Hartley, y por cuánto? ¿Qué supone cada una sobre el ruido?</li>
+            <li>En la gráfica de capacidad contra M, sube M más allá del cruce de las dos líneas. ¿Por qué la fórmula de Hartley sigue subiendo aunque el canal ya no dé más bits por segundo?</li>
+            <li>Duplica B. ¿Qué les pasa a C, a I y al número de niveles que necesita Nyquist para llegar al límite?</li>
+            <li>Baja A/ΔV por debajo de 1 (el ruido más grande que la señal). ¿Cuántos niveles caben según Hartley y qué dice Shannon?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap02_transformadas_teoremas.tex (Ecuaciones eq:hartley, eq:nyquist, eq:shannon-hartley y eq:snr-db; cuadro "Nyquist y Shannon-Hartley") y fase2/cap01_evolucion_comunicacion.tex (eq:bits-por-simbolo, cuádruplex). Modelo del simulador, no del libro: niveles igualmente espaciados entre −A y +A, criterio d ≥ 2ΔV y S/N = (A/ΔV)². Valores ilustrativos: A, ΔV y M por omisión y los rangos de los controles. Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+// Cálculos de la ley de Hartley y de Shannon-Hartley, sin dependencias de la página.
+var Hartley = (function () {
+  "use strict";
+  var BS = [500, 1000, 2000, 2700, 3000, 10000, 20000, 100000, 20e6];   // anchos de banda del control (Hz)
+
+  function log2(x) { return Math.log(x) / Math.LN2; }
+  // Separación entre M niveles igualmente espaciados de −A a +A
+  function separacion(A, M) { return 2 * A / (M - 1); }
+  function nivel(i, A, M) { return -A + i * separacion(A, M); }
+  // Niveles que caben sin que se enciman sus bandas de ±ΔV: d ≥ 2ΔV → M ≤ 1 + A/ΔV
+  function caben(A, dV) { return Math.max(1, Math.floor(1 + A / dV + 1e-9)); }
+  function distinguibles(A, dV, M) { return separacion(A, M) >= 2 * dV - 1e-9; }
+  // Ley de Hartley (fórmula de Nyquist): C = 2B log2 M
+  function capacidad(B, M) { return 2 * B * log2(M); }
+  // S/N con A y ΔV como amplitudes de señal y ruido (potencia ∝ amplitud²)
+  function snr(A, dV) { var x = A / dV; return x * x; }
+  // Shannon-Hartley: I = B log2(1 + S/N)
+  function shannon(B, sn) { return B * log2(1 + sn); }
+  // Niveles que necesita Nyquist para llegar a I a 2B símbolos/s: 2^(I/2B) = √(1 + S/N)
+  function nivelesShannon(B, I) { return Math.pow(2, I / (2 * B)); }
+  // El receptor elige el nivel más cercano
+  function decidir(y, A, M) {
+    var i = Math.round((y + A) / separacion(A, M));
+    return Math.min(M - 1, Math.max(0, i));
+  }
+  // Generador pseudoaleatorio con semilla (mulberry32): la ráfaga se puede repetir
+  function generador(semilla) {
+    var a = semilla >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // Números al azar de una ráfaga: símbolo (r), ruido uniforme en [−1, 1] (u) y gaussiano (z, Box-Muller)
+  function rafaga(semilla, n) {
+    var azar = generador(semilla), r = [], u = [], z = [];
+    for (var i = 0; i < n; i++) {
+      r.push(azar()); u.push(2 * azar() - 1);
+      var u1 = 1 - azar(), u2 = azar();
+      z.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2));
+    }
+    return { r: r, u: u, z: z, n: n };
+  }
+  // Envía la ráfaga con M niveles y ruido de tamaño ΔV; cuenta los símbolos mal leídos
+  function simular(raf, A, dV, M, tipo) {
+    var enviados = [], recibidos = [], leidos = [], errores = 0;
+    for (var i = 0; i < raf.n; i++) {
+      var k = Math.min(M - 1, Math.floor(raf.r[i] * M));
+      var y = nivel(k, A, M) + dV * (tipo === "aleatorio" ? raf.z[i] : raf.u[i]);
+      var j = decidir(y, A, M);
+      enviados.push(k); recibidos.push(y); leidos.push(j);
+      if (j !== k) errores++;
+    }
+    return { enviados: enviados, recibidos: recibidos, leidos: leidos, errores: errores };
+  }
+
+  return { BS: BS, log2: log2, separacion: separacion, nivel: nivel, caben: caben, distinguibles: distinguibles,
+           capacidad: capacidad, snr: snr, shannon: shannon, nivelesShannon: nivelesShannon, decidir: decidir,
+           generador: generador, rafaga: rafaga, simular: simular };
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  var H = Hartley, BS = H.BS, log2 = H.log2, N_SIM = 2000;
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16. El espacio de
+  // miles no se rompe al final del renglón.
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function textoB(B) { return B >= 1e6 ? corto(B / 1e6, 1) + " MHz" : (B >= 1000 ? corto(B / 1000, 1) + " kHz" : corto(B, 0) + " Hz"); }
+  function sustB(B) { return B >= 1e6 ? corto(B / 1e6, 1) + "×10⁶" : corto(B, 0); }   // B dentro de una fórmula
+  function tasa(x) {
+    if (x >= 1e6) return num(x / 1e6, 1) + " Mbps";
+    if (x >= 1e4) return num(x / 1e3, 1) + " kbps";
+    return num(x, 0) + " bps";
+  }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  function punto(g, x, y, r, color) { g.save(); g.fillStyle = color; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); g.restore(); }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+  // Paso "redondo" (1, 2 o 5 por una potencia de 10) para unas n marcas
+  function pasoRedondo(max, n) {
+    var bruto = max / n, mag = Math.pow(10, Math.floor(Math.log(bruto) / Math.LN10)), r = bruto / mag;
+    return (r < 1.5 ? 1 : (r < 3 ? 2 : (r < 7 ? 5 : 10))) * mag;
+  }
+  function unidadTasa(max) { return max >= 2e6 ? { div: 1e6, nombre: "Mbps" } : (max >= 2e3 ? { div: 1e3, nombre: "kbps" } : { div: 1, nombre: "bps" }); }
+
+  // ================================================================ Estado
+  var est = { A: 1.2, dV: 0.25, M: 2, iB: 1, tipo: "acotado", semilla: 2026, verCaben: false };
+  var raf = H.rafaga(est.semilla, N_SIM), sim = null;
+  H.estado = est;   // acceso al estado para depurar desde la consola
+
+  function recalcular() { sim = H.simular(raf, est.A, est.dV, est.M, est.tipo); }
+
+  // ================================================================ Vista 1
+  function lectura1() {
+    var A = est.A, dV = est.dV, M = est.M, B = BS[est.iB], d = H.separacion(A, M), ok = H.distinguibles(A, dV, M);
+    var bits = log2(M), C = H.capacidad(B, M), h = "";
+    h += "<div class='renglon'><b>Separación entre niveles</b><br><span class='formula'>d = 2A/(M − 1) = 2(" + num(A, 2) + ")/(" + M + " − 1) = " + num(d, 3) + " V</span></div>";
+    h += "<div class='renglon'><b>¿Se enciman las bandas?</b> No se enciman si d ≥ 2ΔV = 2(" + num(dV, 2) + ") = " + num(2 * dV, 2) + " V: " +
+         (ok ? "<span class='ok'>no se enciman.</span>" : "<span class='mal'>sí, se enciman.</span>") + "</div>";
+    if (est.verCaben) {
+      var n = H.caben(A, dV);
+      h += "<div class='renglon'><b>Niveles que caben</b><br><span class='formula'>M ≤ 1 + A/ΔV = 1 + " + num(A, 2) + "/" + num(dV, 2) + " = " + num(1 + A / dV, 2) +
+           "</span> → " + (n === 1 ? "cabe <b>1</b> nivel" : "caben <b>" + n + "</b> niveles") + ".</div>";
+    }
+    h += "<div class='renglon'><b>Bits por símbolo</b> (medida de Hartley con n = 1)<br><span class='formula'>log₂ M = log₂ " + M + " = " + num(bits, 3) + " bits</span></div>";
+    h += "<div class='renglon'><b>Capacidad (ley de Hartley)</b><br><span class='formula'>C = 2B log₂ M = 2(" + sustB(B) + ")(" + num(bits, 3) + ") = " + tasa(C) + "</span></div>";
+    h += "<div class='renglon'><b>Ráfaga simulada:</b> " + num(N_SIM, 0) + " símbolos, " + num(sim.errores, 0) + " mal leídos (" + num(100 * sim.errores / N_SIM, 1) + " %).</div>";
+    $("lectura1").innerHTML = h;
+  }
+
+  function dibujar1() {
+    var cv = $("lienzo1"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.6 : 0.56), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    var A = est.A, dV = est.dV, M = est.M, sep = H.separacion(A, M), ok = H.distinguibles(A, dV, M);
+    var nVis = angosto ? 12 : 24, errVis = 0, k;
+    for (k = 0; k < nVis; k++) if (sim.leidos[k] !== sim.enviados[k]) errVis++;
+    var edo = ok ? "las bandas no se enciman" : "las bandas se enciman";
+    var ruido = est.tipo === "aleatorio" ? "ruido aleatorio, tamaño típico ΔV = " + num(dV, 2) + " V" : "ruido acotado: nunca pasa de ±" + num(dV, 2) + " V";
+    var malos = "mal leídos aquí: " + errVis + " de " + nVis, y0;
+    if (angosto) {
+      texto(g, "M = " + M + " niveles", 12, 24, C.azulOscuro, 17, "left", "alphabetic", true);
+      texto(g, edo, w - 12, 24, ok ? C.azul : C.guinda, 16, "right", "alphabetic", true);
+      texto(g, "d = " + num(sep, 3) + " V · 2ΔV = " + num(2 * dV, 2) + " V", 12, 46, C.azulOscuro, 15);
+      texto(g, ruido, 12, 66, C.gris, 15);
+      texto(g, "amplitud (V)", 12, 90, C.tinta, 15);
+      y0 = 100;
+    } else {
+      texto(g, "M = " + M + " niveles · d = " + num(sep, 3) + " V · 2ΔV = " + num(2 * dV, 2) + " V", 12, 24, C.azulOscuro, 17, "left", "alphabetic", true);
+      texto(g, edo, w - 14, 24, ok ? C.azul : C.guinda, 17, "right", "alphabetic", true);
+      texto(g, ruido, 12, 46, C.gris, 15);
+      texto(g, malos, w - 14, 46, errVis ? C.guinda : C.gris, 15, "right", "alphabetic", true);
+      y0 = 60;
+    }
+    // leyenda: se acomoda en renglones antes de fijar el alto de la gráfica
+    var ley = [["rect", "rgba(0,64,143,0.25)", "banda ±ΔV"], ["rect", "rgba(140,29,53,0.5)", "bandas encimadas"],
+               ["linea", C.tinta, "nivel enviado"], ["punto", C.azul, "bien leído"], ["punto", C.guinda, "mal leído"]];
+    if (angosto) ley.push(["", errVis ? C.guinda : C.gris, malos]);
+    var renglones = [[]], xl = 12;
+    ley.forEach(function (it) {
+      var wt = anchoTexto(it[2], 15, !it[0]) + (it[0] ? 34 : 10);
+      if (xl + wt > w - 8 && renglones[renglones.length - 1].length) { renglones.push([]); xl = 12; }
+      renglones[renglones.length - 1].push({ it: it, x: xl }); xl += wt;
+    });
+
+    var x0 = angosto ? 58 : 78, x1 = w - 14, y1 = h - 30 - 22 * renglones.length;
+    var tope = (A + dV) * 1.08;
+    function Y(v) { return (y0 + y1) / 2 - v / tope * (y1 - y0) / 2; }
+    function Yc(v) { return Math.min(y1 - 2, Math.max(y0 + 2, Y(v))); }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(x0, y0, x1 - x0, y1 - y0); g.restore();
+    var i, v;
+    // bandas de ±ΔV y encimes
+    for (i = 0; i < M; i++) {
+      v = H.nivel(i, A, M);
+      g.save(); g.fillStyle = "rgba(0,64,143,0.15)"; g.fillRect(x0, Yc(v + dV), x1 - x0, Yc(v - dV) - Yc(v + dV)); g.restore();
+    }
+    for (i = 0; i < M - 1; i++) {
+      var alto = H.nivel(i, A, M) + dV, bajo = H.nivel(i + 1, A, M) - dV;
+      if (alto > bajo + 1e-12) { g.save(); g.fillStyle = "rgba(140,29,53,0.42)"; g.fillRect(x0, Yc(alto), x1 - x0, Yc(bajo) - Yc(alto)); g.restore(); }
+    }
+    // niveles
+    for (i = 0; i < M; i++) { v = H.nivel(i, A, M); linea(g, x0, Y(v), x1, Y(v), C.azulOscuro, M > 24 ? 0.8 : 1.4); }
+    linea(g, x0, Y(0), x1, Y(0), C.gris, 1, [3, 4]);
+    // eje vertical: valores de los niveles (los que quepan sin encimarse)
+    var px = sep / tope * (y1 - y0) / 2, cada = Math.max(1, Math.ceil(20 / Math.max(px, 0.1)));
+    for (i = 0; i < M; i++) {
+      if (i % cada !== 0 && i !== M - 1) continue;
+      if (i !== M - 1 && i + cada > M - 1 && (M - 1 - i) * px < 20) continue;
+      v = H.nivel(i, A, M);
+      texto(g, (v > 1e-9 ? "+" : "") + num(Math.abs(v) < 1e-9 ? 0 : v, 2), x0 - 6, Y(v) + 5, C.tinta, 15, "right");
+    }
+    if (!angosto) {
+      g.save(); g.translate(16, (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+      texto(g, "amplitud (V)", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    }
+
+    // ráfaga: nivel enviado (escalón) y muestra recibida
+    var xs0 = x0 + 8, xs1 = x1 - 8, dx = (xs1 - xs0) / nVis;
+    for (k = 0; k < nVis; k++) {
+      var ks = sim.enviados[k], vs = H.nivel(ks, A, M), yr = sim.recibidos[k], bien = sim.leidos[k] === ks;
+      var xa = xs0 + k * dx, xb = xa + dx, xc = (xa + xb) / 2;
+      linea(g, xa + 2, Y(vs), xb - 2, Y(vs), C.tinta, 3);
+      linea(g, xc, Y(vs), xc, Yc(yr), C.gris, 1.2);
+      if (!bien) { g.save(); g.strokeStyle = C.guinda; g.lineWidth = 2; g.beginPath(); g.arc(xc, Yc(yr), 8, 0, 2 * Math.PI); g.stroke(); g.restore(); }
+      punto(g, xc, Yc(yr), 4.5, bien ? C.azul : C.guinda);
+    }
+    // leyenda
+    renglones.forEach(function (fila, n) {
+      var yl = y1 + 30 + 22 * n;
+      fila.forEach(function (p) {
+        var it = p.it, xl2 = p.x;
+        if (it[0] === "rect") { g.save(); g.fillStyle = it[1]; g.fillRect(xl2, yl - 11, 18, 12); g.restore(); }
+        else if (it[0] === "linea") linea(g, xl2, yl - 5, xl2 + 18, yl - 5, it[1], 3);
+        else if (it[0] === "punto") punto(g, xl2 + 9, yl - 5, 5, it[1]);
+        if (it[0]) texto(g, it[2], xl2 + 24, yl, C.tinta, 15);
+        else texto(g, it[2], xl2, yl, it[1], 15, "left", "alphabetic", true);
+      });
+    });
+  }
+
+  // ================================================================ Vista 2
+  function lectura2() {
+    var A = est.A, dV = est.dV, M = est.M, B = BS[est.iB], x = A / dV, MH = H.caben(A, dV), CH = H.capacidad(B, MH);
+    var sn = H.snr(A, dV), I = H.shannon(B, sn), MS = H.nivelesShannon(B, I), Cm = H.capacidad(B, M), h = "";
+    h += "<div class='renglon'><b>Hartley:</b> el ruido solo decide cuántos niveles caben.<br>" +
+         (MH === 1 ? "Cabe <b>1</b> nivel" : "Caben <b>" + MH + "</b> niveles") + " (parte entera de 1 + A/ΔV = " + num(1 + x, 2) + ")<br>" +
+         "<span class='formula'>C = 2B log₂ M = 2(" + sustB(B) + ") log₂ " + MH + " = " + tasa(CH) + "</span></div>";
+    h += "<div class='renglon'><b>Shannon-Hartley:</b> el ruido entra en la fórmula.<br>" +
+         "<span class='formula'>S/N = (A/ΔV)² = (" + num(A, 2) + "/" + num(dV, 2) + ")² = " + num(sn, 2) + "</span> (" + num(10 * Math.log(sn) / Math.LN10, 1) + " dB)<br>" +
+         "<span class='formula'>I = B log₂(1 + S/N) = " + sustB(B) + " log₂(" + num(1 + sn, 2) + ") = " + tasa(I) + "</span></div>";
+    h += "<div class='renglon'><b>Niveles que necesita Nyquist para llegar a I</b> (a 2B símbolos por segundo)<br>" +
+         "<span class='formula'>log₂ M = I/(2B) = " + num(I / (2 * B), 3) + " → M = " + num(MS, 2) + "</span> (es √(1 + S/N))</div>";
+    h += "<div class='renglon'><b>Con tus M = " + M + " niveles:</b> <span class='formula'>C = 2B log₂ " + M + " = " + tasa(Cm) + "</span> " +
+         (Cm > I * (1 + 1e-9) ? "<span class='mal'>más que I: según Shannon, con ruido aleatorio de esta S/N no se puede sin errores.</span>" : "<span class='ok'>no pasa de I.</span>") + "</div>";
+    $("lectura2").innerHTML = h;
+  }
+
+  // Ejes con marcas; devuelve las funciones de escala
+  function marco(g, caja, titulo) {
+    texto(g, titulo, caja.x + 12, caja.y + 24, C.azulOscuro, 16, "left", "alphabetic", true);
+  }
+
+  function graficaNiveles(g, caja, angosto) {
+    angosto = angosto || caja.w < 380;   // gráfica angosta: rótulos cortos
+    var B = BS[est.iB], sn = H.snr(est.A, est.dV), I = H.shannon(B, sn), MH = H.caben(est.A, est.dV), MS = H.nivelesShannon(B, I);
+    var M = est.M, Cm = H.capacidad(B, M);
+    marco(g, caja, "Capacidad contra número de niveles M");
+    var x0 = caja.x + 62, x1 = caja.x + caja.w - 16, y0 = caja.y + 44, y1 = caja.y + caja.h - 46;
+    var ymax = Math.max(2 * B * 6, I) * 1.12, u = unidadTasa(ymax);
+    function X(m) { return x0 + (log2(m) - 1) / 5 * (x1 - x0); }
+    function Y(c) { return y1 - c / ymax * (y1 - y0); }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(x0, y0, x1 - x0, y1 - y0); g.restore();
+    if (I < ymax) {
+      g.save(); g.fillStyle = "rgba(140,29,53,0.08)"; g.fillRect(x0, y0, x1 - x0, Y(I) - y0); g.restore();
+    }
+    var paso = pasoRedondo(ymax / u.div, 5) * u.div, c;
+    for (c = 0; c <= ymax + 1e-9; c += paso) {
+      linea(g, x0, Y(c), x1, Y(c), C.grisClaro, 1);
+      texto(g, corto(c / u.div, 2), x0 - 6, Y(c) + 5, C.gris, 15, "right");
+    }
+    [2, 4, 8, 16, 32, 64].forEach(function (m) {
+      linea(g, X(m), y0, X(m), y1, C.grisClaro, 1);
+      texto(g, String(m), X(m), y1 + 18, C.gris, 15, "center");
+    });
+    texto(g, "niveles M (escala log₂)", x1, y1 + 38, C.tinta, 15, "right");
+    g.save(); g.translate(caja.x + 16, (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "capacidad (" + u.nombre + ")", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    // niveles que caben según Hartley
+    if (MH >= 2 && MH <= 64) {
+      linea(g, X(MH), y0, X(MH), y1, C.oroTexto, 2, [6, 4]);
+      etiqueta(g, "caben " + MH, X(MH) + (X(MH) > x1 - 70 ? -5 : 5), y1 - 8, C.oroTexto, 15, X(MH) > x1 - 70 ? "right" : "left", true);
+    } else if (MH > 64) {
+      etiqueta(g, "caben " + MH + " (fuera de la gráfica)", x1 - 4, y1 - 8, C.oroTexto, 15, "right", true);
+    }
+    // Shannon: techo horizontal
+    if (I < ymax) {
+      linea(g, x0, Y(I), x1, Y(I), C.guinda, 3);
+      etiqueta(g, (angosto ? "I = " : "Shannon-Hartley: I = ") + tasa(I), x1 - 6, Y(I) - 8, C.guinda, 15, "right", true);
+      if (Y(I) - y0 > 52) etiqueta(g, angosto ? "arriba de I: imposible" : "arriba de I: imposible sin errores (Shannon)", x0 + 6, y0 + 20, C.guinda, 15, "left");
+    }
+    // Hartley: recta C = 2B log2 M
+    linea(g, X(2), Y(2 * B), X(64), Y(12 * B), C.azulOscuro, 3);
+    etiqueta(g, angosto ? "Hartley" : "Hartley: C = 2B log₂ M", X(64) - 4, Y(12 * B) + 20, C.azulOscuro, 15, "right", true);
+    if (MS >= 2 && MS <= 64 && I < ymax) {
+      punto(g, X(MS), Y(I), 6, C.oro);
+      etiqueta(g, "√(1 + S/N) = " + num(MS, 2), X(MS) + (X(MS) > x1 - 140 ? -8 : 8), Y(I) + 22, C.oroTexto, 15, X(MS) > x1 - 140 ? "right" : "left", true);
+    }
+    // M que usa el estudiante
+    var sobra = Cm > I * (1 + 1e-9);
+    punto(g, X(M), Y(Cm), 8, sobra ? C.guinda : C.azul);
+    g.save(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(X(M), Y(Cm), 8, 0, 2 * Math.PI); g.stroke(); g.restore();
+    etiqueta(g, "tu M = " + M, X(M) + (X(M) > x1 - 80 ? -12 : 12), Y(Cm) - 12, sobra ? C.guinda : C.azul, 15, X(M) > x1 - 80 ? "right" : "left", true);
+  }
+
+  function graficaRelacion(g, caja, angosto) {
+    angosto = angosto || caja.w < 380;
+    var B = BS[est.iB], r = est.A / est.dV, xmax = Math.max(10, Math.ceil(r * 1.25 / 5) * 5);
+    marco(g, caja, "Capacidad contra A/ΔV (B = " + textoB(B) + ")");
+    var x0 = caja.x + 62, x1 = caja.x + caja.w - 16, y0 = caja.y + 44, y1 = caja.y + caja.h - 46;
+    var ymax = Math.max(H.shannon(B, xmax * xmax), H.capacidad(B, H.caben(xmax, 1))) * 1.28, u = unidadTasa(ymax);   // arriba queda lugar para la leyenda
+    function X(t) { return x0 + t / xmax * (x1 - x0); }
+    function Y(c) { return y1 - c / ymax * (y1 - y0); }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(x0, y0, x1 - x0, y1 - y0); g.restore();
+    var paso = pasoRedondo(ymax / u.div, 5) * u.div, c, t;
+    for (c = 0; c <= ymax + 1e-9; c += paso) {
+      linea(g, x0, Y(c), x1, Y(c), C.grisClaro, 1);
+      texto(g, corto(c / u.div, 2), x0 - 6, Y(c) + 5, C.gris, 15, "right");
+    }
+    var px = pasoRedondo(xmax, 5);
+    for (t = 0; t <= xmax + 1e-9; t += px) {
+      linea(g, X(t), y0, X(t), y1, C.grisClaro, 1);
+      texto(g, corto(t, 1), X(t), y1 + 18, C.gris, 15, "center");
+    }
+    texto(g, "A/ΔV", x1, y1 + 38, C.tinta, 15, "right");
+    g.save(); g.translate(caja.x + 16, (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "capacidad (" + u.nombre + ")", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    // Shannon con S/N = (A/ΔV)²
+    g.save(); g.strokeStyle = C.guinda; g.lineWidth = 3; g.beginPath();
+    for (var i = 0; i <= 300; i++) { t = xmax * i / 300; var yy = Y(H.shannon(B, t * t)); if (i === 0) g.moveTo(X(t), yy); else g.lineTo(X(t), yy); }
+    g.stroke(); g.restore();
+    // Hartley en escalones: entre k − 1 y k caben k niveles
+    g.save(); g.strokeStyle = C.azulOscuro; g.lineWidth = 3; g.beginPath(); g.moveTo(X(0), Y(0));
+    for (var k = 1; k - 1 < xmax; k++) {
+      var cy = Y(H.capacidad(B, k));
+      g.lineTo(X(k - 1), cy); g.lineTo(X(Math.min(k, xmax)), cy);
+    }
+    g.stroke(); g.restore();
+    // valores actuales
+    var I = H.shannon(B, r * r), CH = H.capacidad(B, H.caben(est.A, est.dV));
+    linea(g, X(r), y0, X(r), y1, C.gris, 1.5, [3, 4]);
+    punto(g, X(r), Y(I), 6, C.guinda); punto(g, X(r), Y(CH), 6, C.azulOscuro);
+    var der = X(r) > (x0 + x1) / 2, xe = X(r) + (der ? -10 : 10), al = der ? "right" : "left";
+    var yI = Y(I), yC = Y(CH);
+    if (Math.abs(yI - yC) < 20) { if (yI <= yC) { yI -= 10; yC += 10; } else { yI += 10; yC -= 10; } }
+    etiqueta(g, "I = " + tasa(I), xe, yI + 5, C.guinda, 15, al, true);
+    etiqueta(g, "C = " + tasa(CH), xe, yC + 5, C.azulOscuro, 15, al, true);
+    // leyenda
+    var yl = y0 + 20;
+    linea(g, x0 + 10, yl - 5, x0 + 32, yl - 5, C.azulOscuro, 3);
+    etiqueta(g, angosto ? "Hartley" : "Hartley: niveles que caben", x0 + 38, yl, C.azulOscuro, 15, "left");
+    linea(g, x0 + 10, yl + 17, x0 + 32, yl + 17, C.guinda, 3);
+    etiqueta(g, angosto ? "Shannon, S/N = (A/ΔV)²" : "Shannon-Hartley: S/N = (A/ΔV)²", x0 + 38, yl + 22, C.guinda, 15, "left");
+  }
+
+  function dibujar2() {
+    var cv = $("lienzo2"), w0 = cv.clientWidth || 600, angosto = w0 < 700, chico = w0 < 480;
+    var d = preparar(cv, angosto ? (chico ? 2.0 : 1.3) : 0.55), g = d.g, w = d.w, h = d.h;
+    g.clearRect(0, 0, w, h);
+    if (angosto) {
+      graficaNiveles(g, { x: 0, y: 0, w: w, h: h / 2 }, chico);
+      linea(g, 10, h / 2, w - 10, h / 2, C.borde, 1);
+      graficaRelacion(g, { x: 0, y: h / 2, w: w, h: h / 2 }, chico);
+    } else {
+      graficaNiveles(g, { x: 0, y: 0, w: w / 2, h: h }, false);
+      linea(g, w / 2, 12, w / 2, h - 12, C.borde, 1);
+      graficaRelacion(g, { x: w / 2, y: 0, w: w / 2, h: h }, false);
+    }
+  }
+
+  // ================================================================ Controles (las dos pestañas comparten los datos)
+  function sincronizar() {
+    [["a", est.A, function (v) { return num(v, 2) + " V"; }], ["r", est.dV, function (v) { return num(v, 2) + " V"; }],
+     ["m", est.M, function (v) { return String(v); }], ["b", est.iB, function (v) { return textoB(BS[v]); }]].forEach(function (c) {
+      [1, 2].forEach(function (n) {
+        var el = $(c[0] + n);
+        if (Number(el.value) !== c[1]) el.value = String(c[1]);
+        $(c[0] + n + "Val").textContent = c[2](c[1]);
+      });
+    });
+    $("tipo").value = est.tipo; $("verCaben").checked = est.verCaben;
+    $("menos1").disabled = est.M <= 2; $("mas1").disabled = est.M >= 64;
+    document.querySelectorAll("[data-mval]").forEach(function (s) { s.textContent = "M = " + est.M; });
+    document.querySelectorAll("[data-mpaso]").forEach(function (b) { b.disabled = Number(b.dataset.mpaso) < 0 ? est.M <= 2 : est.M >= 64; });
+  }
+  function actualizar() {
+    sincronizar(); recalcular(); lectura1(); lectura2(); dibujarTodo();
+  }
+  function ponerM(m) { est.M = Math.min(64, Math.max(2, Math.round(m))); actualizar(); }
+  [1, 2].forEach(function (n) {
+    $("a" + n).addEventListener("input", function () { est.A = Number($("a" + n).value); actualizar(); });
+    $("r" + n).addEventListener("input", function () { est.dV = Number($("r" + n).value); actualizar(); });
+    $("m" + n).addEventListener("input", function () { ponerM(Number($("m" + n).value)); });
+    $("b" + n).addEventListener("input", function () { est.iB = Number($("b" + n).value); actualizar(); });
+  });
+  $("menos1").addEventListener("click", function () { ponerM(est.M - 1); });
+  $("mas1").addEventListener("click", function () { ponerM(est.M + 1); });
+  document.querySelectorAll("[data-mpaso]").forEach(function (b) {
+    b.addEventListener("click", function () { ponerM(est.M + Number(b.dataset.mpaso)); });
+  });
+  $("tipo").addEventListener("change", function () { est.tipo = $("tipo").value; actualizar(); });
+  $("verCaben").addEventListener("change", function () { est.verCaben = $("verCaben").checked; actualizar(); });
+  $("rafaga").addEventListener("click", function () { est.semilla += 1; raf = H.rafaga(est.semilla, N_SIM); actualizar(); });
+  document.querySelectorAll("button[data-ej]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (b.dataset.ej === "cuadruplex") { est.A = 3; est.M = 4; } else est.M = Number(b.dataset.ej);
+      actualizar();
+    });
+  });
+
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) dibujar1();
+    if ($("v2").classList.contains("activo")) dibujar2();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  actualizar();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) {   // la liga con #v2 abre la pestaña, pero la página no debe saltar hasta la sección
+    inicial.click();
+    window.addEventListener("load", function () { window.scrollTo(0, 0); setTimeout(function () { window.scrollTo(0, 0); }, 60); });
+  }
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-12-ley-de-hartley.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM14 2h4v1h-4zM20 2h3v1h-3zM25 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM14 3h3v1h-3zM23 3h1v1h-1zM27 3h1v1h-1zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM13 4h1v1h-1zM17 4h1v1h-1zM22 4h2v1h-2zM26 4h1v1h-1zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h3v1h-3zM14 5h3v1h-3zM18 5h2v1h-2zM21 5h2v1h-2zM24 5h6v1h-6zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM18 6h1v1h-1zM20 6h3v1h-3zM24 6h2v1h-2zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h3v1h-3zM14 7h1v1h-1zM17 7h1v1h-1zM23 7h2v1h-2zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM12 9h7v1h-7zM21 9h1v1h-1zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h2v1h-2zM14 10h1v1h-1zM19 10h1v1h-1zM24 10h1v1h-1zM27 10h2v1h-2zM32 10h5v1h-5zM2 11h1v1h-1zM4 11h1v1h-1zM6 11h1v1h-1zM9 11h4v1h-4zM14 11h2v1h-2zM17 11h2v1h-2zM21 11h3v1h-3zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM3 12h4v1h-4zM8 12h1v1h-1zM13 12h1v1h-1zM16 12h1v1h-1zM23 12h2v1h-2zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM5 13h2v1h-2zM9 13h2v1h-2zM15 13h1v1h-1zM18 13h1v1h-1zM22 13h3v1h-3zM29 13h6v1h-6zM38 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h3v1h-3zM11 14h2v1h-2zM14 14h2v1h-2zM19 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM2 15h2v1h-2zM6 15h2v1h-2zM10 15h2v1h-2zM14 15h3v1h-3zM18 15h6v1h-6zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM12 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM2 17h1v1h-1zM4 17h4v1h-4zM12 17h1v1h-1zM23 17h1v1h-1zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM5 18h1v1h-1zM7 18h5v1h-5zM13 18h1v1h-1zM17 18h1v1h-1zM19 18h2v1h-2zM22 18h1v1h-1zM24 18h4v1h-4zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM3 19h3v1h-3zM9 19h1v1h-1zM11 19h4v1h-4zM16 19h2v1h-2zM20 19h4v1h-4zM25 19h1v1h-1zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM4 20h8v1h-8zM14 20h2v1h-2zM17 20h1v1h-1zM19 20h2v1h-2zM26 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM3 21h2v1h-2zM6 21h1v1h-1zM9 21h1v1h-1zM11 21h4v1h-4zM17 21h2v1h-2zM20 21h2v1h-2zM23 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM4 22h2v1h-2zM8 22h3v1h-3zM13 22h1v1h-1zM15 22h2v1h-2zM18 22h2v1h-2zM22 22h1v1h-1zM25 22h5v1h-5zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h1v1h-1zM4 23h1v1h-1zM10 23h1v1h-1zM13 23h1v1h-1zM15 23h2v1h-2zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM3 24h3v1h-3zM7 24h2v1h-2zM10 24h2v1h-2zM13 24h3v1h-3zM17 24h1v1h-1zM19 24h1v1h-1zM22 24h3v1h-3zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM2 25h3v1h-3zM7 25h1v1h-1zM13 25h1v1h-1zM15 25h3v1h-3zM20 25h6v1h-6zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM3 26h4v1h-4zM8 26h1v1h-1zM11 26h1v1h-1zM14 26h2v1h-2zM17 26h1v1h-1zM19 26h1v1h-1zM21 26h2v1h-2zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h5v1h-5zM9 27h1v1h-1zM12 27h1v1h-1zM14 27h2v1h-2zM18 27h1v1h-1zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM8 28h2v1h-2zM11 28h1v1h-1zM13 28h2v1h-2zM16 28h3v1h-3zM20 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM5 29h3v1h-3zM9 29h1v1h-1zM16 29h3v1h-3zM23 29h1v1h-1zM31 29h2v1h-2zM34 29h1v1h-1zM37 29h1v1h-1zM2 30h1v1h-1zM5 30h1v1h-1zM7 30h3v1h-3zM11 30h1v1h-1zM16 30h1v1h-1zM18 30h2v1h-2zM24 30h13v1h-13zM38 30h1v1h-1zM10 31h3v1h-3zM16 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM13 32h6v1h-6zM20 32h1v1h-1zM22 32h3v1h-3zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM12 33h2v1h-2zM16 33h3v1h-3zM20 33h6v1h-6zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM14 34h2v1h-2zM19 34h1v1h-1zM21 34h1v1h-1zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h1v1h-1zM12 35h2v1h-2zM15 35h2v1h-2zM18 35h1v1h-1zM21 35h2v1h-2zM25 35h2v1h-2zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h2v1h-2zM16 36h2v1h-2zM19 36h2v1h-2zM23 36h1v1h-1zM26 36h3v1h-3zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM12 37h1v1h-1zM16 37h3v1h-3zM23 37h4v1h-4zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM14 38h4v1h-4zM19 38h3v1h-3zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-12-ley-de-hartley.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador DSSS y Vernam</title>
+<style>
+  :root { --navy:#0A2A57; --teal:#00408F; --teal-d:#00408F; --teal-l:#E8EEF7; --amber:#9C7A3C;
+          --amber-l:#F7F1E6; --gray:#5B6472; --gray-l:#E9ECF1; --red:#8C1D35; --bg:#FFFFFF; }
+  body { margin:0; background:var(--bg); color:#1B1F2A; font-family:Calibri, "Segoe UI", sans-serif; }
+  header { background:linear-gradient(#B8975A,#B8975A) top/100% 3px no-repeat,#fff; color:#0A2A57; border-top:8px solid #00408F; padding:14px 24px 8px; }
+  header h1 { margin:0; font-size:22px; font-family:Cambria, Georgia, serif; }
+  header p { margin:4px 0 0; color:var(--teal); font-style:italic; font-size:14px; }
+  main { max-width:1040px; margin:0 auto; padding:16px; display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; }
+  .card { background:#fff; border:1px solid var(--gray-l); border-radius:10px; padding:14px 18px; min-width:0; overflow-x:auto; }
+  h2 { font-size:17px; color:var(--navy); margin:0 0 10px; }
+  label { font-size:14px; color:var(--gray); margin-right:12px; }
+  input[type=text] { font-family:Consolas, monospace; font-size:15px; padding:4px 6px; width:260px; max-width:100%; }
+  input[type=range] { width:220px; vertical-align:middle; }
+  button { background:var(--navy); color:#fff; border:0; border-radius:6px; padding:5px 12px;
+           font-size:14px; cursor:pointer; margin:4px 4px 4px 0; }
+  table { border-collapse:collapse; margin:10px 0; font-family:Consolas, monospace; font-size:14px; }
+  td, th { border:1px solid var(--gray-l); padding:3px 7px; text-align:center; }
+  th { background:var(--navy); color:#fff; font-family:Calibri, sans-serif; }
+  .big { font-size:22px; font-weight:bold; color:var(--navy); }
+  .ok { color:var(--teal-d); font-weight:bold; } .bad { color:var(--red); font-weight:bold; }
+  .nota { background:var(--amber-l); border-left:4px solid var(--amber); padding:8px 12px;
+          font-size:13.5px; border-radius:6px; margin-top:10px; }
+  .row { margin:6px 0; }
+
+  .pie-fcfm { max-width:1280px; margin:0 auto; padding:8px 18px 18px; color:#5B6472; font-size:.85rem; }
+  .pie-fcfm a { color:#00408F; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulador: espectro ensanchado (DSSS) y cifrado Vernam</h1>
+  <p>Señales de Transmisión · Semana 15 · mismos modelos del capítulo "Modelo OSI y capa física"</p>
+</header>
+<main>
+  <section class="card">
+    <h2>1. DSSS: desensanchar es un producto punto</h2>
+    <div class="row">
+      <label>Bit enviado b:</label>
+      <button id="bmas">b = +1</button><button id="bmenos">b = −1</button>
+      <span class="val" id="vb"></span>
+    </div>
+    <div class="row">
+      <label>Jammer de tono J (se suma a cada chip): <b id="vJ"></b></label>
+      <input type="range" id="J" min="-15" max="15" step="0.5" value="3">
+    </div>
+    <div class="row">
+      <label>Ruido aleatorio (amplitud): <b id="vR"></b></label>
+      <input type="range" id="R" min="0" max="4" step="0.1" value="0">
+      <button id="nuevo">Otra muestra de ruido</button>
+    </div>
+    <div class="row">
+      <label>Código del receptor:</label>
+      <button id="cBarker">Barker de 802.11b (correcto)</button><button id="cUnos">Todo +1 (sin código)</button>
+    </div>
+    <div id="tablaDsss"></div>
+    <div class="big" id="resDsss"></div>
+    <p class="nota">Código Barker de 11 chips (IEEE 802.11b): +1 −1 +1 +1 −1 +1 +1 +1 −1 −1 −1; sus chips suman +1,
+      así que un tono J aporta solo 1·J a la suma: r·c = 11b + J. ¿Con qué J empieza a fallar el receptor?
+      ¿Y si el receptor no usa el código? Recuerda: el código es público; robustez no es confidencialidad.</p>
+  </section>
+
+  <section class="card">
+    <h2>2. Vernam (XOR byte a byte) y el error de reutilizar la clave</h2>
+    <div class="row"><label>Mensaje 1 (texto):</label><input type="text" id="m1" value="hola"></div>
+    <div class="row"><label>Mensaje 2 (texto):</label><input type="text" id="m2" value="adios"></div>
+    <div class="row"><label>Clave (hex, un byte por letra):</label><input type="text" id="k" value="3B 9F 12 E7 51">
+      <button id="azar">Clave aleatoria</button></div>
+    <div id="tablaV"></div>
+    <div class="row"><label>Ataque: adivina el inicio del mensaje 1 (texto):</label>
+      <input type="text" id="guess" value="ho"></div>
+    <div id="ataque"></div>
+    <p class="nota">Con la clave del libro (0x3B 0x9F 0x12 0xE7), "hola" se cifra como 0x53 0xF0 0x7E 0x86.
+      Si la misma clave cifra dos mensajes, c₁ ⊕ c₂ = m₁ ⊕ m₂: adivinar unas letras de un mensaje revela las del
+      otro y la clave (caso VENONA). La clave aleatoria usa crypto.getRandomValues; en Python, el módulo secrets.</p>
+  </section>
+</main>
+<script>
+const BARKER = [1,-1,1,1,-1,1,1,1,-1,-1,-1];
+let b = 1, usarBarker = true, ruido = new Array(11).fill(0);
+const $ = id => document.getElementById(id);
+function nuevoRuido() { ruido = ruido.map(() => Math.random()*2 - 1); }
+function dsss() {
+  const J = parseFloat($("J").value), A = parseFloat($("R").value);
+  $("vJ").textContent = J.toFixed(1); $("vR").textContent = A.toFixed(1);
+  $("vb").textContent = "  enviado: b = " + (b > 0 ? "+1" : "−1");
+  const c = usarBarker ? BARKER : new Array(11).fill(1);
+  let filas = ["<tr><th>chip</th>", "<tr><th>b·cᵢ (enviado)</th>", "<tr><th>rᵢ (recibido)</th>",
+               "<tr><th>código del receptor</th>", "<tr><th>rᵢ·cᵢ</th>"];
+  let suma = 0;
+  for (let i = 0; i < 11; i++) {
+    const r = b*BARKER[i] + J + A*ruido[i];
+    suma += r*c[i];
+    filas[0] += `<td>${i+1}</td>`; filas[1] += `<td>${b*BARKER[i] > 0 ? "+1" : "−1"}</td>`;
+    filas[2] += `<td>${r.toFixed(1)}</td>`; filas[3] += `<td>${c[i] > 0 ? "+1" : "−1"}</td>`;
+    filas[4] += `<td>${(r*c[i]).toFixed(1)}</td>`;
+  }
+  $("tablaDsss").innerHTML = "<table>" + filas.map(f => f + "</tr>").join("") + "</table>";
+  const dec = suma >= 0 ? 1 : -1;
+  $("resDsss").innerHTML = `Suma r·c = ${suma.toFixed(1)} → el receptor decide b = ${dec > 0 ? "+1" : "−1"} ` +
+    (dec === b ? '<span class="ok">(correcto)</span>' : '<span class="bad">(error)</span>');
+}
+$("bmas").onclick = () => { b = 1; dsss(); };
+$("bmenos").onclick = () => { b = -1; dsss(); };
+$("cBarker").onclick = () => { usarBarker = true; dsss(); };
+$("cUnos").onclick = () => { usarBarker = false; dsss(); };
+$("nuevo").onclick = () => { nuevoRuido(); dsss(); };
+$("J").oninput = dsss; $("R").oninput = dsss;
+
+const hex = n => "0x" + n.toString(16).toUpperCase().padStart(2, "0");
+const bin = n => n.toString(2).padStart(8, "0");
+const ver = n => (n >= 32 && n < 127) ? String.fromCharCode(n) : "·";
+function bytesTexto(t) { return Array.from(new TextEncoder().encode(t)); }
+function clave() { return $("k").value.trim().split(/[\s,]+/).filter(x => x).map(x => parseInt(x.replace(/^0x/i, ""), 16) & 255); }
+function vernam() {
+  const m1 = bytesTexto($("m1").value), m2 = bytesTexto($("m2").value), k = clave();
+  const n = Math.max(m1.length, m2.length);
+  let h = "<table><tr><th>byte</th><th>m₁</th><th>clave k</th><th>c₁ = m₁ ⊕ k</th><th>m₂</th><th>c₂ = m₂ ⊕ k</th><th>c₁ ⊕ c₂</th></tr>";
+  for (let i = 0; i < n; i++) {
+    const ki = k[i];
+    const td = (v) => v === undefined || isNaN(v) ? "<td>—</td>" : `<td>${hex(v)} ${bin(v)} "${ver(v)}"</td>`;
+    const c1 = (m1[i] !== undefined && ki !== undefined) ? m1[i]^ki : undefined;
+    const c2 = (m2[i] !== undefined && ki !== undefined) ? m2[i]^ki : undefined;
+    const x = (c1 !== undefined && c2 !== undefined) ? c1^c2 : undefined;
+    h += `<tr><td>${i+1}</td>${td(m1[i])}${td(ki)}${td(c1)}${td(m2[i])}${td(c2)}${td(x)}</tr>`;
+  }
+  $("tablaV").innerHTML = h + "</table>" + (k.length < n ? '<p class="bad">La clave es más corta que el mensaje: una libreta de un solo uso debe ser tan larga como el mensaje.</p>' : "");
+  const g = bytesTexto($("guess").value);
+  let rev = [], kk = [];
+  for (let i = 0; i < g.length && i < n; i++) {
+    if (k[i] === undefined || m1[i] === undefined || m2[i] === undefined) break;
+    const c1 = m1[i]^k[i], c2 = m2[i]^k[i];
+    rev.push(ver(c1^c2^g[i])); kk.push(hex(c1^g[i]));
+  }
+  $("ataque").innerHTML = rev.length ? `Sin conocer la clave, el atacante calcula (c₁ ⊕ c₂) ⊕ "${$("guess").value}" = "<b>${rev.join("")}</b>" (inicio del mensaje 2) y la clave: ${kk.join(" ")}` : "";
+}
+$("azar").onclick = () => {
+  const n = Math.max(bytesTexto($("m1").value).length, bytesTexto($("m2").value).length);
+  const a = new Uint8Array(n); crypto.getRandomValues(a);
+  $("k").value = Array.from(a).map(v => v.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+  vernam();
+};
+["m1", "m2", "k", "guess"].forEach(id => $(id).oninput = vernam);
+dsss(); vernam();
+</script>
+<footer class="pie-fcfm">Señales de Transmisión · FCFM-UANL · funciona sin internet · <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a></footer>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-15-dsss-vernam.html" shape-rendering="crispEdges"><rect width="41" height="41" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM12 2h1v1h-1zM16 2h3v1h-3zM20 2h3v1h-3zM24 2h2v1h-2zM30 2h1v1h-1zM32 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h2v1h-2zM17 3h1v1h-1zM23 3h1v1h-1zM27 3h1v1h-1zM29 3h2v1h-2zM32 3h1v1h-1zM38 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h1v1h-1zM14 4h4v1h-4zM21 4h3v1h-3zM25 4h2v1h-2zM28 4h2v1h-2zM32 4h1v1h-1zM34 4h3v1h-3zM38 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h4v1h-4zM19 5h1v1h-1zM21 5h2v1h-2zM24 5h1v1h-1zM26 5h4v1h-4zM32 5h1v1h-1zM34 5h3v1h-3zM38 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM15 6h1v1h-1zM18 6h8v1h-8zM27 6h1v1h-1zM30 6h1v1h-1zM32 6h1v1h-1zM34 6h3v1h-3zM38 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h3v1h-3zM16 7h2v1h-2zM20 7h1v1h-1zM26 7h4v1h-4zM32 7h1v1h-1zM38 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h7v1h-7zM10 9h1v1h-1zM14 9h4v1h-4zM20 9h2v1h-2zM23 9h2v1h-2zM30 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM11 10h1v1h-1zM14 10h1v1h-1zM17 10h3v1h-3zM27 10h2v1h-2zM32 10h5v1h-5zM6 11h1v1h-1zM9 11h4v1h-4zM14 11h1v1h-1zM16 11h2v1h-2zM21 11h1v1h-1zM23 11h1v1h-1zM25 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM36 11h2v1h-2zM4 12h3v1h-3zM8 12h1v1h-1zM10 12h1v1h-1zM14 12h5v1h-5zM22 12h3v1h-3zM29 12h3v1h-3zM34 12h5v1h-5zM2 13h1v1h-1zM5 13h3v1h-3zM13 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM22 13h5v1h-5zM29 13h6v1h-6zM38 13h1v1h-1zM3 14h3v1h-3zM7 14h2v1h-2zM10 14h1v1h-1zM13 14h2v1h-2zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM27 14h2v1h-2zM31 14h2v1h-2zM34 14h1v1h-1zM36 14h3v1h-3zM3 15h5v1h-5zM10 15h4v1h-4zM15 15h2v1h-2zM18 15h1v1h-1zM20 15h3v1h-3zM25 15h1v1h-1zM30 15h1v1h-1zM33 15h1v1h-1zM5 16h4v1h-4zM13 16h1v1h-1zM15 16h3v1h-3zM23 16h2v1h-2zM29 16h7v1h-7zM37 16h2v1h-2zM6 17h2v1h-2zM9 17h1v1h-1zM13 17h4v1h-4zM20 17h1v1h-1zM23 17h2v1h-2zM26 17h1v1h-1zM28 17h2v1h-2zM31 17h4v1h-4zM37 17h2v1h-2zM2 18h1v1h-1zM5 18h1v1h-1zM7 18h3v1h-3zM14 18h1v1h-1zM16 18h2v1h-2zM19 18h1v1h-1zM24 18h2v1h-2zM27 18h1v1h-1zM29 18h1v1h-1zM31 18h2v1h-2zM34 18h1v1h-1zM36 18h3v1h-3zM4 19h1v1h-1zM9 19h1v1h-1zM15 19h1v1h-1zM17 19h2v1h-2zM20 19h6v1h-6zM30 19h2v1h-2zM33 19h1v1h-1zM37 19h1v1h-1zM3 20h4v1h-4zM8 20h1v1h-1zM10 20h1v1h-1zM13 20h1v1h-1zM15 20h2v1h-2zM19 20h2v1h-2zM22 20h1v1h-1zM26 20h1v1h-1zM28 20h8v1h-8zM37 20h2v1h-2zM2 21h2v1h-2zM6 21h2v1h-2zM9 21h1v1h-1zM11 21h2v1h-2zM14 21h1v1h-1zM18 21h1v1h-1zM20 21h1v1h-1zM23 21h1v1h-1zM28 21h7v1h-7zM38 21h1v1h-1zM2 22h1v1h-1zM5 22h1v1h-1zM7 22h3v1h-3zM12 22h1v1h-1zM15 22h1v1h-1zM18 22h2v1h-2zM22 22h1v1h-1zM26 22h4v1h-4zM31 22h2v1h-2zM34 22h3v1h-3zM2 23h2v1h-2zM9 23h3v1h-3zM13 23h4v1h-4zM18 23h6v1h-6zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM35 23h1v1h-1zM3 24h1v1h-1zM5 24h4v1h-4zM10 24h1v1h-1zM12 24h4v1h-4zM17 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM28 24h3v1h-3zM32 24h4v1h-4zM37 24h2v1h-2zM4 25h4v1h-4zM9 25h1v1h-1zM11 25h1v1h-1zM14 25h1v1h-1zM16 25h2v1h-2zM21 25h3v1h-3zM25 25h1v1h-1zM28 25h1v1h-1zM31 25h1v1h-1zM33 25h2v1h-2zM37 25h1v1h-1zM2 26h1v1h-1zM8 26h2v1h-2zM12 26h1v1h-1zM14 26h1v1h-1zM17 26h3v1h-3zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h2v1h-2zM29 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM38 26h1v1h-1zM2 27h1v1h-1zM5 27h2v1h-2zM12 27h1v1h-1zM14 27h1v1h-1zM16 27h2v1h-2zM20 27h3v1h-3zM25 27h1v1h-1zM27 27h2v1h-2zM30 27h1v1h-1zM33 27h1v1h-1zM35 27h1v1h-1zM2 28h1v1h-1zM4 28h3v1h-3zM8 28h4v1h-4zM17 28h2v1h-2zM20 28h1v1h-1zM24 28h1v1h-1zM27 28h1v1h-1zM29 28h3v1h-3zM33 28h1v1h-1zM37 28h2v1h-2zM2 29h1v1h-1zM4 29h1v1h-1zM14 29h4v1h-4zM21 29h3v1h-3zM31 29h2v1h-2zM34 29h1v1h-1zM38 29h1v1h-1zM2 30h1v1h-1zM7 30h3v1h-3zM12 30h3v1h-3zM16 30h4v1h-4zM21 30h1v1h-1zM24 30h13v1h-13zM38 30h1v1h-1zM10 31h2v1h-2zM13 31h1v1h-1zM15 31h1v1h-1zM18 31h2v1h-2zM21 31h1v1h-1zM23 31h1v1h-1zM25 31h1v1h-1zM30 31h1v1h-1zM34 31h2v1h-2zM37 31h1v1h-1zM2 32h7v1h-7zM12 32h4v1h-4zM17 32h2v1h-2zM22 32h3v1h-3zM26 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM34 32h1v1h-1zM36 32h3v1h-3zM2 33h1v1h-1zM8 33h1v1h-1zM10 33h1v1h-1zM12 33h1v1h-1zM14 33h5v1h-5zM20 33h6v1h-6zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h2v1h-2zM37 33h2v1h-2zM2 34h1v1h-1zM4 34h3v1h-3zM8 34h1v1h-1zM10 34h2v1h-2zM13 34h2v1h-2zM16 34h1v1h-1zM20 34h2v1h-2zM24 34h4v1h-4zM29 34h6v1h-6zM36 34h3v1h-3zM2 35h1v1h-1zM4 35h3v1h-3zM8 35h1v1h-1zM10 35h2v1h-2zM13 35h1v1h-1zM15 35h4v1h-4zM20 35h3v1h-3zM24 35h3v1h-3zM28 35h1v1h-1zM30 35h3v1h-3zM34 35h2v1h-2zM37 35h2v1h-2zM2 36h1v1h-1zM4 36h3v1h-3zM8 36h1v1h-1zM10 36h1v1h-1zM14 36h3v1h-3zM19 36h2v1h-2zM23 36h1v1h-1zM27 36h2v1h-2zM30 36h1v1h-1zM36 36h3v1h-3zM2 37h1v1h-1zM8 37h1v1h-1zM11 37h3v1h-3zM15 37h2v1h-2zM18 37h1v1h-1zM21 37h1v1h-1zM23 37h2v1h-2zM28 37h1v1h-1zM30 37h2v1h-2zM34 37h1v1h-1zM38 37h1v1h-1zM2 38h7v1h-7zM10 38h2v1h-2zM15 38h1v1h-1zM19 38h2v1h-2zM24 38h1v1h-1zM26 38h2v1h-2zM31 38h1v1h-1zM34 38h5v1h-5z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-15-dsss-vernam.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

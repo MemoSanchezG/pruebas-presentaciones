@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reflectometría TDR</title>
+<style>
+  :root {
+    --azul:#00408F; --azul-oscuro:#0A2A57; --guinda:#8C1D35; --oro:#B8975A; --oro-texto:#8A6A2E;
+    --azul-claro:#E8EEF7; --oro-claro:#F7F1E6; --guinda-claro:#F5E6EA;
+    --tinta:#1B1F2A; --gris:#5B6472; --gris-claro:#E9ECF1; --borde:#D9DEE6; --fondo:#FFFFFF;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:16px/1.45 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .franja { height:8px; background:var(--azul); border-bottom:3px solid var(--oro); }
+  header { max-width:1280px; margin:0 auto; padding:12px 18px 4px; }
+  .semana { color:var(--guinda); font-weight:bold; letter-spacing:.04em; font-size:.85rem; text-transform:uppercase; }
+  h1 { font-family:Cambria,Georgia,serif; color:var(--azul-oscuro); font-size:1.7rem; margin:2px 0 2px; }
+  .sub { color:var(--gris); margin:0; }
+  main { max-width:1280px; margin:0 auto; padding:8px 18px 24px; }
+  nav.pestanas { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid var(--gris-claro); margin:6px 0 12px; }
+  nav.pestanas button { font:inherit; font-weight:bold; border:none; background:none; color:var(--gris);
+                        padding:8px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  nav.pestanas button.activo { color:var(--azul-oscuro); border-bottom-color:var(--azul); }
+  nav.pestanas button:focus-visible { outline:2px solid var(--azul); }
+  section.vista { display:none; }
+  section.vista.activo { display:block; }
+  .fila { display:grid; grid-template-columns:minmax(260px,330px) minmax(0,1fr); gap:16px; align-items:start; }
+  .panel { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:12px 14px; }
+  .panel h2 { font-size:1.02rem; color:var(--azul-oscuro); margin:0 0 8px; }
+  label { display:block; font-weight:bold; color:var(--azul-oscuro); margin-top:10px; }
+  label small { font-weight:normal; color:var(--gris); }
+  input[type=range] { width:100%; }
+  input[type=number], input[type=text], select { font:inherit; padding:4px 6px; border:1px solid var(--borde);
+                        border-radius:6px; }
+  button.accion { font:inherit; font-weight:bold; border-radius:8px; padding:7px 12px; margin:8px 6px 0 0;
+                  border:1px solid var(--azul); background:#fff; color:var(--azul); cursor:pointer; }
+  button.accion:hover, button.accion:focus-visible { background:var(--azul); color:#fff; outline:none; }
+  canvas { width:100%; display:block; border:1px solid var(--borde); border-radius:10px; background:#fff; }
+  .lectura { background:var(--oro-claro); border-left:4px solid var(--oro); border-radius:8px; padding:10px 12px;
+             margin-top:12px; line-height:1.55; }
+  .lectura b { color:var(--azul-oscuro); }
+  .formula { font-family:Cambria,Georgia,serif; font-size:1.12rem; color:var(--azul-oscuro); }
+  .ok { color:var(--azul); font-weight:bold; }
+  .mal { color:var(--guinda); font-weight:bold; }
+  .preguntas { background:var(--azul-claro); border-radius:8px; padding:10px 14px; margin-top:12px; }
+  .preguntas h3 { margin:0 0 4px; font-size:.95rem; color:var(--azul-oscuro); }
+  .preguntas ol { margin:0; padding-left:20px; }
+  .seguridad { background:var(--guinda-claro); border-left:4px solid var(--guinda); border-radius:8px;
+               padding:8px 12px; margin-top:12px; }
+  footer { max-width:1280px; margin:0 auto; padding:6px 18px 18px; color:var(--gris); font-size:.85rem; }
+  footer a { color:var(--azul); }
+  @media (max-width: 820px) { .fila { grid-template-columns:1fr; } }
+
+  /* Propios de este simulador */
+  small { font-size:.94em; }
+  .fila > * { min-width:0; }
+  .lectura { overflow-wrap:anywhere; }
+  select { width:100%; }
+  .valor { color:var(--guinda); font-weight:bold; }
+  label.casilla { display:flex; gap:8px; align-items:center; font-weight:normal; color:var(--tinta); margin-top:8px; cursor:pointer; }
+  label.casilla input { width:18px; height:18px; margin:0; }
+  .nota { color:var(--gris); font-size:.95rem; margin:6px 0 0; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:10px 0 0; padding:4px 10px 10px; }
+  legend { font-weight:bold; color:var(--azul-oscuro); padding:0 4px; }
+  .en-linea { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .en-linea input[type=number] { width:7.5em; }
+  #lienzoOsc { cursor:ew-resize; touch-action:none; }
+  #lienzoOsc:focus-visible { outline:2px solid var(--azul); outline-offset:2px; }
+  .resultado { margin-top:8px; min-height:1.4em; }
+</style>
+</head>
+<body>
+<div class="franja"></div>
+<header>
+  <div class="semana">Semana 13 · Líneas de transmisión y reflectometría</div>
+  <h1>Reflectometría (TDR): cómo encontrar una derivación</h1>
+  <p class="sub">Dispara un pulso por el cable, mira los ecos que regresan y usa su tiempo para ubicar la toma: d = VF·c·t/2.</p>
+</header>
+<main>
+  <nav class="pestanas" role="tablist">
+    <button type="button" class="activo" data-vista="v1" role="tab">El pulso en la línea</button>
+    <button type="button" data-vista="v2" role="tab">Lectura del TDR</button>
+  </nav>
+
+  <section class="vista activo" id="v1">
+    <div class="fila">
+      <div class="panel">
+        <h2>La línea</h2>
+        <label for="cable">Tipo de cable</label>
+        <select id="cable"></select>
+        <label for="largo">Longitud del cable L: <span class="valor" id="largoVal"></span></label>
+        <input id="largo" type="range" min="40" max="300" step="1" value="200">
+        <label class="casilla"><input type="checkbox" id="hayToma" checked> Hay una toma (derivación) instalada</label>
+        <label for="dist">Distancia a la toma d: <span class="valor" id="distVal"></span></label>
+        <input id="dist" type="range" min="5" max="195" step="0.1" value="118.8">
+        <label for="zt">Impedancia en la toma Z<sub>T</sub>: <span class="valor" id="ztVal"></span></label>
+        <input id="zt" type="range" min="5" max="200" step="1" value="75">
+        <label for="extremo">Extremo del cable</label>
+        <select id="extremo">
+          <option value="1">Circuito abierto (Γ = +1)</option>
+          <option value="-1">Corto circuito (Γ = −1)</option>
+          <option value="0">Carga acoplada, Z<sub>L</sub> = Z₀ (Γ = 0)</option>
+        </select>
+        <fieldset>
+          <legend>Animación</legend>
+          <button type="button" class="accion" id="disparar">Disparar pulso</button>
+          <button type="button" class="accion" id="pausa">Pausa</button>
+          <button type="button" class="accion" id="paso">+0.05 μs</button>
+          <label for="vel">Cámara lenta: 1 s de reloj = <span class="valor" id="velVal"></span></label>
+          <input id="vel" type="range" min="0.05" max="1" step="0.05" value="0.25">
+        </fieldset>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoLinea" aria-label="Cable con el TDR a la izquierda, la toma y el extremo; el pulso y sus ecos viajan por el cable y abajo se dibuja lo que mide el TDR"></canvas>
+        <div class="lectura" id="lecturaLinea"></div>
+        <div class="seguridad"><b>Seguridad.</b> Un conector añadido, un empalme o una derivación (<i>tap</i>) instalada para espiar cambian la impedancia local y producen un eco que no aparece en la huella de referencia del cable. Contramedidas que propone el libro: huella TDR periódica, sellos y ductos cerrados (confidencialidad e integridad). En fibra se usa el equivalente óptico, el OTDR.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Antes de disparar: ¿qué eco llegará primero al TDR, el de la toma o el del extremo? ¿Cuánto tardará cada uno?</li>
+            <li>Cambia el extremo a corto circuito y luego a carga acoplada. ¿Qué le pasa al eco del extremo? ¿Por qué la figura del libro solo muestra el eco de la toma?</li>
+            <li>Mueve Z<sub>T</sub> hasta que el eco de la toma desaparezca. ¿En qué valor ocurre y qué significa para quien instala una derivación?</li>
+            <li>Cambia a Cat6 sin mover la toma. ¿El eco llega antes o después? ¿Por qué cambió también su signo?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="vista" id="v2">
+    <div class="fila">
+      <div class="panel">
+        <h2>Medir el eco</h2>
+        <p class="nota" id="resumenLinea" style="margin-top:0"></p>
+        <label for="tCursor">Tiempo del cursor t <small>(μs; arrastra sobre la gráfica o usa ← →)</small></label>
+        <div class="en-linea">
+          <input id="tCursor" type="number" min="0" step="0.001" value="0.600">
+          <button type="button" class="accion" id="menos" style="margin:0" aria-label="Mover el cursor 1 ns a la izquierda">−1 ns</button>
+          <button type="button" class="accion" id="mas" style="margin:0" aria-label="Mover el cursor 1 ns a la derecha">+1 ns</button>
+        </div>
+        <label class="casilla"><input type="checkbox" id="verHuella" checked> Mostrar la huella de referencia</label>
+        <div class="lectura" id="lecturaTdr"></div>
+        <fieldset>
+          <legend>Modo reto</legend>
+          <p class="nota" style="margin-top:2px">La página esconde una toma en un cable nuevo. Encuentra el eco nuevo, mide t y calcula d a mano.</p>
+          <button type="button" class="accion" id="nuevoReto">Nuevo reto</button>
+          <button type="button" class="accion" id="salirReto">Salir del reto</button>
+          <div id="cajaReto" hidden>
+            <div id="datosReto" class="nota" style="color:var(--tinta)"></div>
+            <label for="respuesta">Tu respuesta: d (m)</label>
+            <div class="en-linea">
+              <input id="respuesta" type="number" min="0" step="0.1" placeholder="m">
+              <button type="button" class="accion" id="comprobar" style="margin:0">Comprobar</button>
+              <button type="button" class="accion" id="revelar" style="margin:0">Revelar</button>
+            </div>
+            <div class="resultado" id="resultadoReto" aria-live="polite"></div>
+          </div>
+        </fieldset>
+      </div>
+      <div class="panel">
+        <canvas id="lienzoOsc" tabindex="0" aria-label="Pantalla del TDR: amplitud contra tiempo desde el disparo, con el cursor que se arrastra para medir el tiempo de un eco; abajo, el cable con la distancia que corresponde al cursor"></canvas>
+        <div class="seguridad"><b>La huella de referencia.</b> El auditor guarda la traza del cable cuando sabe que está limpio. Días después compara: un eco que no estaba, a un tiempo t, delata una intervención a d = VF·c·t/2. Así se resolvió el ejemplo del libro: eco nuevo a 1.2 μs en un RG-8A/U → 118.8 m, ahí debe revisarse el ducto.</div>
+        <div class="preguntas">
+          <h3>Para explorar</h3>
+          <ol>
+            <li>Coloca el cursor en el pico del eco de la toma y calcula d con la fórmula. ¿Coincide con la distancia de la pestaña "El pulso en la línea"?</li>
+            <li>Con la huella visible, ¿qué eco es nuevo? ¿Por qué el auditor guarda la huella cuando instala el cable?</li>
+            <li>Si mides bien el tiempo del eco de la toma pero calculas con VF = 0.85 en lugar de 0.66, ¿dónde buscarías la toma? ¿Por cuántos metros fallarías?</li>
+            <li>En el modo reto hay un empalme documentado en el plano. ¿Cómo distingues su eco del eco de la toma?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  Fórmulas: fase2/cap03_lineas_ondas_transmision.tex (Ecuaciones eq:factor-velocidad, eq:coef-reflexion y eq:tdr-distancia; Figura fig:tdr-cap05). Señales de Transmisión · FCFM-UANL · funciona sin internet.
+  <a href="index.html">Índice de simuladores</a> · <a href="#qr-sitio" class="qr-abrir">Abrir en el celular (QR)</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Colores FCFM para el lienzo
+  var C = { azul:"#00408F", azulOscuro:"#0A2A57", guinda:"#8C1D35", oro:"#B8975A", oroTexto:"#8A6A2E",
+            gris:"#5B6472", grisClaro:"#E9ECF1", borde:"#D9DEE6", tinta:"#1B1F2A", azulClaro:"#E8EEF7",
+            guindaClaro:"#F5E6EA", oroClaro:"#F7F1E6" };
+  var FUENTE = "Calibri, 'Segoe UI', system-ui, sans-serif";
+  function $(id) { return document.getElementById(id); }
+
+  // Pestañas
+  document.querySelectorAll("nav.pestanas button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("nav.pestanas button").forEach(function (x) { x.classList.remove("activo"); });
+      document.querySelectorAll("section.vista").forEach(function (x) { x.classList.remove("activo"); });
+      b.classList.add("activo");
+      document.getElementById(b.dataset.vista).classList.add("activo");
+      dibujarTodo();
+    });
+  });
+
+  // Lienzo nítido en pantallas de alta densidad; proporcion = alto/ancho
+  function preparar(cv, proporcion) {
+    var dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+    cv.style.height = (w * proporcion) + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * proporcion * dpr);
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { g: g, w: w, h: w * proporcion };
+  }
+  // Números con punto decimal y espacio de miles (estilo del libro): 49 152, 3.16
+  function num(x, dec) {
+    var s = Number(x).toFixed(dec === undefined ? 2 : dec), p = s.split(".");
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return p.join(".").replace("-", "−");
+  }
+  function corto(x, dec) {
+    var s = num(x, dec);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "−0" ? "0" : s;
+  }
+  function conSigno(x, dec) { var s = num(x, dec); return x > 0 ? "+" + s : s; }
+  var SUP = { "0":"⁰", "1":"¹", "2":"²", "3":"³", "4":"⁴", "5":"⁵", "6":"⁶", "7":"⁷", "8":"⁸", "9":"⁹", "-":"⁻" };
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  function texto(g, t, x, y, color, tam, alin, base, negrita) {
+    g.save(); g.fillStyle = color; g.font = (negrita ? "bold " : "") + (tam || 15) + "px " + FUENTE;
+    g.textAlign = alin || "left"; g.textBaseline = base || "alphabetic"; g.fillText(t, x, y); g.restore();
+  }
+  function linea(g, x0, y0, x1, y1, color, ancho, guiones) {
+    g.save(); g.strokeStyle = color; g.lineWidth = ancho || 1; if (guiones) g.setLineDash(guiones);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+  }
+  var medidor = document.createElement("canvas").getContext("2d");
+  function anchoTexto(t, tam, negrita) { medidor.font = (negrita ? "bold " : "") + tam + "px " + FUENTE; return medidor.measureText(t).width; }
+  function etiqueta(g, t, x, y, color, tam, alin, negrita) {   // texto con fondo blanco
+    var w = anchoTexto(t, tam, negrita), x0 = alin === "right" ? x - w : (alin === "center" ? x - w / 2 : x);
+    g.save(); g.fillStyle = "rgba(255,255,255,0.92)"; g.fillRect(x0 - 3, y - tam + 1, w + 6, tam + 5); g.restore();
+    texto(g, t, x, y, color, tam, alin, "alphabetic", negrita);
+  }
+
+  // ================================================================ Modelo físico
+  var C_MUS = 300;                 // c = 3×10⁸ m/s = 300 m/μs (libro)
+  var SIGMA = 0.010;               // ancho del pulso (μs), valor ilustrativo
+  var UMBRAL = 0.01;               // ecos más pequeños no se siguen
+  var CABLES = [
+    { id: "rg8", nombre: "Coaxial RG-8A/U, polietileno sólido", corto: "RG-8A/U", vf: 0.66, z0: 50 },
+    { id: "esp", nombre: "Coaxial de dieléctrico espumado", corto: "coaxial espumado", vf: 0.85, z0: 50 },
+    { id: "cat6", nombre: "Par trenzado Cat6", corto: "Cat6", vf: 0.69, z0: 100 }
+  ];
+  CABLES.forEach(function (c, i) {
+    var o = document.createElement("option");
+    o.value = i; o.textContent = c.nombre + " (VF = " + c.vf + ", Z₀ = " + c.z0 + " Ω)";
+    $("cable").appendChild(o);
+  });
+  var NOMBRE_EXT = { "1": "abierto", "-1": "en corto", "0": "con carga acoplada" };
+
+  function gamma(zl, z0) { return (zl - z0) / (zl + z0); }
+
+  // Sigue cada pulso por la línea (diagrama de rebotes). Fuente acoplada en x = 0: lo que regresa se absorbe.
+  // Una discontinuidad intermedia refleja Γ y deja pasar 1 − |Γ| (modelo simplificado, sin pérdidas).
+  function trazar(cfg) {
+    var v = cfg.vf * C_MUS, tlim = cfg.tmax + 4 * SIGMA;
+    var bordes = [{ x: 0, tipo: "fuente" }];
+    cfg.discos.slice().sort(function (a, b) { return a.x - b.x; }).forEach(function (d) { bordes.push({ x: d.x, tipo: "disco", G: d.G, eco: d.eco }); });
+    bordes.push({ x: cfg.L, tipo: "extremo", G: cfg.GE });
+    var cola = [{ i: 0, dir: 1, t0: 0, amp: 1, nombre: "pulso" }], segs = [], llegadas = [], guardia = 0;
+    while (cola.length && guardia++ < 400) {
+      var p = cola.shift(), j = p.i + p.dir, b = bordes[j];
+      var t1 = p.t0 + Math.abs(b.x - bordes[p.i].x) / v;
+      segs.push({ xa: Math.min(b.x, bordes[p.i].x), xb: Math.max(b.x, bordes[p.i].x), x0: bordes[p.i].x, dir: p.dir,
+                  t0: p.t0, t1: t1, amp: p.amp, nombre: p.nombre });
+      if (t1 > tlim) continue;
+      if (j === 0) { llegadas.push({ t: t1, amp: p.amp, nombre: p.nombre }); continue; }
+      var nombreR = (p.nombre === "pulso" && p.dir === 1) ? (b.tipo === "extremo" ? "eco del extremo" : b.eco) : "rebote";
+      if (b.tipo === "extremo") {
+        if (Math.abs(p.amp * b.G) >= UMBRAL) cola.push({ i: j, dir: -1, t0: t1, amp: p.amp * b.G, nombre: nombreR });
+        continue;
+      }
+      var ar = p.amp * b.G, at = p.amp * (1 - Math.abs(b.G));
+      if (Math.abs(ar) >= UMBRAL) cola.push({ i: j, dir: -p.dir, t0: t1, amp: ar, nombre: nombreR });
+      if (Math.abs(at) >= UMBRAL) cola.push({ i: j, dir: p.dir, t0: t1, amp: at, nombre: p.nombre });
+    }
+    return { v: v, segs: segs, llegadas: llegadas, bordes: bordes, cfg: cfg };
+  }
+  function pulso(tau) { return Math.exp(-tau * tau / (2 * SIGMA * SIGMA)); }
+  function voltajeTDR(tr, t) {                      // lo que ve el TDR: su propio pulso + los ecos
+    var s = pulso(t);
+    tr.llegadas.forEach(function (l) { s += l.amp * pulso(t - l.t); });
+    return s;
+  }
+  function perfil(tr, t, x) {                       // voltaje a lo largo del cable en el instante t
+    var s = 0, sx = tr.v * SIGMA;
+    tr.segs.forEach(function (sg) {
+      if (t < sg.t0 - 4 * SIGMA || t > sg.t1 + 4 * SIGMA) return;
+      if (x < sg.xa - 1e-9 || x > sg.xb + 1e-9) return;
+      var xc = sg.x0 + sg.dir * tr.v * (t - sg.t0), u = (x - xc) / sx;
+      if (Math.abs(u) < 5) s += sg.amp * Math.exp(-u * u / 2);
+    });
+    return s;
+  }
+
+  // ================================================================ Estado
+  var est = { t: -0.05, corriendo: false, vel: 0.25 };
+  function cableSel() { return CABLES[Number($("cable").value)]; }
+  function cfgExplorar() {
+    var cab = cableSel(), L = Number($("largo").value), v = cab.vf * C_MUS, discos = [];
+    var GT = gamma(Number($("zt").value), cab.z0);
+    if ($("hayToma").checked) discos.push({ x: Number($("dist").value), G: GT, eco: "eco de la toma" });
+    return { cab: cab, vf: cab.vf, z0: cab.z0, L: L, discos: discos, GE: Number($("extremo").value),
+             tmax: 1.15 * 2 * L / v, toma: $("hayToma").checked ? { x: Number($("dist").value), G: GT, zt: Number($("zt").value) } : null };
+  }
+  var traza = null, huella = null;
+
+  // ================================================================ Dibujo común
+  function pasoTiempo(tmax, ancho) {
+    var pasos = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2], maxMarcas = Math.max(4, Math.floor(ancho / 75));
+    for (var i = 0; i < pasos.length; i++) if (tmax / pasos[i] <= maxMarcas) return pasos[i];
+    return 2;
+  }
+  function pasoDist(L, ancho) {
+    var pasos = [10, 20, 25, 50, 100], maxMarcas = Math.max(3, Math.floor(ancho / 70));
+    for (var i = 0; i < pasos.length; i++) if (L / pasos[i] <= maxMarcas) return pasos[i];
+    return 100;
+  }
+  // Pantalla del TDR: amplitud contra tiempo. op: {hasta, cursor, huella, marcas}
+  function dibujarPantalla(g, caja, tr, op) {
+    var x0 = caja.x0, x1 = caja.x1, y0 = caja.y0, y1 = caja.y1, tmin = -0.05, tmax = tr.cfg.tmax;
+    var amin = -0.25, amax = 1.12;
+    tr.llegadas.forEach(function (l) { amin = Math.min(amin, l.amp - 0.12); });
+    if (op.huella) op.huella.llegadas.forEach(function (l) { amin = Math.min(amin, l.amp - 0.12); });
+    function X(t) { return x0 + (t - tmin) / (tmax - tmin) * (x1 - x0); }
+    function Y(a) { return y1 - (a - amin) / (amax - amin) * (y1 - y0); }
+    g.save(); g.fillStyle = "#F8F9FB"; g.fillRect(x0, y0, x1 - x0, y1 - y0); g.restore();
+    var paso = pasoTiempo(tmax, x1 - x0);
+    for (var t = 0; t <= tmax + 1e-9; t += paso) {
+      linea(g, X(t), y0, X(t), y1, C.grisClaro, 1);
+      texto(g, corto(t, 2), X(t), y1 + 18, C.gris, 15, "center");
+    }
+    var pa = (amax - amin) > 1.6 ? 0.5 : 0.25;
+    for (var a = Math.ceil(amin / pa) * pa; a <= amax; a += pa) {
+      linea(g, x0, Y(a), x1, Y(a), Math.abs(a) < 1e-9 ? C.gris : C.grisClaro, 1);
+      texto(g, corto(a, 2), x0 - 6, Y(a) + 5, C.gris, 15, "right");
+    }
+    texto(g, "tiempo desde el disparo (μs)", x1, y1 + 36, C.tinta, 15, "right");
+    g.save(); g.translate(x0 - 44, (y0 + y1) / 2); g.rotate(-Math.PI / 2);
+    texto(g, "voltaje (u. a.)", 0, 0, C.tinta, 15, "center", "middle"); g.restore();
+    function curva(trz, hasta, color, ancho, guiones) {
+      g.save(); g.strokeStyle = color; g.lineWidth = ancho; if (guiones) g.setLineDash(guiones);
+      g.beginPath();
+      var n = Math.max(400, Math.round((x1 - x0) * 2)), tf = Math.min(hasta, tmax);
+      for (var i = 0; i <= n; i++) {
+        var ti = tmin + (tmax - tmin) * i / n; if (ti > tf) break;
+        var y = Y(voltajeTDR(trz, ti)); if (i === 0) g.moveTo(X(ti), y); else g.lineTo(X(ti), y);
+      }
+      g.stroke(); g.restore();
+    }
+    if (op.huella) curva(op.huella, tmax, C.oro, 2.5, [7, 5]);
+    curva(tr, op.hasta === undefined ? tmax : op.hasta, C.azulOscuro, 2.5);
+    if (op.marcas) {
+      // etiquetas de los ecos sin encimarse: se prueba arriba/abajo del pico hasta hallar lugar libre
+      var puestas = [{ x0: x0, x1: x0 + 150, y0: y0, y1: y0 + 24 }];
+      var choca = function (r) { return puestas.some(function (q) { return r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0; }); };
+      var poner = function (t, xp, ypref, color) {
+        var wl = anchoTexto(t, 15, true), der = xp + 6 + wl > x1, xa = der ? xp - 6 : xp + 6, rx0 = der ? xa - wl : xa;
+        var cand = [0, -20, 20, -40, 40, -60, 60, -80, 80], k, y;
+        for (k = 0; k < cand.length; k++) {
+          y = Math.min(Math.max(ypref + cand[k], y0 + 40), y1 - 6);
+          if (!choca({ x0: rx0 - 3, x1: rx0 + wl + 3, y0: y - 15, y1: y + 5 })) break;
+        }
+        puestas.push({ x0: rx0 - 3, x1: rx0 + wl + 3, y0: y - 15, y1: y + 5 });
+        etiqueta(g, t, xa, y, color, 15, der ? "right" : "left", true);
+      };
+      if (op.hasta === undefined || op.hasta >= 0.02) poner("pulso inyectado", X(0) + 6, Y(1) + 16, C.azul);
+      tr.llegadas.forEach(function (l) {
+        if (l.t > op.hasta || l.t > tmax || Math.abs(l.amp) < 0.03) return;
+        poner(l.nombre + " · " + num(l.t, 3) + " μs", X(l.t), l.amp >= 0 ? Y(l.amp) - 8 : Y(l.amp) + 20, colorEco(l.nombre));
+      });
+    }
+    if (op.cursor !== undefined) {
+      var xc = X(op.cursor);
+      linea(g, xc, y0, xc, y1, C.guinda, 2);
+      etiqueta(g, "t = " + num(op.cursor, 3) + " μs", Math.min(Math.max(xc, x0 + 60), x1 - 60), y0 + 18, C.guinda, 16, "center", true);
+    }
+    return { X: X, Y: Y, tmin: tmin, tmax: tmax };
+  }
+  function colorEco(nombre) {
+    if (nombre === "eco de la toma") return C.guinda;
+    if (nombre === "eco del extremo") return C.oroTexto;
+    if (nombre === "eco del empalme") return C.azul;
+    if (nombre === "pulso") return C.azul;
+    return C.gris;
+  }
+  // Cable horizontal con el TDR a la izquierda. op: {toma, empalme, ocultarToma, marcaDist}
+  function dibujarCable(g, x0, x1, yc, cfg, op) {
+    var L = cfg.L;
+    function X(x) { return x0 + (x / L) * (x1 - x0); }
+    var caja = Math.min(56, x0 - 10);
+    g.save(); g.fillStyle = C.azulOscuro; g.fillRect(x0 - caja - 4, yc - 24, caja, 48); g.restore();
+    texto(g, "TDR", x0 - caja / 2 - 4, yc + 6, "#fff", 16, "center", "alphabetic", true);
+    g.save(); g.fillStyle = C.grisClaro; g.strokeStyle = C.gris; g.lineWidth = 1.2;
+    g.fillRect(x0, yc - 8, x1 - x0, 16); g.strokeRect(x0, yc - 8, x1 - x0, 16); g.restore();
+    linea(g, x0, yc, x1, yc, C.azulOscuro, 3);
+    // regla de distancia
+    var paso = pasoDist(L, x1 - x0);
+    if (!op.sinRegla) {
+      for (var m = 0; m <= L + 1e-9; m += paso) {
+        linea(g, X(m), yc + 9, X(m), yc + 15, C.gris, 1.2);
+        if (m === 0) texto(g, "0 m", X(0) + 3, yc + 38, C.gris, 15, "left");
+        else if (X(L) - X(m) > anchoTexto("L = " + corto(L, 1) + " m", 15, true) + anchoTexto(String(m), 15) / 2 + 8) texto(g, String(m), X(m), yc + 38, C.gris, 15, "center");
+      }
+    } else {
+      texto(g, "0 m", X(0) + 3, yc + 38, C.gris, 15, "left");
+    }
+    texto(g, "L = " + corto(L, 1) + " m", X(L), yc + 38, C.tinta, 15, "right", "alphabetic", true);
+    // extremo
+    var ge = cfg.GE, txtE = ge === 1 ? "abierto (Γ = +1)" : (ge === -1 ? "corto (Γ = −1)" : "carga " + cfg.z0 + " Ω (Γ = 0)");
+    if (ge === -1) { linea(g, X(L), yc - 14, X(L), yc + 14, C.azulOscuro, 4); }
+    else if (ge === 0) { g.save(); g.fillStyle = C.oro; g.fillRect(X(L) - 5, yc - 12, 10, 24); g.restore(); }
+    texto(g, txtE, X(L), yc - 16, C.gris, 15, "right");
+    // empalme documentado
+    if (op.empalme) {
+      var xe = X(op.empalme.x);
+      g.save(); g.fillStyle = C.azul; g.fillRect(xe - 4, yc - 11, 8, 22); g.restore();
+      etiqueta(g, "empalme del plano", Math.min(Math.max(xe, x0 + 60), x1 - 60), (op.toma && !op.ocultarToma) ? yc + 82 : yc + 62, C.azul, 15, "center");
+    }
+    // toma
+    if (op.toma && !op.ocultarToma) {
+      var xt = X(op.toma.x);
+      linea(g, xt, yc + 8, xt, yc + 21, C.guinda, 3);
+      linea(g, xt - 11, yc + 21, xt + 11, yc + 21, C.guinda, 3);
+      g.save(); g.fillStyle = C.guinda; g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(xt, yc, 7, 0, 2 * Math.PI); g.fill(); g.stroke(); g.restore();
+      etiqueta(g, "toma a " + num(op.toma.x, 1) + " m", Math.min(Math.max(xt, x0 + 60), x1 - 60), yc + 62, C.guinda, 15, "center", true);
+    }
+    if (op.marcaDist !== undefined && op.marcaDist >= 0) {
+      var xm = X(Math.min(op.marcaDist, L));
+      g.save(); g.fillStyle = C.guinda; g.beginPath(); g.moveTo(xm, yc - 10); g.lineTo(xm - 8, yc - 24); g.lineTo(xm + 8, yc - 24); g.closePath(); g.fill(); g.restore();
+      if (op.textoMarca) etiqueta(g, op.textoMarca, Math.min(Math.max(xm, x0 + 70), x1 - 70), yc - 30, C.guinda, 15, "center", true);
+    }
+    return X;
+  }
+
+  // ================================================================ Vista 1
+  function lecturaLinea(cfg) {
+    var cab = cfg.cab, v = cab.vf * C_MUS, html = "";
+    html += "<span class='formula'>v = VF·c = " + cab.vf + "(3×10⁸) = <b>" + num(v / 100, 2) + "×10⁸ m/s</b></span>" +
+            " · ε<sub>r</sub> = 1/VF² ≈ " + num(1 / (cab.vf * cab.vf), 2) + "<br>";
+    if (cfg.toma) {
+      var zt = cfg.toma.zt, G = cfg.toma.G;
+      html += "<span class='formula'>Γ<sub>T</sub> = (Z<sub>T</sub> − Z₀)/(Z<sub>T</sub> + Z₀) = (" + zt + " − " + cab.z0 + ")/(" + zt + " + " + cab.z0 + ") = <b>" + conSigno(G, 3) + "</b></span>" +
+              (Math.abs(G) < 0.005 ? " <span class='mal'>(sin eco: toma invisible)</span>" : (G < 0 ? " (eco invertido)" : "")) + "<br>";
+      html += "Eco de la toma: <span class='formula'>t = 2d/v = 2(" + num(cfg.toma.x, 1) + ")/(" + num(v / 100, 2) + "×10⁸) = <b>" + num(2 * cfg.toma.x / v, 3) + " μs</b></span>, amplitud " + conSigno(G, 3) + "<br>";
+    } else {
+      html += "Sin toma: solo regresa el eco del extremo.<br>";
+    }
+    var GT = cfg.toma ? cfg.toma.G : 0, aE = Math.pow(1 - Math.abs(GT), 2) * cfg.GE;
+    html += "Eco del extremo: <span class='formula'>t = 2L/v = 2(" + corto(cfg.L, 1) + ")/(" + num(v / 100, 2) + "×10⁸) = <b>" + num(2 * cfg.L / v, 3) + " μs</b></span>, amplitud " +
+            (cfg.toma ? "(1 − |Γ<sub>T</sub>|)²·Γ<sub>E</sub> = (" + num(1 - Math.abs(GT), 3) + ")²(" + conSigno(cfg.GE, 0) + ") = " : "Γ<sub>E</sub> = ") + conSigno(aE, 3) +
+            (cfg.GE === 0 ? " → no hay eco del extremo" : "");
+    if (cfg.toma) html += "<br><span class='nota'>Modelo simplificado: la toma refleja Γ<sub>T</sub> y deja pasar 1 − |Γ<sub>T</sub>| del pulso; el cable no tiene pérdidas.</span>";
+    $("lecturaLinea").innerHTML = html;
+  }
+
+  function dibujarLinea() {
+    var cv = $("lienzoLinea"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.55 : 0.6), g = d.g, w = d.w, h = d.h, tr = traza, cfg = tr.cfg;
+    g.clearRect(0, 0, w, h);
+    var x0 = angosto ? 52 : 86, x1 = w - 18, yc = angosto ? 136 : 168, A = angosto ? 40 : 56;
+    var t = Math.min(est.t, cfg.tmax);
+    texto(g, "t = " + num(Math.max(t, 0), 3) + " μs desde el disparo", 12, 24, C.azulOscuro, 18, "left", "alphabetic", true);
+    if (!angosto) texto(g, "arriba: voltaje a lo largo del cable · abajo: lo que mide el TDR", x1, 24, C.gris, 15, "right");
+    var X = dibujarCable(g, x0, x1, yc, cfg, { toma: cfg.toma });
+    // perfil de voltaje sobre el cable
+    g.save(); g.strokeStyle = C.azul; g.lineWidth = 3; g.beginPath();
+    var n = Math.round(x1 - x0);
+    for (var i = 0; i <= n; i++) {
+      var x = cfg.L * i / n, y = yc - A * perfil(tr, t, x);
+      if (i === 0) g.moveTo(x0 + i, y); else g.lineTo(x0 + i, y);
+    }
+    g.stroke(); g.restore();
+    // etiquetas de los pulsos que viajan
+    var vivos = [];
+    tr.segs.forEach(function (sg) {
+      if (t < sg.t0 || t > sg.t1 || Math.abs(sg.amp) < 0.03) return;
+      var xc = sg.x0 + sg.dir * tr.v * (t - sg.t0);
+      if (xc < 0 || xc > cfg.L) return;
+      vivos.push({ x: X(xc), t: (sg.dir > 0 ? "→ " : "← ") + sg.nombre + " (" + conSigno(sg.amp, 2) + ")", color: colorEco(sg.nombre), amp: sg.amp });
+    });
+    vivos.sort(function (a, b) { return a.x - b.x; });
+    var finales = [];
+    vivos.forEach(function (vv) {
+      var wt = anchoTexto(vv.t, 15, true), xt = Math.min(Math.max(vv.x, x0 + wt / 2), x1 - wt / 2), k = 0;
+      while (k < finales.length && finales[k] > xt - wt / 2 - 8) k++;
+      finales[k] = xt + wt / 2;
+      var yt = yc - A * 1.7 - 14 - k * 20;
+      linea(g, vv.x, yc - A * Math.max(0, vv.amp) - 6, vv.x, yt + 4, vv.color, 1, [2, 3]);
+      etiqueta(g, vv.t, xt, yt, vv.color, 15, "center", true);
+    });
+    // pantalla del TDR que se va llenando
+    var caja = { x0: angosto ? 60 : 70, x1: w - 18, y0: yc + 86, y1: h - 42 };
+    dibujarPantalla(g, caja, tr, { hasta: t, marcas: true });
+    texto(g, "Pantalla del TDR", caja.x0 + 6, caja.y0 + 18, C.azulOscuro, 15, "left", "alphabetic", true);
+  }
+
+  function recalcular() {
+    var cab = cableSel(), L = Number($("largo").value), dist = $("dist");
+    dist.max = (L - 5).toFixed(1);
+    if (Number(dist.value) > L - 5) dist.value = (L - 5).toFixed(1);
+    $("largoVal").textContent = L + " m";
+    $("distVal").textContent = num(Number(dist.value), 1) + " m";
+    $("ztVal").textContent = $("zt").value + " Ω (Z₀ = " + cab.z0 + " Ω)";
+    $("dist").disabled = $("zt").disabled = !$("hayToma").checked;
+    var cfg = cfgExplorar();
+    traza = trazar(cfg);
+    huella = trazar({ cab: cfg.cab, vf: cfg.vf, z0: cfg.z0, L: cfg.L, discos: [], GE: cfg.GE, tmax: cfg.tmax });
+    lecturaLinea(cfg);
+    if (!reto.activo) actualizarTdr();
+  }
+  ["largo", "dist", "zt"].forEach(function (id) { $(id).addEventListener("input", recalcular); });
+  ["cable", "extremo", "hayToma"].forEach(function (id) { $(id).addEventListener("change", recalcular); });
+
+  function pausar(p) { est.corriendo = !p; $("pausa").textContent = p ? "Continuar" : "Pausa"; }
+  $("disparar").addEventListener("click", function () { est.t = -0.04; pausar(false); });
+  $("pausa").addEventListener("click", function () {
+    if (!est.corriendo && est.t >= traza.cfg.tmax) est.t = -0.04;
+    pausar(est.corriendo);
+  });
+  $("paso").addEventListener("click", function () { pausar(true); est.t = Math.min(est.t + 0.05, traza.cfg.tmax); });
+  $("vel").addEventListener("input", function () { est.vel = Number($("vel").value); $("velVal").textContent = num(est.vel, 2) + " μs en la línea"; });
+
+  var anterior = null;
+  function cuadro(ahora) {
+    if (anterior === null) anterior = ahora;
+    var dt = Math.min(0.1, (ahora - anterior) / 1000); anterior = ahora;
+    if (est.corriendo) {
+      est.t += dt * est.vel;
+      if (est.t >= traza.cfg.tmax) { est.t = traza.cfg.tmax; pausar(true); }
+    }
+    if ($("v1").classList.contains("activo")) dibujarLinea();
+    requestAnimationFrame(cuadro);
+  }
+
+  // ================================================================ Vista 2
+  var reto = { activo: false };
+  var cursor = 0.6;
+  function trazaTdr() { return reto.activo ? reto.traza : traza; }
+  function huellaTdr() { return reto.activo ? reto.huella : huella; }
+
+  function lecturaTdr() {
+    var tr = trazaTdr(), cfg = tr.cfg, vf = cfg.vf, d = vf * C_MUS * cursor / 2, html;
+    if (reto.activo) {
+      $("resumenLinea").innerHTML = "<b>Reto:</b> " + cfg.cab.nombre + ", VF = " + vf + ", L = " + corto(cfg.L, 1) + " m.";
+      html = "Cursor: <b>t = " + num(cursor, 3) + " μs</b><br><span class='formula'>d = VF·c·t/2</span> — sustituye tú los valores.";
+      if (reto.resuelto) {
+        html += "<br>Con el eco de la toma: <span class='formula'>d = " + vf + "(3×10⁸)(" + num(reto.tEco, 3) + "×10⁻⁶)/2 ≈ <b>" + corto(reto.traza.cfg.vf * C_MUS * Number(reto.tEco.toFixed(3)) / 2, 2) + " m</b></span> (la toma está a " + num(reto.d, 1) + " m)";
+      }
+    } else {
+      $("resumenLinea").innerHTML = "Línea de la pestaña 1: " + cfg.cab.corto + " (VF = " + vf + "), L = " + corto(cfg.L, 1) + " m, extremo " + NOMBRE_EXT[String(cfg.GE)] +
+        (cfg.toma ? ", toma a " + num(cfg.toma.x, 1) + " m." : ", sin toma.");
+      html = "Cursor: <b>t = " + num(cursor, 3) + " μs</b><br>" +
+        "<span class='formula'>d = VF·c·t/2 = " + vf + "(3×10⁸)(" + num(cursor, 3) + "×10⁻⁶)/2 = <b>" + corto(d, 2) + " m</b></span>";
+    }
+    $("lecturaTdr").innerHTML = html;
+  }
+
+  function dibujarTdr() {
+    var cv = $("lienzoOsc"), w0 = cv.clientWidth || 600, angosto = w0 < 560;
+    var d = preparar(cv, angosto ? 1.6 : 0.6), g = d.g, w = d.w, h = d.h, tr = trazaTdr(), cfg = tr.cfg;
+    g.clearRect(0, 0, w, h);
+    texto(g, reto.activo ? "Reto: ¿dónde está la toma?" : "Pantalla del TDR", 12, 24, C.azulOscuro, 18, "left", "alphabetic", true);
+    if ($("verHuella").checked) {
+      var ley = "- - huella de referencia", wl = anchoTexto(ley, 15, true);
+      texto(g, ley, w - 18, angosto ? 46 : 24, C.oroTexto, 15, "right", "alphabetic", true);
+      if (!angosto) texto(g, "— medición de hoy", w - 30 - wl, 24, C.azulOscuro, 15, "right", "alphabetic", true);
+    }
+    var caja = { x0: angosto ? 60 : 70, x1: w - 18, y0: angosto ? 60 : 40, y1: h - (angosto ? 190 : 185) };
+    pantallaActual = dibujarPantalla(g, caja, tr, { cursor: cursor, huella: $("verHuella").checked ? huellaTdr() : null, marcas: reto.activo && reto.resuelto });
+    pantallaActual.caja = caja;
+    var dCur = cfg.vf * C_MUS * cursor / 2, yc = h - 96;
+    var mostrarMarca = !reto.activo || reto.resuelto;
+    dibujarCable(g, angosto ? 52 : 86, w - 18, yc, cfg, {
+      toma: cfg.toma, ocultarToma: reto.activo && !reto.resuelto, empalme: cfg.empalme,
+      sinRegla: reto.activo && !reto.resuelto,
+      marcaDist: mostrarMarca ? dCur : undefined,
+      textoMarca: mostrarMarca ? "cursor → " + num(dCur, 1) + " m" + (dCur > cfg.L ? " (más allá del cable)" : "") : undefined
+    });
+  }
+  var pantallaActual = null;
+
+  function actualizarTdr() {
+    lecturaTdr(); if ($("v2").classList.contains("activo")) dibujarTdr();
+    if (document.activeElement !== $("tCursor")) $("tCursor").value = cursor.toFixed(3);
+  }
+  function ponerCursor(t) {
+    var tmax = trazaTdr().cfg.tmax;
+    cursor = Math.min(Math.max(0, Math.round(t * 1000) / 1000), Math.floor(tmax * 1000) / 1000);
+    actualizarTdr();
+  }
+  $("tCursor").addEventListener("input", function () { var t = Number($("tCursor").value); if (isFinite(t)) { cursor = t; ponerCursor(t); } });
+  $("tCursor").addEventListener("change", function () { $("tCursor").value = cursor.toFixed(3); });
+  $("menos").addEventListener("click", function () { ponerCursor(cursor - 0.001); });
+  $("mas").addEventListener("click", function () { ponerCursor(cursor + 0.001); });
+  $("verHuella").addEventListener("change", actualizarTdr);
+  var cvO = $("lienzoOsc"), arrastrando = false;
+  function tDesdeEvento(ev) {
+    if (!pantallaActual) return cursor;
+    var r = cvO.getBoundingClientRect(), x = ev.clientX - r.left, c = pantallaActual.caja;
+    return pantallaActual.tmin + (x - c.x0) / (c.x1 - c.x0) * (pantallaActual.tmax - pantallaActual.tmin);
+  }
+  cvO.addEventListener("pointerdown", function (ev) { arrastrando = true; cvO.setPointerCapture(ev.pointerId); ponerCursor(tDesdeEvento(ev)); });
+  cvO.addEventListener("pointermove", function (ev) { if (arrastrando) ponerCursor(tDesdeEvento(ev)); });
+  cvO.addEventListener("pointerup", function () { arrastrando = false; });
+  cvO.addEventListener("pointercancel", function () { arrastrando = false; });
+  cvO.addEventListener("keydown", function (ev) {
+    var p = ev.shiftKey ? 0.01 : 0.001;
+    if (ev.key === "ArrowLeft") { ev.preventDefault(); ponerCursor(cursor - p); }
+    else if (ev.key === "ArrowRight") { ev.preventDefault(); ponerCursor(cursor + p); }
+  });
+
+  // ---------------------------------------------------------------- reto
+  function azar(a, b) { return a + Math.random() * (b - a); }
+  // El eco de la toma nunca cae en un tiempo redondo (cerca de un múltiplo de 0.1 μs): hay que medirlo.
+  function tiempoRedondo(t) { return Math.abs(t * 10 - Math.round(t * 10)) < 0.25; }
+  $("nuevoReto").addEventListener("click", function () {
+    var cab = CABLES[Math.floor(Math.random() * CABLES.length)];
+    var L = 10 * Math.round(azar(15, 30));          // 150 a 300 m
+    var vReto = cab.vf * C_MUS, d, emp, intentos = 0;
+    do {
+      d = Math.round(azar(15, L - 15) * 10) / 10;
+      emp = Math.round(azar(10, L - 10) * 10) / 10;
+      intentos++;
+    } while (intentos < 200 && (Math.abs(d - emp) < 25 || tiempoRedondo(2 * d / vReto)));
+    var GT = (Math.random() < 0.5 ? -1 : 1) * azar(0.12, 0.3);
+    var zt = Math.round(cab.z0 * (1 + GT) / (1 - GT));
+    GT = gamma(zt, cab.z0);
+    var GE = [1, -1, 0][Math.floor(Math.random() * 3)], v = cab.vf * C_MUS;
+    var base = { cab: cab, vf: cab.vf, z0: cab.z0, L: L, GE: GE, tmax: 1.15 * 2 * L / v, empalme: { x: emp } };
+    var conToma = Object.assign({}, base, { discos: [{ x: emp, G: 0.1, eco: "eco del empalme" }, { x: d, G: GT, eco: "eco de la toma" }], toma: { x: d, G: GT, zt: zt } });
+    var sinToma = Object.assign({}, base, { discos: [{ x: emp, G: 0.1, eco: "eco del empalme" }] });
+    reto = { activo: true, resuelto: false, d: d, tEco: 2 * d / v, traza: trazar(conToma), huella: trazar(sinToma) };
+    $("cajaReto").hidden = false;
+    $("datosReto").innerHTML = "Cable: <b>" + cab.nombre + "</b> (VF = " + cab.vf + "), L = " + L + " m, extremo " + NOMBRE_EXT[String(GE)] +
+      ". Plano: <b>empalme documentado a " + num(emp, 1) + " m</b> (también está en la huella).";
+    $("respuesta").value = ""; $("resultadoReto").innerHTML = "";
+    cursor = 0.3; actualizarTdr();
+  });
+  $("salirReto").addEventListener("click", function () {
+    reto = { activo: false }; $("cajaReto").hidden = true; cursor = 0.6; actualizarTdr();
+  });
+  $("comprobar").addEventListener("click", function () {
+    if (!reto.activo) return;
+    var r = Number($("respuesta").value), emp = reto.traza.cfg.empalme.x;
+    if (!$("respuesta").value || !isFinite(r)) { $("resultadoReto").innerHTML = "<span class='mal'>Escribe tu distancia en metros.</span>"; return; }
+    var err = Math.abs(r - reto.d);
+    if (err <= 2) {
+      reto.resuelto = true;
+      $("resultadoReto").innerHTML = "<span class='ok'>✓ ¡Encontrada!</span> La toma está a " + num(reto.d, 1) + " m; tu respuesta se desvía " + num(err, 1) + " m (se aceptan hasta 2 m).";
+    } else if (Math.abs(r - emp) <= 2) {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Ese es el empalme documentado:</span> su eco también está en la huella. Busca el eco que es nuevo.";
+    } else if (Math.abs(r / 2 - reto.d) <= 2) {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Te dio el doble.</span> El pulso va y regresa: ¿dividiste entre 2?";
+    } else {
+      $("resultadoReto").innerHTML = "<span class='mal'>✗ Todavía no.</span> Revisa que el cursor esté en el pico del eco nuevo, que uses el VF de este cable y que t esté en segundos (×10⁻⁶).";
+    }
+    actualizarTdr();
+  });
+  $("revelar").addEventListener("click", function () {
+    if (!reto.activo) return;
+    reto.resuelto = true;
+    $("resultadoReto").innerHTML = "La toma estaba a <b>" + num(reto.d, 1) + " m</b> (eco a " + num(reto.tEco, 3) + " μs).";
+    actualizarTdr();
+  });
+
+  // ================================================================ general
+  function dibujarTodo() {
+    if ($("v1").classList.contains("activo")) dibujarLinea();
+    if ($("v2").classList.contains("activo")) dibujarTdr();
+  }
+  window.addEventListener("resize", dibujarTodo);
+  $("velVal").textContent = num(est.vel, 2) + " μs en la línea";
+  recalcular();
+  var inicial = document.querySelector('nav.pestanas button[data-vista="' + location.hash.slice(1) + '"]');
+  if (inicial) { inicial.click(); window.addEventListener("load", function () { window.scrollTo(0, 0); }); }
+  requestAnimationFrame(cuadro);
+})();
+</script>
+<div id="qr-sitio" class="qr-capa" hidden>
+  <div class="qr-caja" role="dialog" aria-modal="true" aria-label="Código QR de este simulador">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" role="img" aria-label="Código QR de https://memosanchezg.github.io/pruebas-presentaciones/semana-13-reflectometria-tdr.html" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M2 2h7v1h-7zM11 2h1v1h-1zM13 2h3v1h-3zM17 2h1v1h-1zM19 2h5v1h-5zM25 2h1v1h-1zM27 2h1v1h-1zM30 2h1v1h-1zM33 2h1v1h-1zM36 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM13 3h2v1h-2zM16 3h2v1h-2zM19 3h1v1h-1zM22 3h2v1h-2zM27 3h3v1h-3zM32 3h1v1h-1zM34 3h1v1h-1zM36 3h1v1h-1zM42 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM10 4h2v1h-2zM14 4h3v1h-3zM18 4h3v1h-3zM23 4h3v1h-3zM27 4h1v1h-1zM30 4h1v1h-1zM36 4h1v1h-1zM38 4h3v1h-3zM42 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h3v1h-3zM16 5h1v1h-1zM21 5h1v1h-1zM23 5h1v1h-1zM25 5h1v1h-1zM28 5h3v1h-3zM32 5h1v1h-1zM36 5h1v1h-1zM38 5h3v1h-3zM42 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h1v1h-1zM18 6h1v1h-1zM20 6h3v1h-3zM24 6h2v1h-2zM30 6h2v1h-2zM33 6h2v1h-2zM36 6h1v1h-1zM38 6h3v1h-3zM42 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h2v1h-2zM13 7h1v1h-1zM17 7h2v1h-2zM22 7h1v1h-1zM26 7h1v1h-1zM29 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM42 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM30 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h7v1h-7zM10 9h1v1h-1zM12 9h2v1h-2zM15 9h1v1h-1zM18 9h1v1h-1zM20 9h4v1h-4zM25 9h1v1h-1zM28 9h2v1h-2zM34 9h1v1h-1zM2 10h1v1h-1zM4 10h5v1h-5zM13 10h2v1h-2zM17 10h3v1h-3zM21 10h2v1h-2zM24 10h2v1h-2zM27 10h3v1h-3zM31 10h1v1h-1zM36 10h5v1h-5zM2 11h1v1h-1zM9 11h2v1h-2zM12 11h1v1h-1zM14 11h1v1h-1zM19 11h5v1h-5zM25 11h1v1h-1zM30 11h1v1h-1zM32 11h7v1h-7zM40 11h1v1h-1zM42 11h1v1h-1zM2 12h3v1h-3zM7 12h4v1h-4zM16 12h2v1h-2zM19 12h1v1h-1zM22 12h3v1h-3zM27 12h1v1h-1zM29 12h4v1h-4zM34 12h1v1h-1zM37 12h2v1h-2zM2 13h2v1h-2zM5 13h3v1h-3zM9 13h6v1h-6zM18 13h1v1h-1zM20 13h1v1h-1zM23 13h1v1h-1zM32 13h4v1h-4zM38 13h2v1h-2zM41 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM7 14h2v1h-2zM10 14h4v1h-4zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h2v1h-2zM24 14h1v1h-1zM26 14h6v1h-6zM33 14h1v1h-1zM37 14h1v1h-1zM39 14h2v1h-2zM2 15h1v1h-1zM4 15h2v1h-2zM7 15h1v1h-1zM11 15h1v1h-1zM13 15h3v1h-3zM17 15h2v1h-2zM20 15h1v1h-1zM27 15h1v1h-1zM29 15h1v1h-1zM32 15h1v1h-1zM34 15h7v1h-7zM42 15h1v1h-1zM2 16h1v1h-1zM4 16h2v1h-2zM7 16h2v1h-2zM11 16h1v1h-1zM13 16h1v1h-1zM15 16h2v1h-2zM20 16h1v1h-1zM22 16h5v1h-5zM28 16h6v1h-6zM35 16h1v1h-1zM37 16h1v1h-1zM40 16h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM6 17h2v1h-2zM9 17h1v1h-1zM13 17h1v1h-1zM15 17h2v1h-2zM18 17h1v1h-1zM23 17h3v1h-3zM29 17h1v1h-1zM33 17h2v1h-2zM36 17h2v1h-2zM39 17h1v1h-1zM42 17h1v1h-1zM4 18h2v1h-2zM7 18h3v1h-3zM11 18h2v1h-2zM14 18h3v1h-3zM19 18h2v1h-2zM24 18h6v1h-6zM31 18h5v1h-5zM37 18h1v1h-1zM40 18h1v1h-1zM42 18h1v1h-1zM3 19h2v1h-2zM10 19h5v1h-5zM17 19h1v1h-1zM20 19h3v1h-3zM25 19h1v1h-1zM30 19h4v1h-4zM36 19h3v1h-3zM41 19h2v1h-2zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h2v1h-2zM12 20h4v1h-4zM17 20h2v1h-2zM20 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM29 20h3v1h-3zM34 20h2v1h-2zM38 20h4v1h-4zM4 21h1v1h-1zM7 21h1v1h-1zM9 21h1v1h-1zM11 21h1v1h-1zM14 21h1v1h-1zM21 21h1v1h-1zM28 21h5v1h-5zM34 21h2v1h-2zM38 21h2v1h-2zM41 21h2v1h-2zM2 22h2v1h-2zM5 22h1v1h-1zM7 22h2v1h-2zM11 22h1v1h-1zM13 22h1v1h-1zM15 22h4v1h-4zM20 22h1v1h-1zM23 22h2v1h-2zM26 22h1v1h-1zM29 22h2v1h-2zM33 22h1v1h-1zM37 22h1v1h-1zM40 22h2v1h-2zM5 23h3v1h-3zM9 23h1v1h-1zM11 23h1v1h-1zM13 23h4v1h-4zM19 23h1v1h-1zM21 23h3v1h-3zM25 23h1v1h-1zM27 23h2v1h-2zM30 23h1v1h-1zM32 23h3v1h-3zM36 23h3v1h-3zM41 23h2v1h-2zM3 24h3v1h-3zM7 24h11v1h-11zM20 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM27 24h4v1h-4zM34 24h1v1h-1zM36 24h1v1h-1zM38 24h1v1h-1zM40 24h1v1h-1zM3 25h2v1h-2zM9 25h2v1h-2zM12 25h2v1h-2zM15 25h1v1h-1zM20 25h1v1h-1zM23 25h2v1h-2zM29 25h2v1h-2zM34 25h3v1h-3zM42 25h1v1h-1zM2 26h3v1h-3zM7 26h3v1h-3zM12 26h3v1h-3zM19 26h1v1h-1zM21 26h1v1h-1zM26 26h3v1h-3zM30 26h2v1h-2zM40 26h1v1h-1zM3 27h1v1h-1zM5 27h1v1h-1zM9 27h1v1h-1zM11 27h3v1h-3zM15 27h2v1h-2zM18 27h1v1h-1zM21 27h3v1h-3zM25 27h1v1h-1zM30 27h1v1h-1zM32 27h2v1h-2zM35 27h5v1h-5zM41 27h2v1h-2zM2 28h1v1h-1zM5 28h2v1h-2zM8 28h1v1h-1zM10 28h4v1h-4zM16 28h3v1h-3zM22 28h2v1h-2zM26 28h1v1h-1zM28 28h3v1h-3zM32 28h1v1h-1zM34 28h1v1h-1zM36 28h3v1h-3zM2 29h1v1h-1zM7 29h1v1h-1zM10 29h2v1h-2zM13 29h2v1h-2zM16 29h2v1h-2zM21 29h4v1h-4zM26 29h1v1h-1zM28 29h1v1h-1zM30 29h1v1h-1zM33 29h2v1h-2zM37 29h1v1h-1zM39 29h1v1h-1zM41 29h1v1h-1zM2 30h1v1h-1zM4 30h2v1h-2zM7 30h2v1h-2zM10 30h2v1h-2zM13 30h1v1h-1zM16 30h2v1h-2zM19 30h1v1h-1zM24 30h2v1h-2zM27 30h2v1h-2zM31 30h1v1h-1zM33 30h1v1h-1zM39 30h2v1h-2zM2 31h3v1h-3zM7 31h1v1h-1zM9 31h3v1h-3zM14 31h6v1h-6zM22 31h2v1h-2zM26 31h1v1h-1zM28 31h4v1h-4zM35 31h2v1h-2zM38 31h1v1h-1zM40 31h3v1h-3zM2 32h1v1h-1zM5 32h1v1h-1zM7 32h6v1h-6zM15 32h3v1h-3zM21 32h1v1h-1zM23 32h2v1h-2zM28 32h1v1h-1zM35 32h3v1h-3zM39 32h1v1h-1zM41 32h1v1h-1zM2 33h1v1h-1zM5 33h1v1h-1zM7 33h1v1h-1zM12 33h1v1h-1zM15 33h3v1h-3zM21 33h4v1h-4zM26 33h1v1h-1zM28 33h1v1h-1zM30 33h1v1h-1zM34 33h4v1h-4zM39 33h1v1h-1zM42 33h1v1h-1zM2 34h1v1h-1zM6 34h1v1h-1zM8 34h1v1h-1zM10 34h6v1h-6zM19 34h1v1h-1zM21 34h2v1h-2zM24 34h1v1h-1zM27 34h2v1h-2zM31 34h1v1h-1zM33 34h6v1h-6zM40 34h2v1h-2zM10 35h1v1h-1zM16 35h1v1h-1zM18 35h2v1h-2zM21 35h5v1h-5zM27 35h1v1h-1zM30 35h1v1h-1zM34 35h1v1h-1zM38 35h2v1h-2zM41 35h2v1h-2zM2 36h7v1h-7zM11 36h4v1h-4zM17 36h1v1h-1zM19 36h1v1h-1zM23 36h1v1h-1zM27 36h3v1h-3zM32 36h3v1h-3zM36 36h1v1h-1zM38 36h2v1h-2zM2 37h1v1h-1zM8 37h1v1h-1zM10 37h2v1h-2zM13 37h2v1h-2zM16 37h1v1h-1zM18 37h3v1h-3zM22 37h6v1h-6zM34 37h1v1h-1zM38 37h2v1h-2zM2 38h1v1h-1zM4 38h3v1h-3zM8 38h1v1h-1zM10 38h2v1h-2zM13 38h1v1h-1zM23 38h1v1h-1zM26 38h1v1h-1zM28 38h2v1h-2zM32 38h1v1h-1zM34 38h5v1h-5zM40 38h1v1h-1zM2 39h1v1h-1zM4 39h3v1h-3zM8 39h1v1h-1zM10 39h2v1h-2zM13 39h3v1h-3zM19 39h4v1h-4zM24 39h2v1h-2zM31 39h1v1h-1zM33 39h1v1h-1zM35 39h1v1h-1zM37 39h1v1h-1zM39 39h2v1h-2zM2 40h1v1h-1zM4 40h3v1h-3zM8 40h1v1h-1zM10 40h2v1h-2zM13 40h1v1h-1zM15 40h3v1h-3zM22 40h1v1h-1zM24 40h1v1h-1zM27 40h1v1h-1zM29 40h2v1h-2zM35 40h4v1h-4zM40 40h1v1h-1zM2 41h1v1h-1zM8 41h1v1h-1zM12 41h1v1h-1zM17 41h1v1h-1zM19 41h3v1h-3zM23 41h1v1h-1zM25 41h2v1h-2zM28 41h1v1h-1zM33 41h3v1h-3zM38 41h2v1h-2zM41 41h1v1h-1zM2 42h7v1h-7zM10 42h3v1h-3zM14 42h3v1h-3zM18 42h2v1h-2zM24 42h1v1h-1zM26 42h4v1h-4zM31 42h1v1h-1zM33 42h1v1h-1zM35 42h4v1h-4zM40 42h1v1h-1z"/></svg>
+    <p class="qr-texto">Escanea con la cámara del celular para abrir este simulador</p>
+    <p class="qr-url">https://memosanchezg.github.io/pruebas-presentaciones/semana-13-reflectometria-tdr.html</p>
+    <button type="button" class="qr-cerrar">Cerrar</button>
+  </div>
+</div>
+<style>
+  .qr-capa { position:fixed; top:0; right:0; bottom:0; left:0; z-index:10000; display:flex; align-items:center;
+             justify-content:center; padding:16px; background:#fff; }
+  .qr-capa[hidden] { display:none; }
+  .qr-caja { max-width:100%; text-align:center; color:#0A2A57; font:16px/1.4 Calibri,"Segoe UI",system-ui,sans-serif; }
+  .qr-caja svg { display:block; width:min(62vh, 84vw); height:auto; margin:0 auto; }
+  .qr-texto { margin:12px 0 2px; font-size:1.15rem; font-weight:bold; }
+  .qr-url { margin:0 0 12px; color:#5B6472; word-break:break-all; }
+  .qr-cerrar { font:inherit; padding:6px 20px; border:2px solid #00408F; border-radius:4px; background:#fff;
+               color:#00408F; cursor:pointer; }
+</style>
+<script>
+  (function () {
+    var capa = document.getElementById("qr-sitio");
+    document.querySelectorAll("a.qr-abrir").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        capa.hidden = false;
+        capa.querySelector(".qr-cerrar").focus();
+      });
+    });
+    capa.addEventListener("click", function (e) {
+      if (e.target === capa || e.target.classList.contains("qr-cerrar")) capa.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !capa.hidden) capa.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>
